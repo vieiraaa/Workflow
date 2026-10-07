@@ -189,3 +189,9 @@ h2 { font-size: var(--text-h2); font-weight: 600; }
 .atalho { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-4); background: var(--surface); border-radius: var(--r-l); box-shadow: var(--shadow-1); color: var(--text); font-weight: 500; transition: background var(--dur) var(--ease); }
 .atalho:hover { background: var(--surface-2); }
 .atalho__icone { width: 40px; height: 40px; border-radius: var(--r-m); background: var(--fill-accent); color: var(--accent); display: grid; place-items: center; }
+
+/* Filtros de listagem */
+.filtros { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); }
+.filtros__busca { flex: 1 1 240px; }
+.tabela__ordem { color: inherit; }
+.tabela__ordem:hover { color: var(--text); }

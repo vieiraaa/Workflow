@@ -81,3 +81,15 @@ def test_vendor_com_licenca():
     for lib in ("inter", "lucide"):
         licencas = list((STATIC / "vendor" / lib).glob("*/LICENSE"))
         assert licencas, lib
+
+
+def test_403_sem_papel_oferece_sair(client, db):
+    from apps.contas.models import Usuario
+
+    Usuario.objects.create_user(email="sem@exemplo.test", password="Senha-forte-123", nome="Sem")
+    client.login(username="sem@exemplo.test", password="Senha-forte-123")
+    resposta = client.get(reverse("inicio"))
+    assert resposta.status_code == 403
+    assert "erros/403.html" in [t.name for t in resposta.templates]
+    assert reverse("logout").encode() in resposta.content
+    assert "Ir para o início".encode() not in resposta.content
