@@ -32,7 +32,7 @@
     {% for no in nos %}
     <details class="no-exec"{% if no.status == "erro" %} open{% endif %}>
       <summary class="no-exec__resumo">
-        <span class="no-exec__ordem">{{ no.ordem }}</span>
+        <span class="no-exec__ordem">{{ forloop.counter }}</span>
         <span class="no__icone no__icone--{{ no.tipo }}">{% if no.tipo == "gatilho" %}{% include "componentes/icone.html" with nome="zap" %}{% elif no.tipo == "http" %}{% include "componentes/icone.html" with nome="globe" %}{% else %}{% include "componentes/icone.html" with nome="flag" %}{% endif %}</span>
         <span class="no-exec__titulo">{{ no.titulo }}</span>
         {% include "componentes/badge_status.html" with status=no.status rotulo=no.status_rotulo %}

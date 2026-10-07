@@ -74,3 +74,8 @@ def test_editor_usa_template_e_json_script(cliente_coordenador, fluxo):
 def test_editor_base_recebe_403(cliente_base, fluxo):
     resposta = cliente_base.get(reverse("fluxos:editor", kwargs={"pk": fluxo.pk}))
     assert resposta.status_code == 403
+
+
+def test_executar_tem_estado_carregando(cliente_coordenador, fluxo_ativo):
+    conteudo = cliente_coordenador.get(reverse("fluxos:lista")).content.decode()
+    assert "data-carregando" in conteudo and "Executando…" in conteudo

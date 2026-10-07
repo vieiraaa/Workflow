@@ -91,3 +91,21 @@ def test_editor_utilizavel_a_390px(
     pagina.click("[data-paleta-tipo=http]")
     pagina.locator("#insp-url").wait_for(state="visible")
     contexto.close()
+
+
+def test_executar_a_partir_do_editor_e_ver_detalhe(
+    pagina_coordenador, live_server, usuario_coordenador
+):
+    """Gatilho → saída (sem rede): salva, executa e cai no detalhe com toast de sucesso."""
+    fluxo = Fluxo.objects.create(nome="Executável", dono=usuario_coordenador, grafo=grafo_inicial())
+    pagina = pagina_coordenador
+    pagina.goto(live_server.url + reverse("fluxos:editor", kwargs={"pk": fluxo.pk}))
+    pagina.wait_for_selector(".drawflow-node")
+    pagina.click("[data-paleta-tipo=saida]")
+    pagina.click("[data-acao=ajustar]")
+    _conectar(pagina, 1, 2)
+    # Executar com alterações não salvas: o editor salva primeiro e só então envia o POST.
+    pagina.click("[data-executar] button")
+    pagina.wait_for_url("**/execucoes/*/")
+    assert pagina.locator(".no-exec").count() == 2
+    assert "Execução concluída" in pagina.inner_text("[data-toasts]")
