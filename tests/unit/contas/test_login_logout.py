@@ -61,10 +61,10 @@ def test_inicio_exige_login(cliente_anonimo):
 
 
 @pytest.mark.parametrize("cliente", CLIENTES)
-def test_inicio_logado_com_papel_200(request, cliente):
+def test_inicio_logado_com_papel_vai_para_fluxos(request, cliente):
     resposta = request.getfixturevalue(cliente).get(reverse("inicio"))
-    assert resposta.status_code == 200
-    assert "atalhos" in resposta.context
+    assert resposta.status_code == 302
+    assert resposta.url == reverse("fluxos:lista")
 
 
 def test_inicio_sem_papel_403_do_produto(cliente_sem_papel):

@@ -24,12 +24,28 @@ def test_shell_anonimo():
     }
 
 
-def test_shell_omite_itens_de_rotas_inexistentes(usuario_adm):
+def test_shell_do_adm(usuario_adm):
     dados = contexto.shell(_request(usuario_adm))
     assert dados["usuario_nome"] == "Ana Admin"
     assert dados["usuario_papel"] == "Administrador"
-    # fluxos e execuções chegam no M2/M3; só Usuários existe por ora
-    assert [i["chave"] for i in dados["menu"]] == ["usuarios"]
+    assert dados["sem_papel"] is False
+    assert [i["chave"] for i in dados["menu"]] == ["fluxos", "execucoes", "usuarios"]
+
+
+def test_shell_sem_papel(usuario_sem_papel):
+    dados = contexto.shell(_request(usuario_sem_papel))
+    assert dados["sem_papel"] is True
+    assert dados["menu"] == []
+
+
+def test_shell_omite_itens_de_rotas_inexistentes(monkeypatch, usuario_adm):
+    def reverse_parcial(rota):
+        if rota == "contas:usuarios":
+            return "/usuarios/"
+        raise contexto.NoReverseMatch(rota)
+
+    monkeypatch.setattr(contexto, "reverse", reverse_parcial)
+    assert [i["chave"] for i in contexto.montar_menu(_request(usuario_adm))] == ["usuarios"]
 
 
 def test_menu_por_papel(monkeypatch, usuario_adm, usuario_coordenador, usuario_base):

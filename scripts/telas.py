@@ -24,8 +24,9 @@ sys.path.insert(0, str(RAIZ))
 os.environ["DJANGO_SETTINGS_MODULE"] = "config.settings.teste"
 # O Playwright síncrono roda um event loop; o ORM aqui é só preparo de dados do script.
 os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
-# Banco próprio das capturas: não colide com o banco de pytest nem com outros agentes.
-os.environ.setdefault("TEST_DATABASE_URL", "postgres://localhost:5432/construtor_telas")
+# Banco próprio de cada execução (apagado no fim): não colide com pytest nem com outras execuções.
+_BANCO_TELAS = f"construtor_telas_{os.getpid()}"
+os.environ.setdefault("TEST_DATABASE_URL", f"postgres://localhost:5432/{_BANCO_TELAS}")
 
 TEMAS = ("light", "dark")
 LARGURAS = {1440: 900, 390: 844}
@@ -63,13 +64,81 @@ def _erro_credenciais(page, base):
     page.wait_for_load_state("networkidle")
 
 
+def _enviar(page, seletor_form, preenchimento):
+    """Preenche campos {name: valor} (select por valor) e envia o formulário do <main>."""
+    for nome, valor in preenchimento.items():
+        campo = page.locator(f"main form {seletor_form} [name={nome}]").first
+        if campo.evaluate("e => e.tagName") == "SELECT":
+            campo.select_option(valor)
+        else:
+            campo.fill(valor)
+    page.locator(f"main form {seletor_form}").first.locator("button[type=submit]").first.click()
+    page.wait_for_load_state("networkidle")
+
+
+def _erro_novo(page, base):
+    _enviar(
+        page,
+        "",
+        {
+            "nome": "Fulano de Tal",
+            "email": "adm@exemplo.test",
+            "papel": "base",
+            "senha": "curta",
+            "confirmacao": "diferente",
+        },
+    )
+
+
+def _erro_editar(page, base):
+    # o e-mail do Adm já existe: erro de validação sem esbarrar no `required` do navegador
+    _enviar(page, "", {"email": "adm@exemplo.test"})
+
+
+def _erro_trocar_senha(page, base):
+    _enviar(page, "", {"senha_atual": "errada", "nova_senha": "curta", "confirmacao": "diferente"})
+
+
+def _usuarios_extras(quantidade):
+    from django.contrib.auth.models import Group
+
+    from apps.contas.models import Usuario
+
+    grupos = ["Adm", "Coordenador", "Base"]
+    for i in range(quantidade):
+        usuario = Usuario.objects.create_user(
+            email=f"pessoa{i:02d}@exemplo.test",
+            password=SENHA,
+            nome=f"Pessoa Fictícia {i:02d}",
+            is_active=i % 5 != 0,
+        )
+        usuario.groups.add(Group.objects.get(name=grupos[i % 3]))
+
+
+def _com_dados(usuarios):
+    _usuarios_extras(8)
+
+
+def _paginado(usuarios):
+    _usuarios_extras(40)
+
+
 # (id da tela, estado) -> (preparar(usuarios) -> dict de nomes para kwargs | None,
-#                          acao(page, base) depois do goto | None)
+#                          acao(page, base) depois do goto | None, querystring opcional)
 PREPARADORES = {
     ("TEL-01", "padrao"): (None, None),
     ("TEL-01", "erro_credenciais"): (None, _erro_credenciais),
     ("TEL-10", "padrao"): (None, None),
     ("TEL-11", "padrao"): (None, None),
+    ("TEL-02", "vazio_busca"): (None, None, "?q=sem-nenhum-resultado"),
+    ("TEL-02", "com_dados"): (_com_dados, None),
+    ("TEL-02", "paginado"): (_paginado, None),
+    ("TEL-03", "padrao"): (None, None),
+    ("TEL-03", "erro_validacao"): (None, _erro_novo),
+    ("TEL-09", "padrao"): (None, None),
+    ("TEL-09", "erro_validacao"): (None, _erro_editar),
+    ("TEL-08", "padrao"): (None, None),
+    ("TEL-08", "erro_validacao"): (None, _erro_trocar_senha),
 }
 
 
@@ -111,6 +180,27 @@ def _garantir_banco():
         with admin:
             admin.execute(f'CREATE DATABASE "{config["NAME"]}"')
     call_command("migrate", verbosity=0, interactive=False)
+
+
+def _apagar_banco():
+    """Apaga o banco temporário desta execução (só se for o que o script criou)."""
+    import psycopg
+    from django.conf import settings
+    from django.db import connections
+
+    config = settings.DATABASES["default"]
+    if config["NAME"] != _BANCO_TELAS:
+        return
+    connections.close_all()
+    with psycopg.connect(
+        dbname="postgres",
+        host=config["HOST"] or None,
+        port=config["PORT"] or None,
+        user=config["USER"] or None,
+        password=config["PASSWORD"] or None,
+        autocommit=True,
+    ) as admin:
+        admin.execute(f'DROP DATABASE IF EXISTS "{_BANCO_TELAS}" WITH (FORCE)')
 
 
 def _subir_servidor():
@@ -204,7 +294,8 @@ def executar(modulo, verificar):
                 return 2
             for tela, estado in itens:
                 usuarios = _usuarios()
-                preparar, acao = PREPARADORES[(tela["id"], estado)]
+                preparar, acao, *resto = PREPARADORES[(tela["id"], estado)]
+                consulta = resto[0] if resto else ""
                 contexto = {**{f"usuario_{k}": v for k, v in usuarios.items()}}
                 if preparar:
                     contexto.update(preparar(usuarios) or {})
@@ -241,7 +332,7 @@ def executar(modulo, verificar):
                                 else None
                             ),
                         )
-                        page.goto(base + caminho)
+                        page.goto(base + caminho + consulta)
                         page.wait_for_load_state("networkidle")
                         if acao:
                             acao(page, base)
@@ -263,6 +354,8 @@ def executar(modulo, verificar):
             navegador.close()
     finally:
         servidor.terminate()
+        servidor.wait()
+        _apagar_banco()
     for aviso in avisos:
         print(f"aviso: {aviso}")
     if modulo is not None and not verificar:

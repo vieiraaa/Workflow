@@ -1,10 +1,21 @@
 from urllib.parse import urlencode
 
+from django.contrib import messages
+from django.contrib.auth import update_session_auth_hash
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Q
-from django.urls import NoReverseMatch, reverse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.views import View
 from django.views.generic import TemplateView
 
+from .forms_usuarios import (
+    RedefinirSenhaForm,
+    TrocarSenhaForm,
+    UsuarioEditarForm,
+    UsuarioNovoForm,
+)
 from .models import Usuario
 from .permissoes import PermissaoMixin, papeis
 
@@ -23,10 +34,7 @@ def _ordem_valida(valor):
 
 
 def _url_editar(usuario):
-    try:
-        return reverse("contas:usuario_editar", kwargs={"pk": usuario.pk})
-    except NoReverseMatch:
-        return ""
+    return reverse("contas:usuario_editar", kwargs={"pk": usuario.pk})
 
 
 class UsuarioListaView(PermissaoMixin, TemplateView):
@@ -42,7 +50,7 @@ class UsuarioListaView(PermissaoMixin, TemplateView):
     - `q`, `ordem` (str), `papel_atual` ("" = Todos), `ativo_atual` ("", "1" ou "0")
     - `filtros_papel`, `filtros_status`: opções {rotulo, url, ativo} (segmentado.html)
     - `ordenacoes`: {nome, email, criado_em} -> {url, sentido ('asc'|'desc'|'')} dos cabeçalhos
-    - `total`: nº de usuários no filtro; `url_novo`: rota de criação ('' se ainda não existir)
+    - `total`: nº de usuários no filtro; `url_novo`: rota de criação
     """
 
     acao_requerida = "usuarios.gerenciar"
@@ -123,10 +131,7 @@ class UsuarioListaView(PermissaoMixin, TemplateView):
             )
             proxima = f"-{campo}" if sentido == "asc" else campo
             ordens[campo] = {"url": url(ordem=proxima), "sentido": sentido}
-        try:
-            url_novo = reverse("contas:usuario_novo")
-        except NoReverseMatch:
-            url_novo = ""
+        url_novo = reverse("contas:usuario_novo")
         contexto.update(
             usuarios=linhas,
             page_obj=pagina,
@@ -158,3 +163,127 @@ class UsuarioListaView(PermissaoMixin, TemplateView):
             url_novo=url_novo,
         )
         return contexto
+
+
+def _pagina_editar(request, usuario, form=None, form_senha=None, status=200):
+    form = form or UsuarioEditarForm(
+        initial=UsuarioEditarForm.valores_iniciais(usuario), instance=usuario, editor=request.user
+    )
+    form_senha = form_senha or RedefinirSenhaForm(instance=usuario)
+    return render(
+        request,
+        "contas/usuario_editar.html",
+        {
+            "form": form,
+            "form_senha": form_senha,
+            "usuario_editado": usuario,
+            "eh_proprio": usuario.pk == request.user.pk,
+            "url_redefinir": reverse("contas:usuario_redefinir_senha", kwargs={"pk": usuario.pk}),
+            "url_lista": reverse("contas:usuarios"),
+        },
+        status=status,
+    )
+
+
+class UsuarioNovoView(PermissaoMixin, View):
+    """Criar usuário (TEL-03, USR-04/05/14). Só Adm. Template `contas/usuario_novo.html`.
+
+    Contexto (além do shell): `form` (UsuarioNovoForm: campos nome, email, papel, senha,
+    confirmacao; erros em form.<campo>.errors; papel tem as opções {id, nome} dos papéis),
+    `url_lista`. Sucesso → redirect para `contas:usuarios` + toast "Usuário <nome> criado.".
+    """
+
+    acao_requerida = "usuarios.gerenciar"
+    http_method_names = ["get", "post", "head", "options"]
+
+    def _render(self, request, form, status=200):
+        contexto = {"form": form, "url_lista": reverse("contas:usuarios")}
+        return render(request, "contas/usuario_novo.html", contexto, status=status)
+
+    def get(self, request):
+        return self._render(request, UsuarioNovoForm())
+
+    def post(self, request):
+        form = UsuarioNovoForm(request.POST)
+        if not form.is_valid():
+            return self._render(request, form)
+        usuario = form.salvar()
+        messages.success(request, f"Usuário {usuario.nome} criado.")
+        return redirect("contas:usuarios")
+
+
+class UsuarioEditarView(PermissaoMixin, View):
+    """Editar usuário e redefinir senha (TEL-09, USR-06/07/08). Só Adm. Template
+    `contas/usuario_editar.html`; pk inexistente → 404.
+
+    Contexto (além do shell): `form` (UsuarioEditarForm: nome, email, papel, ativo;
+    erros de formulário em form.non_field_errors), `usuario_editado` (Usuario: nome, email,
+    is_active), `eh_proprio` (bool), `form_senha` (RedefinirSenhaForm: nova_senha, confirmacao),
+    `url_redefinir` (POST), `url_lista`. Sucesso → redirect para `contas:usuarios` + toast
+    "Usuário <nome> atualizado.". Não há rota de exclusão (USR-09).
+    """
+
+    acao_requerida = "usuarios.gerenciar"
+    http_method_names = ["get", "post", "head", "options"]
+
+    def get(self, request, pk):
+        return _pagina_editar(request, get_object_or_404(Usuario, pk=pk))
+
+    def post(self, request, pk):
+        usuario = get_object_or_404(Usuario, pk=pk)
+        with transaction.atomic():
+            form = UsuarioEditarForm(request.POST, instance=usuario, editor=request.user)
+            if form.is_valid():
+                form.salvar()
+                messages.success(request, f"Usuário {usuario.nome} atualizado.")
+                return redirect("contas:usuarios")
+        return _pagina_editar(request, usuario, form=form)
+
+
+class UsuarioRedefinirSenhaView(PermissaoMixin, View):
+    """Redefinir a senha de um usuário (USR-06/13). Só POST, só Adm: `nova_senha`, `confirmacao`.
+
+    Sucesso → redirect para `contas:usuario_editar` + toast "Senha de <nome> redefinida.".
+    Erro → re-renderiza `contas/usuario_editar.html` (200) com `form_senha` com os erros.
+    """
+
+    acao_requerida = "usuarios.gerenciar"
+    http_method_names = ["post", "options"]
+
+    def post(self, request, pk):
+        usuario = get_object_or_404(Usuario, pk=pk)
+        form = RedefinirSenhaForm(request.POST, instance=usuario)
+        if not form.is_valid():
+            return _pagina_editar(request, usuario, form_senha=form)
+        form.salvar()
+        if usuario.pk == request.user.pk:
+            update_session_auth_hash(request, usuario)
+        messages.success(request, f"Senha de {usuario.nome} redefinida.")
+        return redirect("contas:usuario_editar", pk=usuario.pk)
+
+
+class TrocarSenhaView(PermissaoMixin, View):
+    """Trocar a própria senha (TEL-08, USR-10). Todos os papéis; sem papel → 403.
+    Template `contas/trocar_senha.html`.
+
+    Contexto (além do shell): `form` (TrocarSenhaForm: senha_atual, nova_senha, confirmacao;
+    erros em form.<campo>.errors). Sucesso mantém a sessão → redirect para a própria tela +
+    toast "Senha alterada.".
+    """
+
+    acao_requerida = "conta.trocar_senha"
+    http_method_names = ["get", "post", "head", "options"]
+
+    def get(self, request):
+        return render(
+            request, "contas/trocar_senha.html", {"form": TrocarSenhaForm(usuario=request.user)}
+        )
+
+    def post(self, request):
+        form = TrocarSenhaForm(request.POST, usuario=request.user)
+        if not form.is_valid():
+            return render(request, "contas/trocar_senha.html", {"form": form})
+        form.salvar()
+        update_session_auth_hash(request, request.user)
+        messages.success(request, "Senha alterada.")
+        return redirect("contas:trocar_senha")
