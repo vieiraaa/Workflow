@@ -1,45 +1,95 @@
 # Fonte do scripts/telas.py (capturas light/dark × 1440/390) e da revisão visual.
-# O Lead completa esta lista na Fase 0. Cada tela: rota (nome do urls), papel para logar, estados.
+# Cada tela: rota (nome do urls), kwargs da rota quando houver, papel para logar e estados.
+# Estados: o scripts/telas.py prepara cada estado com dados fictícios (fixture por estado,
+# definida no próprio script pelo id da tela + estado) antes de capturar.
+# Toda tela usa o shell (base.html), exceto as marcadas com shell: false.
 telas:
+  # --- m0 · Fase 0
   - id: TEL-01
     modulo: m0
     nome: Login
     rota: login
     papel: anonimo
+    shell: false
     estados: [padrao, erro_credenciais]
+  - id: TEL-10
+    modulo: m0
+    nome: Sem permissão (403)
+    rota: inicio
+    papel: sem_papel
+    estados: [padrao]
+  - id: TEL-11
+    modulo: m0
+    nome: Não encontrado (404)
+    rota: url_inexistente   # o script navega para /nao-existe/
+    papel: coordenador
+    estados: [padrao]
+  # --- m1 · Usuários e papéis
   - id: TEL-02
     modulo: m1
     nome: Usuários (lista)
     rota: contas:usuarios
     papel: adm
-    estados: [vazio, com_dados, paginado]
+    estados: [vazio_busca, com_dados, paginado]   # "vazio" real é impossível (sempre há o Adm): vazio_busca = busca sem resultado
+    regras: [USR-01, USR-02, USR-03]
   - id: TEL-03
     modulo: m1
-    nome: Usuário (formulário)
+    nome: Usuário (novo)
     rota: contas:usuario_novo
     papel: adm
     estados: [padrao, erro_validacao]
+    regras: [USR-04, USR-05]
+  - id: TEL-09
+    modulo: m1
+    nome: Usuário (editar e redefinir senha)
+    rota: contas:usuario_editar
+    kwargs: {pk: usuario_coordenador}
+    papel: adm
+    estados: [padrao, erro_validacao]
+    regras: [USR-06, USR-07, USR-08]
+  - id: TEL-08
+    modulo: m1
+    nome: Trocar minha senha
+    rota: contas:trocar_senha
+    papel: base
+    estados: [padrao, erro_validacao]
+    regras: [USR-10]
+  # --- m2 · Fluxos e editor
   - id: TEL-04
     modulo: m2
     nome: Fluxos (lista)
     rota: fluxos:lista
     papel: coordenador
     estados: [vazio, com_dados]
+    regras: [FLX-01, FLX-02, FLX-03]
+  - id: TEL-12
+    modulo: m2
+    nome: Fluxos (lista, visão do Usuário base)
+    rota: fluxos:lista
+    papel: base
+    estados: [vazio, com_dados]
+    regras: [FLX-05]
   - id: TEL-05
     modulo: m2
     nome: Editor de canvas
     rota: fluxos:editor
+    kwargs: {pk: fluxo_demo}
     papel: coordenador
     estados: [vazio, com_3_nos, erro_validacao_no]
+    regras: [GRF-01, GRF-03, GRF-05]
+  # --- m3 · Execução, histórico e saídas
   - id: TEL-06
     modulo: m3
     nome: Execuções (histórico)
     rota: execucoes:lista
     papel: base
     estados: [vazio, com_dados]
+    regras: [EXE-08]
   - id: TEL-07
     modulo: m3
     nome: Execução (detalhe e saídas por nó)
     rota: execucoes:detalhe
+    kwargs: {pk: execucao_demo}
     papel: coordenador
     estados: [sucesso, erro_http, bloqueado_ssrf]
+    regras: [EXE-07, EXE-09, SEG-09, SEG-10]

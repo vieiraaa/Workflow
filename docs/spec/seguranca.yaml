@@ -20,8 +20,9 @@ ssrf:
   - id: SEG-07
     texto: >
       httpx.Client(trust_env=False, follow_redirects=False); timeout conexão 5 s, leitura 10 s, total por nó 15 s;
-      resposta lida em streaming até 1 MB (acima disso corta e marca truncado=true na saída, categoria resposta_grande só se o
-      corpo for necessário para o próximo placeholder); corpo descompactado também conta para o limite.
+      resposta lida em streaming até 1 MB, contando o corpo já descompactado. Acima disso corta, grava o que leu e marca
+      truncado=true na saída (não é erro). Se um placeholder seguinte precisar do corpo truncado, o nó seguinte falha
+      com categoria resposta_grande.
   - id: SEG-08
     texto: >
       Testes NUNCA tocam a internet. O executor é testado contra servidor HTTP local; a liberação de loopback para esses
