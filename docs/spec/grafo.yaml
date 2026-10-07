@@ -81,6 +81,17 @@ regras_grafo:
     texto: >
       Concorrência — o POST envia `atualizado_em` lido ao abrir; se o fluxo mudou depois, recusa com 409 e mensagem "Este fluxo foi alterado por outra pessoa. Recarregue para continuar." (sem sobrescrever).
 
+  - id: GRF-08
+    texto: >
+      Fecha lacunas do T-010. (a) Resposta ok de salvar_grafo inclui o novo `atualizado_em` (ISO-8601), que o editor
+      usa no próximo salvamento sem recarregar. (b) FORMATO (400) = forma/tipo JSON errado: nos/arestas não-lista,
+      headers/query não-lista ou item sem nome/valor string, config não-objeto, posicao sem x/y numéricos. PENDÊNCIA (200)
+      = valor inválido com o tipo certo: método fora da lista, URL vazia/sem host/esquema errado, nome de header com
+      espaço, corpo JSON inválido, título vazio. (c) 409 responde JSON {"ok": false, "erros": [{"campo": null,
+      "mensagem": "Este fluxo foi alterado por outra pessoa. Recarregue para continuar."}]}. (d) fluxos:status com
+      valor fora de rascunho|ativo → 400 sem alteração. (e) descricao > 1000 → "Use no máximo 1000 caracteres.".
+      (f) O editor expõe `atualizado_em` em data-atualizado-em no elemento raiz do editor, formato isoformat() do banco.
+
 placeholders:
   - id: PLH-01
     texto: >
