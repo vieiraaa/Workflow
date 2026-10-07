@@ -25,7 +25,7 @@
 
   <div class="editor__area">
     <div class="toolbar" role="toolbar" aria-label="Ferramentas do editor">
-      <button class="botao botao--secundario" type="button" data-acao="paleta">{% include "componentes/icone.html" with nome="plus" tamanho=16 %}<span>Nó</span></button>
+      <button class="botao botao--secundario" type="button" data-acao="paleta" aria-label="Adicionar nó">{% include "componentes/icone.html" with nome="plus" tamanho=16 %}<span class="botao__rotulo-desktop">Nó</span></button>
       <span class="toolbar__sep"></span>
       <div class="toolbar__grupo">
         <button class="botao botao--icone" type="button" data-acao="zoom-menos" aria-label="Diminuir zoom">{% include "componentes/icone.html" with nome="zoom-out" %}</button>
@@ -40,8 +40,8 @@
         <div class="pendencias-pop" data-pendencias-lista hidden></div>
       </div>
       <span class="toolbar__sep"></span>
-      <button class="botao botao--secundario" type="button" disabled title="Disponível em breve">{% include "componentes/icone.html" with nome="play" tamanho=16 %}<span>Executar</span></button>
-      <button class="botao botao--primario" type="button" data-acao="salvar" data-salvar>{% include "componentes/icone.html" with nome="save" tamanho=16 %}<span>Salvar</span></button>
+      <button class="botao botao--secundario" type="button" disabled title="Disponível em breve" aria-label="Executar (em breve)">{% include "componentes/icone.html" with nome="play" tamanho=16 %}<span class="botao__rotulo-desktop">Executar</span></button>
+      <button class="botao botao--primario" type="button" data-acao="salvar" data-salvar aria-label="Salvar">{% include "componentes/icone.html" with nome="save" tamanho=16 %}<span class="botao__rotulo-desktop">Salvar</span></button>
     </div>
     <div class="canvas" data-canvas></div>
     <p class="editor__vazio" data-dica-vazio hidden>Adicione nós pela paleta e conecte as portas.</p>

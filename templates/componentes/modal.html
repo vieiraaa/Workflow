@@ -1,5 +1,4 @@
-{# id, titulo, texto, confirmar_rotulo, acao_url (POST + CSRF; pode ser preenchida por JS via data-form-action), destrutivo.
-   Abre com um botão data-modal-abrir="<id>". Slots preenchidos por JS: data-slot="titulo|texto|confirmar". #}
+{% comment %}id, titulo, texto, confirmar_rotulo, acao_url (POST + CSRF; pode vir de JS via data-form-action), destrutivo. Abre com botão data-modal-abrir=ID. Slots de JS: data-slot titulo, texto, confirmar.{% endcomment %}
 <dialog class="modal" id="{{ id }}" aria-labelledby="{{ id }}-titulo"{% if aberto %} data-abrir{% endif %}>
   <form class="modal__corpo" method="post" action="{{ acao_url }}" novalidate>
     {% csrf_token %}

@@ -151,7 +151,7 @@
     });
     var r = areaCanvas.getBoundingClientRect(), margem = 48, topo = 72;
     var z = Math.min(1, (r.width - margem) / (maxx - minx), (r.height - margem - topo) / (maxy - miny));
-    z = Math.max(editor.zoom_min, z);
+    z = Math.max(window.innerWidth <= 800 ? 0.65 : editor.zoom_min, z);
     editor.zoom = z;
     editor.canvas_x = (r.width - (maxx - minx) * z) / 2 - minx * z;
     editor.canvas_y = topo + (r.height - topo - margem / 2 - (maxy - miny) * z) / 2 - miny * z;

@@ -19,6 +19,7 @@ h1, h2, h3, p { margin: 0; }
 h1 { font-size: var(--text-title); font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; }
 h2 { font-size: var(--text-h2); font-weight: 600; }
 :focus-visible { outline: none; box-shadow: var(--ring); }
+[hidden] { display: none !important; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .texto-2 { color: var(--text-2); }
 .texto-sm { font-size: var(--text-sm); }
@@ -205,9 +206,10 @@ h2 { font-size: var(--text-h2); font-weight: 600; }
 .tabela__link { color: var(--text); font-weight: 500; }
 .tabela__chevron { display: none; color: var(--text-3); }
 @media (max-width: 800px) {
-  .tabela__linha--acoes { grid-template-columns: auto 1fr; grid-template-areas: "nome nome" "email email" "status status" "acoes acoes"; }
+  .tabela__linha.tabela__linha--acoes { grid-template-columns: minmax(0, 1fr); grid-template-areas: "nome" "email" "status" "acoes"; }
   .tabela__linha--acoes .tabela__acoes { grid-area: acoes; position: relative; z-index: 1; }
   .tabela__linha--acoes .tabela__status { grid-area: status; }
+  .tabela__linha--acoes .tabela__botoes { flex-wrap: wrap; justify-content: flex-start; margin-top: var(--sp-2); }
   .tabela thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .tabela, .tabela tbody { display: block; }
   .tabela__linha {
@@ -229,5 +231,5 @@ h2 { font-size: var(--text-h2); font-weight: 600; }
   .tabela__link::after { content: ""; position: absolute; inset: 0; }
 }
 
-.tabela__botoes { display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-2); flex-wrap: wrap; }
+.tabela__botoes { flex-wrap: nowrap; display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-2); }
 .tabela__botoes form { margin: 0; }

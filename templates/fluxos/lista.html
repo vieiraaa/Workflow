@@ -19,6 +19,7 @@
   <div class="tabela-rolagem"><table class="tabela">
     <thead><tr>
       <th scope="col"{% if ordenacoes.nome.sentido %} aria-sort="{% if ordenacoes.nome.sentido == 'asc' %}ascending{% else %}descending{% endif %}"{% endif %}><a class="tabela__ordem" href="{{ ordenacoes.nome.url }}">Nome{% if ordenacoes.nome.sentido == "asc" %} ↑{% elif ordenacoes.nome.sentido == "desc" %} ↓{% endif %}</a></th>
+      <th scope="col">Descrição</th>
       <th scope="col">Dono</th>
       <th scope="col">Status</th>
       <th scope="col"{% if ordenacoes.atualizado_em.sentido %} aria-sort="{% if ordenacoes.atualizado_em.sentido == 'asc' %}ascending{% else %}descending{% endif %}"{% endif %}><a class="tabela__ordem" href="{{ ordenacoes.atualizado_em.url }}">Atualizado em{% if ordenacoes.atualizado_em.sentido == "asc" %} ↑{% elif ordenacoes.atualizado_em.sentido == "desc" %} ↓{% endif %}</a></th>
@@ -38,7 +39,7 @@
             <form method="post" action="{{ f.url_executar }}">{% csrf_token %}{% include "componentes/botao.html" with rotulo="Executar" icone="play" tipo="submit" %}</form>
             {% endif %}
             {% if f.url_status %}
-            <form method="post" action="{{ f.url_status }}">{% csrf_token %}<input type="hidden" name="voltar" value="lista"><input type="hidden" name="status" value="{% if f.status == 'ativo' %}rascunho{% else %}ativo{% endif %}">{% if f.status == 'ativo' %}{% include "componentes/botao.html" with rotulo="Voltar p/ rascunho" tipo="submit" %}{% else %}{% include "componentes/botao.html" with rotulo="Ativar" tipo="submit" %}{% endif %}</form>
+            <form method="post" action="{{ f.url_status }}">{% csrf_token %}<input type="hidden" name="voltar" value="lista"><input type="hidden" name="status" value="{% if f.status == 'ativo' %}rascunho{% else %}ativo{% endif %}">{% if f.status == 'ativo' %}{% include "componentes/botao.html" with rotulo="Desativar" rotulo_acessivel="Voltar para rascunho" tipo="submit" %}{% else %}{% include "componentes/botao.html" with rotulo="Ativar" tipo="submit" %}{% endif %}</form>
             {% endif %}
             {% if f.url_editar %}<button class="botao botao--icone" type="button" aria-label="Editar nome e descrição" data-modal-abrir="modal-fluxo" data-form-action="{{ f.url_editar }}" data-valor-nome="{{ f.nome }}" data-valor-descricao="{{ f.descricao }}" data-texto-titulo="Editar fluxo" data-texto-confirmar="Salvar">{% include "componentes/icone.html" with nome="pencil" %}</button>{% endif %}
             {% if f.url_excluir %}<button class="botao botao--icone" type="button" aria-label="Excluir fluxo" data-modal-abrir="modal-excluir" data-form-action="{{ f.url_excluir }}" data-texto-texto="Excluir o fluxo “{{ f.nome }}”? As execuções já feitas continuam no histórico.">{% include "componentes/icone.html" with nome="trash" %}</button>{% endif %}

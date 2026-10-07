@@ -95,3 +95,10 @@ def test_403_sem_papel_oferece_sair(client, db):
     assert "erros/403.html" in [t.name for t in resposta.templates]
     assert reverse("logout").encode() in resposta.content
     assert "Ir para o início".encode() not in resposta.content
+
+
+def test_comentarios_de_template_em_uma_linha():
+    """`{# #}` multilinha do Django vaza como texto na página; use {% comment %}."""
+    for arquivo in TEMPLATES.rglob("*.html"):
+        for achado in re.finditer(r"\{#(.*?)#\}", arquivo.read_text(encoding="utf-8"), re.S):
+            assert "\n" not in achado.group(1), arquivo
