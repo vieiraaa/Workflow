@@ -1,0 +1,13 @@
+id: T-019
+titulo: Servidor de demo com as telas de erro do produto (achado T-012 item 2)
+dono: Forja (back)
+depende_de: [T-011]
+skills: [integracao]
+problema: /nao-existe/ no demo mostra a página amarela de debug do Django (DEBUG=True), não a 404 do produto (TEL-11).
+correcao: >
+  settings demo com DEBUG=False e estáticos servidos pelo runserver (--insecure) ou equivalente portável, para os portais
+  mostrarem 403/404/500 do produto. Mantém isolamento (sem .env, sem Supabase). Não muda dev nem teste.
+aceite:
+  - GET /nao-existe/ no demo devolve 404 com o template erros/404.html (shell) e CSS carregado
+  - check --rapido verde
+arquivos: [config/settings/demo.py, scripts/demo.py, tests/unit/]

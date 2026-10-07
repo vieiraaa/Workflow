@@ -5,7 +5,12 @@ depende_de: [T-012]
 skills: [design-base, frontend]
 achados:
   - id: A1
-    severidade: alta
+    severidade: RECLASSIFICADO pelo Lead (não é bug da app) — ver nota
+    nota: >
+      Investigado pelo Lead: no portal do Maestri o documento fica com visibilityState=hidden e o WebKit pausa
+      transições CSS; a classe menu-aberto é aplicada, mas o transform não anda. Em Chromium e WebKit reais (Playwright,
+      390px, UA iPhone) o menu abre. Nenhuma correção obrigatória; opcional: nada.
+    severidade_original: alta
     problema: >
       Menu hambúrguer não abre em 390 e 412 px (portais iOS e Android). aria-expanded vira true, mas o <aside> continua
       em left:-240px e não recebe classe/estado; reproduz também por click() em JS. No celular só se navega por URL.
@@ -22,6 +27,6 @@ achados:
     problema: botão do menu sem rótulo acessível de estado.
     correcao: aria-label "Abrir menu"/"Fechar menu" alternando com aria-expanded.
 aceite:
-  - teste e2e (tests/e2e/) que abre o menu a 390px e verifica que o aside fica visível e navegável
+  - A2 e A3 resolvidos
   - check --rapido verde; capturas m1 e m2 sem regressão
 arquivos: [templates/base.html, templates/componentes/, static/, tests/unit/frontend/, tests/e2e/]
