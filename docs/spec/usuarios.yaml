@@ -32,3 +32,24 @@ regras:
     texto: Mudança de papel tem efeito na próxima requisição do usuário afetado (o motor não guarda cache de papel entre requisições).
   - id: USR-12
     texto: O e-mail exibido e campos de texto são sempre escapados (nome com <script> aparece como texto).
+
+# Contrato de formulários e rotas (fecha lacunas do relatório T-003). Nomes EXATOS dos campos POST.
+contrato:
+  - id: USR-13
+    texto: >
+      Login (rota login): campos `username` (o e-mail) e `password` (AuthenticationForm do Django).
+      Logout (rota logout): só POST; GET → 405.
+      Novo usuário (contas:usuario_novo): `nome`, `email`, `papel`, `senha`, `confirmacao`.
+      Editar (contas:usuario_editar, kwarg pk): `nome`, `email`, `papel`, `ativo` (checkbox).
+      Redefinir senha (contas:usuario_redefinir_senha, kwarg pk, só POST): `nova_senha`, `confirmacao`;
+      sucesso → redirect para contas:usuario_editar + toast "Senha de <nome> redefinida."; erro → re-renderiza
+      a tela de edição (200) com o erro no campo.
+      Trocar minha senha (contas:trocar_senha): `senha_atual`, `nova_senha`, `confirmacao`; toast "Senha alterada.".
+  - id: USR-14
+    texto: >
+      Valor do campo `papel` = id do papel em papeis.yaml (`adm`, `coordenador`, `base`), não o nome do Group.
+      Papel vazio → "Escolha um papel."; papel fora da lista → "Papel inválido.". Campo obrigatório vazio →
+      "Este campo é obrigatório." (padrão do Django). Último Adm (USR-08): "É preciso manter pelo menos um
+      administrador ativo." Auto-proteção (USR-07): "Você não pode desativar a si mesmo nem remover o seu papel de administrador."
+  - id: USR-15
+    texto: Manager — Usuario.objects.create_user(email=..., password=..., nome=...). Usuário sem papel recebe 403 também em trocar_senha (PAP-02 vale para tudo, exceto logout).
