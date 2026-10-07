@@ -1,4 +1,5 @@
 import json
+import math
 
 from django.contrib import messages
 from django.core.paginator import Paginator
@@ -32,6 +33,17 @@ def _ordem_valida(valor):
         if (valor or "").lstrip("-") in ORDENS and (valor or "").count("-") <= 1
         else ORDEM_PADRAO
     )
+
+
+def _recusar_constante(nome):
+    raise ValueError(f"constante JSON não permitida: {nome}")
+
+
+def _float_finito(texto):
+    valor = float(texto)
+    if not math.isfinite(valor):
+        raise ValueError("número fora do intervalo")
+    return valor
 
 
 def _quer_json(request):
@@ -373,9 +385,11 @@ class SalvarGrafoView(PermissaoMixin, View):
         if len(request.body) > LIMITE_GRAFO_BYTES:
             return _json_erro("O grafo é grande demais (máximo de 256 KB).", 400)
         try:
-            corpo = json.loads(request.body)
-        except ValueError:
-            return _json_erro("JSON inválido.", 400)
+            corpo = json.loads(
+                request.body, parse_constant=_recusar_constante, parse_float=_float_finito
+            )
+        except ValueError, RecursionError:  # inclui NaN/Infinity, 1e999 e aninhamento extremo
+            return _json_erro("JSON inválido ou fora dos limites do grafo.", 400)
         if not (
             isinstance(corpo, dict)
             and isinstance(corpo.get("grafo"), dict)

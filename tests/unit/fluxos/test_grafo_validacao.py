@@ -237,3 +237,65 @@ def test_nao_altera_o_grafo_recebido():
     copia = copy.deepcopy(grafo)
     validar(grafo)
     assert grafo == copia
+
+
+# ---------------------------------------------------------------- GRF-09
+def _aninhar(niveis):
+    valor = []
+    for _ in range(niveis):
+        valor = [valor]
+    return valor
+
+
+@pytest.mark.parametrize(
+    "alterar",
+    [
+        lambda g: g.update(extra=1),
+        lambda g: g["nos"][0].update(extra=1),
+        lambda g: g["nos"][0]["posicao"].update(z=1),
+        lambda g: g["nos"][0]["config"].update(extra=1),  # gatilho: config fechada e vazia
+        lambda g: g["nos"][2]["config"].update(extra=1),  # saída
+        lambda g: g["nos"][1]["config"].update(extra=1),  # http
+        lambda g: g["arestas"][0].update(extra=1),
+        lambda g: g["nos"][1]["config"]["headers"][0].update(extra="x"),
+    ],
+)
+def test_chave_desconhecida_e_formato(alterar):
+    grafo = _valido()
+    alterar(grafo)
+    erros, pendencias = validar(grafo)
+    assert pendencias == [] and any("Chave desconhecida" in e["mensagem"] for e in erros)
+
+
+def test_profundidade_maxima_16():
+    grafo = _valido()
+    grafo["nos"][1]["config"]["metodo"] = "GET"
+    assert validar(grafo)[0] == []
+    grafo["extra"] = _aninhar(14)  # raiz(1) + 15 listas = 16 níveis → ainda permitido
+    assert not any("aninhamento" in e["mensagem"] for e in validar(grafo)[0])
+    grafo["extra"] = _aninhar(15)  # 17 níveis
+    assert any("aninhamento" in e["mensagem"] for e in validar(grafo)[0])
+
+
+def test_aninhamento_extremo_nao_estoura_a_pilha():
+    grafo = _valido()
+    grafo["extra"] = _aninhar(100_000)
+    erros, _ = validar(grafo)
+    assert any("aninhamento" in e["mensagem"] for e in erros)
+
+
+@pytest.mark.parametrize("numero", [float("nan"), float("inf"), float("-inf")])
+def test_numero_nao_finito(numero):
+    grafo = _valido()
+    grafo["nos"][0]["posicao"]["x"] = numero
+    assert any("número inválido" in e["mensagem"] for e in validar(grafo)[0])
+
+
+@pytest.mark.parametrize("texto", ["a\ud800b", "a\x00b"])
+def test_texto_invalido_no_valor_e_na_chave(texto):
+    grafo = _valido()
+    grafo["nos"][0]["titulo"] = texto
+    assert any("texto inválido" in e["mensagem"] for e in validar(grafo)[0])
+    grafo = _valido()
+    grafo["nos"][0]["config"] = {texto: 1}
+    assert any("texto inválido" in e["mensagem"] for e in validar(grafo)[0])

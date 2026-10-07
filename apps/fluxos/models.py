@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -47,3 +48,13 @@ class Fluxo(models.Model):
 
     def __str__(self):
         return self.nome
+
+    def clean(self):
+        """O grafo gravado por qualquer entrada (admin, semeadura) segue o formato canônico."""
+        from .grafo import validar
+
+        erros, _ = validar(self.grafo)
+        if erros:
+            raise ValidationError(
+                {"grafo": [f"{erro['mensagem']}" for erro in erros]},
+            )

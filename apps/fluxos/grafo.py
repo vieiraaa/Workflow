@@ -9,6 +9,7 @@
 """
 
 import json
+import math
 import re
 from urllib.parse import urlsplit
 
@@ -22,6 +23,17 @@ MAX_CORPO_BYTES = 100 * 1024
 TIPOS_DE_NO = ("gatilho", "http", "saida")
 METODOS = ("GET", "POST", "PUT", "PATCH", "DELETE")
 METODOS_COM_CORPO = ("POST", "PUT", "PATCH")
+MAX_PROFUNDIDADE = 16
+CHAVES_RAIZ = {"versao", "nos", "arestas"}
+CHAVES_NO = {"id", "tipo", "titulo", "posicao", "config"}
+CHAVES_ARESTA = {"de", "para"}
+CHAVES_POSICAO = {"x", "y"}
+CHAVES_CONFIG = {
+    "gatilho": set(),
+    "saida": set(),
+    "http": {"metodo", "url", "headers", "query", "corpo"},
+}
+CHAVES_PAR = {"nome", "valor"}
 RE_ID = re.compile(r"[a-zA-Z0-9_-]{1,40}")
 RE_ESPACO = re.compile(r"\s")
 
@@ -38,6 +50,56 @@ def _pendencia(no, campo, mensagem):
     return {"no": no, "campo": campo, "mensagem": mensagem}
 
 
+# ---------------------------------------------------------------- sanidade do JSON (GRF-09)
+def _texto_valido(texto):
+    if "\x00" in texto:
+        return False
+    try:
+        texto.encode("utf-8")
+    except UnicodeEncodeError:  # surrogate solto
+        return False
+    return True
+
+
+def _sanidade(grafo):
+    """Varredura iterativa (sem recursão): profundidade, números finitos e textos UTF-8 sem NUL."""
+    erros = []
+    pilha = [(grafo, 1)]
+    achou_numero = achou_texto = False
+    while pilha:
+        valor, profundidade = pilha.pop()
+        if profundidade > MAX_PROFUNDIDADE:
+            return [
+                _erro(
+                    None,
+                    f"O grafo tem aninhamento demais (máximo de {MAX_PROFUNDIDADE} níveis).",
+                )
+            ]
+        if isinstance(valor, float) and not math.isfinite(valor):
+            achou_numero = True
+        elif isinstance(valor, str) and not _texto_valido(valor):
+            achou_texto = True
+        elif isinstance(valor, dict):
+            for chave, filho in valor.items():
+                if not _texto_valido(chave):
+                    achou_texto = True
+                pilha.append((filho, profundidade + 1))
+        elif isinstance(valor, list):
+            pilha.extend((filho, profundidade + 1) for filho in valor)
+    if achou_numero:
+        erros.append(_erro(None, "O grafo contém um número inválido (NaN ou infinito)."))
+    if achou_texto:
+        erros.append(
+            _erro(None, "O grafo contém texto inválido (caractere nulo ou que não é UTF-8).")
+        )
+    return erros
+
+
+def _chaves_desconhecidas(objeto, permitidas, onde):
+    extras = sorted(str(k) for k in set(objeto) - permitidas)
+    return [_erro(onde, f"Chave desconhecida: '{extra}'.") for extra in extras]
+
+
 # ---------------------------------------------------------------- formato (GRF-02)
 def _formato_pares(config, campo, onde):
     erros = []
@@ -47,6 +109,11 @@ def _formato_pares(config, campo, onde):
     if not isinstance(pares, list):
         return [_erro(f"{onde}.{campo}", f"'{campo}' deve ser uma lista de pares nome/valor.")]
     for item in pares:
+        if isinstance(item, dict) and (
+            extras := _chaves_desconhecidas(item, CHAVES_PAR, f"{onde}.{campo}")
+        ):
+            erros += extras
+            break
         if not (
             isinstance(item, dict)
             and isinstance(item.get("nome"), str)
@@ -65,7 +132,7 @@ def _formato_no(no, indice):
     onde = f"nos[{indice}]"
     if not isinstance(no, dict):
         return [_erro(onde, "Cada nó deve ser um objeto.")]
-    erros = []
+    erros = _chaves_desconhecidas(no, CHAVES_NO, onde)
     id_ = no.get("id")
     if not isinstance(id_, str) or not RE_ID.fullmatch(id_):
         erros.append(
@@ -78,10 +145,14 @@ def _formato_no(no, indice):
     posicao = no.get("posicao")
     if not (isinstance(posicao, dict) and _numero(posicao.get("x")) and _numero(posicao.get("y"))):
         erros.append(_erro(f"{onde}.posicao", "A posição do nó precisa de x e y numéricos."))
+    elif extras := _chaves_desconhecidas(posicao, CHAVES_POSICAO, f"{onde}.posicao"):
+        erros += extras
     config = no.get("config")
     if not isinstance(config, dict):
         erros.append(_erro(f"{onde}.config", "A configuração do nó deve ser um objeto."))
-    elif no.get("tipo") == "http":
+    elif no.get("tipo") in CHAVES_CONFIG:
+        erros += _chaves_desconhecidas(config, CHAVES_CONFIG[no["tipo"]], f"{onde}.config")
+    if isinstance(config, dict) and no.get("tipo") == "http":
         for campo in ("metodo", "url", "corpo"):
             if campo in config and not isinstance(config[campo], str):
                 erros.append(_erro(f"{onde}.config.{campo}", f"'{campo}' deve ser um texto."))
@@ -93,7 +164,9 @@ def _formato_no(no, indice):
 def _formato(grafo):
     if not isinstance(grafo, dict):
         return [_erro(None, "O grafo deve ser um objeto JSON.")]
-    erros = []
+    if erros := _sanidade(grafo):
+        return erros
+    erros = _chaves_desconhecidas(grafo, CHAVES_RAIZ, None)
     if grafo.get("versao") != VERSAO or isinstance(grafo.get("versao"), bool):
         erros.append(_erro("versao", "Versão do grafo não suportada."))
     nos, arestas = grafo.get("nos"), grafo.get("arestas")
@@ -121,6 +194,8 @@ def _formato(grafo):
             and isinstance(aresta.get("para"), str)
         ):
             erros.append(_erro(onde, "Cada aresta precisa de 'de' e 'para' em texto."))
+        elif extras := _chaves_desconhecidas(aresta, CHAVES_ARESTA, onde):
+            erros += extras
         elif aresta["de"] not in ids or aresta["para"] not in ids:
             erros.append(_erro(onde, "A aresta aponta para um nó que não existe."))
     return erros

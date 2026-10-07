@@ -45,13 +45,16 @@ def grafo_com_url_invalida():
 
 
 def criar_fluxo(dono, nome, status="rascunho", grafo=None, descricao=""):
-    return Fluxo.objects.create(
+    fluxo = Fluxo(
         nome=nome,
         descricao=descricao,
         dono=dono,
         status=status,
         grafo=copy.deepcopy(grafo if grafo is not None else grafo_inicial()),
     )
+    fluxo.full_clean()  # a semeadura também respeita o formato canônico (GRF-09)
+    fluxo.save()
+    return fluxo
 
 
 EXEMPLOS = [

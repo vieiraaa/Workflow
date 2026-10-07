@@ -71,7 +71,7 @@ def test_status_ativar_ok_json_e_voltar_para_lista(cliente_adm, usuario_adm):
 
 
 def test_status_ativar_grafo_corrompido_vira_pendencia(cliente_adm, usuario_adm):
-    fluxo = demo.criar_fluxo(usuario_adm, "F", "rascunho", {"versao": 9})
+    fluxo = Fluxo.objects.create(nome="F", dono=usuario_adm, grafo={"versao": 9})
     resposta = cliente_adm.post(
         reverse("fluxos:status", kwargs={"pk": fluxo.pk}),
         {"status": "ativo"},
@@ -97,3 +97,40 @@ def test_semear_demo_cria_fluxos_e_e_idempotente(capsys):
     call_command("semear_demo", senha="SenhaForte#12345")
     assert Fluxo.objects.count() == total
     assert Fluxo.objects.filter(status="ativo").count() == 2
+
+
+@pytest.mark.parametrize(
+    "bruto",
+    [
+        '{"grafo": {"versao": 1, "nos": [], "arestas": [], "x": NaN}, "atualizado_em": "a"}',
+        '{"grafo": {"versao": 1, "nos": [], "arestas": [], "x": 1e999}, "atualizado_em": "a"}',
+        '{"grafo": {"versao": 1, "nos": [], "arestas": [], "x": '
+        + "[" * 100000
+        + "]" * 100000
+        + "}}",
+        '{"grafo": {"versao": 1, "nos": [{"id": "n1", "tipo": "gatilho", "titulo": "\\ud800",'
+        '"posicao": {"x": 1, "y": 1}, "config": {}}], "arestas": []}, "atualizado_em": "a"}',
+    ],
+)
+def test_json_hostil_vira_400_sem_gravar(cliente_adm, usuario_adm, bruto):
+    fluxo = demo.criar_fluxo(usuario_adm, "F")
+    antes = fluxo.grafo
+    resposta = cliente_adm.post(
+        reverse("fluxos:salvar_grafo", kwargs={"pk": fluxo.pk}),
+        bruto,
+        content_type="application/json",
+    )
+    assert resposta.status_code == 400 and resposta.json()["ok"] is False
+    fluxo.refresh_from_db()
+    assert fluxo.grafo == antes
+
+
+def test_modelo_valida_o_grafo_em_qualquer_entrada(usuario_adm):
+    from django.core.exceptions import ValidationError
+
+    fluxo = Fluxo(nome="F", dono=usuario_adm, grafo={"versao": 1, "nos": [], "arestas": [], "x": 1})
+    with pytest.raises(ValidationError) as erro:
+        fluxo.full_clean()
+    assert "grafo" in erro.value.message_dict
+    with pytest.raises(ValidationError):
+        demo.criar_fluxo(usuario_adm, "G", grafo={"versao": 2, "nos": [], "arestas": []})
