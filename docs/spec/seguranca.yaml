@@ -1,0 +1,53 @@
+# Segurança. Ids SEG-xx. Base da revisão do Revisor de Segurança e dos testes adversariais.
+ssrf:
+  - id: SEG-01
+    texto: Esquemas permitidos só http e https (sem diferenciar maiúsculas). file, ftp, gopher, data, javascript etc. → bloqueado_ssrf.
+  - id: SEG-02
+    texto: >
+      O host é resolvido no servidor e TODOS os IPs retornados são validados; se qualquer um for proibido, bloqueia.
+      Proibidos: loopback (127.0.0.0/8, ::1), não especificado (0.0.0.0/8, ::), privados (10/8, 172.16/12,
+      192.168/16, fc00::/7), link-local (169.254/16, fe80::/10, inclui metadata 169.254.169.254 e fd00:ec2::254),
+      CGNAT 100.64/10, multicast, reservados/broadcast, IPv4 mapeado ou compatível em IPv6 (::ffff:127.0.0.1),
+      NAT64 64:ff9b::/96 com IPv4 proibido, 6to4/Teredo apontando para proibidos.
+  - id: SEG-03
+    texto: Formas alternativas de IP são normalizadas antes da validação — decimal (2130706433), octal (0177.0.0.1), hexadecimal (0x7f.1), IP abreviado (127.1), com zero à esquerda; "localhost" e nomes que resolvem para proibidos são bloqueados.
+  - id: SEG-04
+    texto: A conexão é feita ao IP validado (pin), enviando o Host/SNI original, para impedir DNS rebinding entre validação e conexão.
+  - id: SEG-05
+    texto: Redirects seguidos manualmente, no máximo 5, revalidando esquema e IP de cada destino; o 6º → erro `redirect_excessivo`.
+  - id: SEG-06
+    texto: URLs com credenciais (user:senha@host) são recusadas na validação; o "@" não pode enganar o parser sobre o host real.
+  - id: SEG-07
+    texto: >
+      httpx.Client(trust_env=False, follow_redirects=False); timeout conexão 5 s, leitura 10 s, total por nó 15 s;
+      resposta lida em streaming até 1 MB (acima disso corta e marca truncado=true na saída, categoria resposta_grande só se o
+      corpo for necessário para o próximo placeholder); corpo descompactado também conta para o limite.
+  - id: SEG-08
+    texto: >
+      Testes NUNCA tocam a internet. O executor é testado contra servidor HTTP local; a liberação de loopback para esses
+      testes é uma setting MOTOR_SSRF_LIBERAR (lista de "host:porta", vazia por padrão em TODOS os ambientes) que só os
+      testes alteram via fixture `settings`. O check falha se MOTOR_SSRF_LIBERAR não estiver vazia em base/dev/teste.
+
+segredos:
+  - id: SEG-09
+    texto: >
+      Headers sensíveis mascarados como "••••" na entrada E na saída gravadas no histórico e em toda tela:
+      Authorization, Proxy-Authorization, Cookie, Set-Cookie, X-Api-Key e qualquer header cujo nome contenha
+      token, secret, senha, password ou api-key (sem diferenciar maiúsculas). Parâmetros de query com esses nomes também.
+  - id: SEG-10
+    texto: >
+      Erros ao usuário só por categoria + mensagem própria: bloqueado_ssrf, timeout, dns, conexao, tls,
+      resposta_grande, redirect_excessivo, http_4xx, http_5xx, placeholder, json_invalido. Nunca a mensagem crua da
+      exceção do driver, stack trace, IP interno resolvido nem valor de segredo.
+  - id: SEG-11
+    texto: Nenhum segredo em código, log ou saída; o .env nunca é lido por ferramenta; DEBUG=False fora de dev; SECRET_KEY só do ambiente.
+
+web:
+  - id: SEG-12
+    texto: CSRF em toda mutação (inclusive o POST JSON do canvas); cookies de sessão HttpOnly e Secure fora de dev; X-Frame-Options DENY; SECURE_CONTENT_TYPE_NOSNIFF.
+  - id: SEG-13
+    texto: Saída sempre escapada no template e no JS (textContent); nenhum |safe/mark_safe em dado de usuário, inclusive corpo de resposta HTTP exibido no detalhe.
+  - id: SEG-14
+    texto: Limites de entrada — POST do grafo até 256 KB (GRF-02); campos com max definido na spec; payload maior → 400 com mensagem clara, nunca 500.
+  - id: SEG-15
+    texto: Login com mensagem genérica ("E-mail ou senha inválidos.") sem revelar se o e-mail existe; logout só por POST.

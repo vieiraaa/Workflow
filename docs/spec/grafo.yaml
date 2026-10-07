@@ -32,7 +32,7 @@ regras_fluxo:
   - id: FLX-04
     texto: Ativar exige grafo sem pendências (GRF-*); se houver, recusa e devolve as pendências por nó. Voltar para rascunho é sempre permitido.
   - id: FLX-05
-    texto: Base vê na lista só fluxos ativos, sem botões de editar/excluir, com botão Executar; não acessa o editor (404 no editor de fluxo ativo, PRM-03 vale como 403 por falta de ação → usar 403, pois a ação fluxos.editar é nenhum para Base).
+    texto: Base vê na lista só fluxos ativos, sem botões de editar/excluir, com botão Executar. Base no editor recebe 403 (ação fluxos.editar = nenhum, PRM-02); Base executando fluxo em rascunho recebe 404 (objeto fora do escopo, PRM-03).
 
 regras_grafo:
   - id: GRF-01
