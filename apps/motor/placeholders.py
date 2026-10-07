@@ -37,6 +37,14 @@ def _resumo(trecho):
     return trecho if len(trecho) <= 60 else trecho[:57] + "..."
 
 
+def caminhos_usados(texto):
+    """Caminhos (sem o prefixo `anterior.`) dos placeholders bem formados do texto."""
+    if not isinstance(texto, str):
+        return []
+    achados = (_CAMINHO.fullmatch(bloco.group(1)) for bloco in _BLOCO.finditer(texto))
+    return [achado.group(1)[1:] for achado in achados if achado is not None]
+
+
 def tem_placeholder(texto):
     return isinstance(texto, str) and _BLOCO.search(texto) is not None
 

@@ -37,8 +37,10 @@ URL_INEXISTENTE = "/nao-existe/"
 # ---------------------------------------------------------------- preparação de dados
 def _limpar_dados_de_telas():
     """Apaga os dados fictícios de estados anteriores, dependentes primeiro (FK PROTECT)."""
+    from apps.execucoes.models import Execucao
     from apps.fluxos.models import Fluxo
 
+    Execucao.objects.all().delete()
     Fluxo.objects.all().delete()
 
 
@@ -193,6 +195,34 @@ def _editor_erro(usuarios):
     return _fluxo_demo(demo.grafo_com_url_invalida)(usuarios)
 
 
+def _execucoes_da_base(usuarios):
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.execucoes import demo
+    from apps.execucoes.models import Execucao
+
+    for i, cenario in enumerate(["sucesso", "erro_http", "sucesso", "bloqueado_ssrf"] * 3):
+        demo.criar_execucao(
+            usuarios["base"], cenario, nome=f"Fluxo fictício {i % 4:02d}", minutos_atras=3 + i * 7
+        )
+    demo.criar_execucao(usuarios["coordenador"], "sucesso", nome="Execução de outra pessoa")
+    travada = demo.criar_execucao(usuarios["base"], "sucesso", nome="Execução travada")
+    Execucao.objects.filter(pk=travada.pk).update(
+        status="executando", finalizada_em=None, iniciada_em=timezone.now() - timedelta(minutes=9)
+    )
+
+
+def _execucao_demo(cenario):
+    def preparar(usuarios):
+        from apps.execucoes import demo
+
+        return {"execucao_demo": demo.criar_execucao(usuarios["coordenador"], cenario)}
+
+    return preparar
+
+
 # (id da tela, estado) -> (preparar(usuarios) -> dict de nomes para kwargs | None,
 #                          acao(page, base) depois do goto | None, querystring opcional)
 PREPARADORES = {
@@ -214,6 +244,11 @@ PREPARADORES = {
     ("TEL-05", "vazio"): (_editor_vazio, None),
     ("TEL-05", "com_3_nos"): (_editor_3_nos, None),
     ("TEL-05", "erro_validacao_no"): (_editor_erro, None),
+    ("TEL-06", "vazio"): (None, None),
+    ("TEL-06", "com_dados"): (_execucoes_da_base, None),
+    ("TEL-07", "sucesso"): (_execucao_demo("sucesso"), None),
+    ("TEL-07", "erro_http"): (_execucao_demo("erro_http"), None),
+    ("TEL-07", "bloqueado_ssrf"): (_execucao_demo("bloqueado_ssrf"), None),
     ("TEL-08", "padrao"): (None, None),
     ("TEL-08", "erro_validacao"): (None, _erro_trocar_senha),
 }

@@ -5,6 +5,7 @@ Proxy-Authorization, Cookie, Set-Cookie, X-Api-Key e qualquer nome que contenha 
 senha, password ou api-key (sem diferenciar maiúsculas).
 """
 
+import json
 import re
 
 MASCARA = "••••"
@@ -58,3 +59,12 @@ def mascarar_saida_http(saida):
     if "headers" in mascarada:
         mascarada["headers"] = mascarar_headers_dict(mascarada["headers"])
     return mascarada
+
+
+def mascarar_grafo(grafo):
+    """Cópia do grafo canônico com headers/query sensíveis dos nós http mascarados (SEG-16.5)."""
+    copia = json.loads(json.dumps(grafo))
+    for no in copia.get("nos", []):
+        if no.get("tipo") == "http" and isinstance(no.get("config"), dict):
+            no["config"] = mascarar_entrada_http(no["config"])
+    return copia

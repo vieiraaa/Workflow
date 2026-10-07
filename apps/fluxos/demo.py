@@ -88,4 +88,25 @@ def semear():
         if not Fluxo.objects.filter(nome=nome).exists():
             criar_fluxo(dono, nome, status, fabrica_grafo(), descricao)
             criados += 1
+    _semear_execucoes()
     return criados
+
+
+def _semear_execucoes():
+    """Execuções de exemplo (sucesso, erro HTTP, bloqueio SSRF) se ainda não houver nenhuma."""
+    from apps.contas.models import Usuario
+    from apps.execucoes import demo as demo_execucoes
+    from apps.execucoes.models import Execucao
+
+    if Execucao.objects.exists():
+        return
+    fluxo = Fluxo.objects.filter(nome="Consulta de pedidos").first()
+    for email, cenario, minutos in (
+        ("coord@exemplo.test", "sucesso", 90),
+        ("base@exemplo.test", "sucesso", 40),
+        ("base@exemplo.test", "erro_http", 20),
+        ("coord@exemplo.test", "bloqueado_ssrf", 5),
+    ):
+        usuario = Usuario.objects.filter(email=email).first()
+        if usuario:
+            demo_execucoes.criar_execucao(usuario, cenario, fluxo=fluxo, minutos_atras=minutos)

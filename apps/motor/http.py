@@ -156,7 +156,8 @@ class _Destino:
 
     @property
     def liberado(self):
-        return f"{self.host}:{self.porta}" in set(settings.MOTOR_SSRF_LIBERAR)
+        liberados = {item.lower() for item in settings.MOTOR_SSRF_LIBERAR}
+        return f"{self.host}:{self.porta}" in liberados
 
     @property
     def cabecalho_host(self):

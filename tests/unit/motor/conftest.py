@@ -40,6 +40,8 @@ class _Handler(BaseHTTPRequestHandler):
         caminho = partes.path
         if caminho == "/ok":
             self._enviar(200, b'{"ok": true}', json_h)
+        elif caminho == "/valores":
+            self._enviar(200, json.dumps({"crlf": "a\r\nInjetado: 1", "v": "x"}).encode(), json_h)
         elif caminho == "/eco":
             self._enviar(200, json.dumps(estado.requisicoes[-1]).encode(), json_h)
         elif caminho == "/texto":

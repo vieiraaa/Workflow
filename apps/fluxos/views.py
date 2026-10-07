@@ -13,6 +13,7 @@ from django.views import View
 from django.views.generic import TemplateView
 
 from apps.contas.permissoes import PermissaoMixin, escopo, pode
+from apps.motor import executor
 from apps.nucleo import listagem
 from apps.nucleo.entrada import limpar_texto
 
@@ -305,18 +306,34 @@ class FluxoStatusView(PermissaoMixin, View):
 
 
 class FluxoExecutarView(_FluxoEscopoView):
-    """Executar fluxo (EXE-01). PLACEHOLDER do M2: a execução real chega no M3.
+    """Executar fluxo (EXE-01, EXE-02, EXE-11, EXE-13). Só POST + CSRF; fluxos.executar.
 
-    Só POST; fluxos.executar; fluxo fora do escopo (ex.: Base e rascunho) → 404. Hoje só avisa.
+    Fluxo fora do escopo (ex.: Base e rascunho) → 404. Execução síncrona; ao fim, redirect para
+    `execucoes:detalhe` com toast "Execução concluída." (sucesso) ou "A execução terminou com
+    erro." (erro). Com pendências nenhuma execução é criada: redirect de volta (editor para quem
+    edita, lista para os demais) com toast de erro "Este fluxo tem pendências. Corrija no editor
+    antes de executar.".
     """
 
     acao_requerida = "fluxos.executar"
     http_method_names = ["post", "options"]
 
     def post(self, request, pk):
-        self.obter(pk)
-        messages.info(request, "A execução de fluxos será liberada em breve.")
-        return redirect("fluxos:lista")
+        fluxo = self.obter(pk)
+        try:
+            execucao = executor.executar(fluxo, request.user)
+        except executor.FluxoComPendencias:
+            messages.error(
+                request, "Este fluxo tem pendências. Corrija no editor antes de executar."
+            )
+            if pode(request.user, "fluxos.editar"):
+                return redirect("fluxos:editor", pk=fluxo.pk)
+            return redirect("fluxos:lista")
+        if execucao.status == "sucesso":
+            messages.success(request, "Execução concluída.")
+        else:
+            messages.error(request, "A execução terminou com erro.")
+        return redirect("execucoes:detalhe", pk=execucao.pk)
 
 
 class FluxoEditorView(PermissaoMixin, View):
