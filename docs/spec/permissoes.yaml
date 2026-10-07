@@ -16,7 +16,7 @@ acoes:
   fluxos.excluir:       {adm: todos,  coordenador: todos,  base: nenhum}
   fluxos.executar:      {adm: todos,  coordenador: todos,  base: ativos}
   execucoes.ver:        {adm: todos,  coordenador: todos,  base: proprias} # lista e detalhe, inclusive saídas por nó
-  conta.trocar_senha:   {adm: todos,  coordenador: todos,  base: todos}    # a própria senha
+  conta.trocar_senha:   {adm: todos,  coordenador: todos,  base: todos}    # a própria senha (sem papel: 403, USR-15)
 
 regras:
   - id: PRM-01
