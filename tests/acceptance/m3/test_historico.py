@@ -146,10 +146,14 @@ def test_queries_da_lista_constantes(cliente_adm, fabrica_execucao, django_asser
 def test_detalhe_mostra_cabecalho_e_nos_em_ordem(cliente_coordenador, liberado, executar, cadeia, cfg_http):
     """EXE-09: cabeçalho (fluxo, status, quem) e nós em ordem com entrada/saída."""
     g = cadeia(cfg_http(f"{liberado.base}/eco", query=[{"nome": "marca", "valor": "VALORDETESTE"}]))
+    titulos = ["Disparo Inicial Unico", "Consulta Intermediaria Unica", "Resultado Final Unico"]
+    for n, t in zip(g["nos"], titulos, strict=True):
+        n["titulo"] = t
     _, e, f = executar(cliente_coordenador, g)
     h = _h(cliente_coordenador.get(reverse("execucoes:detalhe", kwargs={"pk": e.pk})))
     assert f.nome in h and e.executado_por.nome in h
-    assert h.index("G") < h.index("H1") < h.index("S")
+    assert all(h.count(t) >= 1 for t in titulos)
+    assert h.index(titulos[0]) < h.index(titulos[1]) < h.index(titulos[2])
     assert "VALORDETESTE" in h and "200" in h
 
 
