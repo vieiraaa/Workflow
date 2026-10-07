@@ -69,14 +69,14 @@ def dados_usuario():
     return _dados
 
 
-@pytest.fixture
-def navegador_movel(live_server, cliente_base):
-    """Página Playwright (Chromium headless) a 390x844, logada como Base, contra o live_server."""
+@pytest.fixture(params=["chromium", "webkit"])
+def navegador_movel(request, live_server, cliente_base):
+    """Página Playwright a 390x844 (Chromium e WebKit, o motor do iOS), logada como Base, contra o live_server."""
     from playwright.sync_api import sync_playwright
 
     sessao = cliente_base.cookies["sessionid"].value
     with sync_playwright() as pw:
-        navegador = pw.chromium.launch()
+        navegador = getattr(pw, request.param).launch()
         contexto = navegador.new_context(viewport={"width": 390, "height": 844})
         contexto.add_cookies([{"name": "sessionid", "value": sessao, "url": live_server.url}])
         pagina = contexto.new_page()

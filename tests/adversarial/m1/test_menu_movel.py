@@ -3,7 +3,7 @@
 import pytest
 from django.urls import reverse
 
-pytestmark = [pytest.mark.django_db(transaction=True), pytest.mark.modulo("m1")]
+pytestmark = [pytest.mark.django_db(transaction=True, serialized_rollback=True), pytest.mark.modulo("m1")]
 
 
 def test_menu_abre_no_celular_e_item_e_clicavel(navegador_movel):
