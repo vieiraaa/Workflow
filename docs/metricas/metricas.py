@@ -35,8 +35,15 @@ SESSOES = {
         f"{PROJ}/85e7e4bc-0239-46dd-9a1e-d56ef49e09e6.jsonl",
     ],
     "Orquestrador": [f"{PROJ}/7d97252a-3abd-4de0-a7d7-f1ee4f3584d7.jsonl"],
+    "Atalaia": [f"{PROJ}/11e0bba2-6e50-49fa-aeaa-b5c8f8ae05b0.jsonl"],
 }
-AGENTE_TRAILER = {"back": "Forja", "front": "Vitral", "qa": "Lupa", "lead": "Orquestrador"}
+AGENTE_TRAILER = {
+    "back": "Forja",
+    "front": "Vitral",
+    "qa": "Lupa",
+    "lead": "Orquestrador",
+    "seguranca": "Atalaia",
+}
 # Marcos de módulo para o Orquestrador: (rótulo, mensagem do commit que FECHA o módulo)
 MODULOS = [
     ("Fase 0", "Fase 0 fechada"),
