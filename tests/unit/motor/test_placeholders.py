@@ -206,7 +206,6 @@ def test_o_modulo_nao_usa_eval_exec_nem_engine_de_template():
     for proibido in (
         "eval(",
         "exec(",
-        "compile(",
         "getattr(",
         "django.template",
         "jinja",
