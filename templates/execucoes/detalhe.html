@@ -46,7 +46,7 @@
         {% if no.erro_categoria or no.erro_mensagem %}
         <div class="alerta alerta--erro" role="alert" data-estado="erro_no" data-categoria="{{ no.erro_categoria }}">
           {% include "componentes/icone.html" with nome="circle-alert" tamanho=16 %}
-          <span><strong>{{ no.erro_rotulo|default:no.erro_categoria }}.</strong> {{ no.erro_mensagem }}</span>
+          <span>{% if no.erro_rotulo and no.erro_rotulo in no.erro_mensagem %}{{ no.erro_mensagem }}{% elif no.erro_mensagem and no.erro_mensagem in execucao.erro_resumo %}<strong>{{ no.erro_rotulo|default:no.erro_categoria }}.</strong>{% else %}<strong>{{ no.erro_rotulo|default:no.erro_categoria }}.</strong> {{ no.erro_mensagem }}{% endif %}</span>
         </div>
         {% endif %}
         {% if no.entrada_json %}
