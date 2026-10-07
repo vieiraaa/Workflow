@@ -123,6 +123,68 @@ def _paginado(usuarios):
     _usuarios_extras(40)
 
 
+def _fluxos_demo(dono_chave, quantidade=8):
+    """Fluxos fictícios variados (rascunho/ativo) para as listas."""
+
+    def preparar(usuarios):
+        from apps.fluxos import demo
+
+        for i in range(quantidade):
+            demo.criar_fluxo(
+                usuarios[dono_chave],
+                f"Fluxo fictício {i:02d}",
+                "ativo" if i % 2 else "rascunho",
+                demo.grafo_exemplo(),
+                "Descrição de exemplo do fluxo." if i % 3 else "",
+            )
+
+    return preparar
+
+
+def _so_rascunhos(usuarios):
+    from apps.fluxos import demo
+
+    demo.criar_fluxo(usuarios["coordenador"], "Rascunho invisível ao Base", "rascunho")
+
+
+def _fluxo_demo(grafo_fabrica, status="rascunho"):
+    def preparar(usuarios):
+        from apps.fluxos import demo
+
+        fluxo = demo.criar_fluxo(
+            usuarios["coordenador"],
+            "Consulta de pedidos",
+            status,
+            grafo_fabrica(),
+            "Fluxo de demonstração.",
+        )
+        return {"fluxo_demo": fluxo}
+
+    return preparar
+
+
+def _grafos():
+    from apps.fluxos import demo
+    from apps.fluxos.models import grafo_inicial
+
+    return demo, grafo_inicial
+
+
+def _editor_vazio(usuarios):
+    demo, grafo_inicial = _grafos()
+    return _fluxo_demo(grafo_inicial)(usuarios)
+
+
+def _editor_3_nos(usuarios):
+    demo, _ = _grafos()
+    return _fluxo_demo(demo.grafo_exemplo)(usuarios)
+
+
+def _editor_erro(usuarios):
+    demo, _ = _grafos()
+    return _fluxo_demo(demo.grafo_com_url_invalida)(usuarios)
+
+
 # (id da tela, estado) -> (preparar(usuarios) -> dict de nomes para kwargs | None,
 #                          acao(page, base) depois do goto | None, querystring opcional)
 PREPARADORES = {
@@ -137,6 +199,13 @@ PREPARADORES = {
     ("TEL-03", "erro_validacao"): (None, _erro_novo),
     ("TEL-09", "padrao"): (None, None),
     ("TEL-09", "erro_validacao"): (None, _erro_editar),
+    ("TEL-04", "vazio"): (None, None),
+    ("TEL-04", "com_dados"): (_fluxos_demo("coordenador"), None),
+    ("TEL-12", "vazio"): (_so_rascunhos, None),
+    ("TEL-12", "com_dados"): (_fluxos_demo("coordenador"), None),
+    ("TEL-05", "vazio"): (_editor_vazio, None),
+    ("TEL-05", "com_3_nos"): (_editor_3_nos, None),
+    ("TEL-05", "erro_validacao_no"): (_editor_erro, None),
     ("TEL-08", "padrao"): (None, None),
     ("TEL-08", "erro_validacao"): (None, _erro_trocar_senha),
 }
