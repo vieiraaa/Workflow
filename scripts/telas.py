@@ -35,11 +35,19 @@ URL_INEXISTENTE = "/nao-existe/"
 
 
 # ---------------------------------------------------------------- preparação de dados
+def _limpar_dados_de_telas():
+    """Apaga os dados fictícios de estados anteriores, dependentes primeiro (FK PROTECT)."""
+    from apps.fluxos.models import Fluxo
+
+    Fluxo.objects.all().delete()
+
+
 def _usuarios():
     from django.contrib.auth.models import Group
 
     from apps.contas.models import Usuario
 
+    _limpar_dados_de_telas()
     Usuario.objects.all().delete()
     for nome in ("Adm", "Coordenador", "Base"):
         Group.objects.get_or_create(name=nome)
