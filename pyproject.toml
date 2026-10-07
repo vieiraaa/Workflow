@@ -1,0 +1,42 @@
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+extend-exclude = [".venv", "staticfiles"]
+
+[tool.ruff.format]
+exclude = ["tests/acceptance/**", "tests/adversarial/**", "tests/e2e/**", "tests/unit/frontend/**"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "DJ", "S102", "S307", "TID251"]
+
+[tool.ruff.lint.per-file-ignores]
+"*/migrations/*" = ["E501", "UP", "I"]
+# Testes de outros donos (QA/Front): linhas longas não bloqueiam; formatação é deles.
+"tests/acceptance/*" = ["E501", "F401"]
+"tests/adversarial/*" = ["E501"]
+"tests/e2e/*" = ["E501"]
+"tests/unit/frontend/*" = ["E501"]
+
+# eval/exec são proibidos (placeholders têm parser próprio, ver skill integracao).
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"builtins.eval".msg = "Proibido eval: use o parser restrito de placeholders."
+"builtins.exec".msg = "Proibido exec."
+"django.template.Template".msg = "Proibido engine de template sobre entrada do usuário."
+
+[tool.ruff.lint.isort]
+known-first-party = ["apps", "config"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.teste"
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --import-mode=importlib"
+markers = ["modulo(nome): módulo do produto a que o teste pertence (ex.: m0)"]
+
+[tool.coverage.run]
+source = ["apps", "config"]
+omit = ["*/migrations/*", "*/tests/*", "config/wsgi.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
