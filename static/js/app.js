@@ -39,6 +39,7 @@
     } else if (alvo.hasAttribute("data-menu-alternar") && shell) {
       var aberto = shell.classList.toggle("menu-aberto");
       alvo.setAttribute("aria-expanded", aberto ? "true" : "false");
+      alvo.setAttribute("aria-label", aberto ? "Fechar menu" : "Abrir menu");
     } else if (alvo.hasAttribute("data-menu-fechar") && shell) {
       shell.classList.remove("menu-aberto");
     } else if (alvo.hasAttribute("data-modal-abrir")) {

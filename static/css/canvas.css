@@ -2,7 +2,7 @@
 .conteudo--cheio { max-width: none; padding: 0; gap: 0; }
 :root { --paleta-w: 200px; --inspector-w: 340px; --no-w: 220px; --porta: 18px; --cor-gatilho: var(--orange); --cor-http: var(--accent); --cor-saida: var(--success); }
 
-.editor { position: relative; display: grid; grid-template-columns: var(--paleta-w) minmax(0, 1fr) var(--inspector-w); height: calc(100vh - var(--topbar-h) - var(--sp-4)); min-height: 480px; background: var(--bg); overflow: hidden; }
+.editor { position: relative; display: grid; grid-template-columns: var(--paleta-w) minmax(0, 1fr) var(--inspector-w); height: calc(100dvh - var(--topbar-h)); min-height: 480px; background: var(--bg); overflow: hidden; }
 .editor__paleta, .editor__inspector { background: var(--surface); overflow-y: auto; padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-3); }
 .editor__paleta { border-right: 1px solid var(--hairline); }
 .editor__inspector { border-left: 1px solid var(--hairline); }
@@ -67,10 +67,15 @@
 @media (min-width: 801px) { .toolbar [data-acao="paleta"] { display: none; } }
 
 @media (max-width: 800px) {
-  .editor { grid-template-columns: minmax(0, 1fr); height: calc(100dvh - var(--topbar-h) - var(--sp-3)); }
+  .editor { grid-template-columns: minmax(0, 1fr); height: calc(100dvh - var(--topbar-h)); }
   .editor__paleta, .editor__inspector { position: absolute; left: 0; right: 0; bottom: 0; z-index: 8; max-height: 60%; border: 0; border-radius: var(--r-xl) var(--r-xl) 0 0; box-shadow: var(--shadow-2); transform: translateY(100%); visibility: hidden; transition: transform var(--dur) var(--ease), visibility var(--dur); }
   .editor--paleta .editor__paleta, .editor--inspector .editor__inspector { transform: none; visibility: visible; }
   .editor__fechar { display: inline-flex; align-self: flex-end; }
   .toolbar { top: var(--sp-2); }
   .toolbar .botao__rotulo-desktop { display: none; }
 }
+
+.topbar__titulo { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* O enquadramento (ajustar) calcula a translação a partir do canto superior esquerdo. */
+.canvas .drawflow { transform-origin: 0 0; }

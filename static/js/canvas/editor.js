@@ -141,7 +141,7 @@
   /* ---------- zoom / ajustar ---------- */
   function ajustar() {
     var dados = editor.drawflow.drawflow.Home.data, ids = Object.keys(dados);
-    if (!ids.length) { editor.zoom = 1; editor.canvas_x = 0; editor.canvas_y = 0; editor.zoom_refresh(); return; }
+    if (!ids.length) { editor.zoom = 1; editor.zoom_last_value = 1; editor.canvas_x = 0; editor.canvas_y = 0; editor.zoom_refresh(); return; }
     var minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
     ids.forEach(function (id) {
       var caixa = areaCanvas.querySelector("#node-" + id);
@@ -153,7 +153,9 @@
     var z = Math.min(1, (r.width - margem) / (maxx - minx), (r.height - margem - topo) / (maxy - miny));
     z = Math.max(window.innerWidth <= 800 ? 0.65 : editor.zoom_min, z);
     editor.zoom = z;
+    editor.zoom_last_value = z; // zoom_refresh() reescala canvas_x/y por zoom/zoom_last_value
     editor.canvas_x = (r.width - (maxx - minx) * z) / 2 - minx * z;
+    if ((maxx - minx) * z > r.width - margem) editor.canvas_x = margem / 2 - minx * z; // não cabe: alinha ao primeiro nó
     editor.canvas_y = topo + (r.height - topo - margem / 2 - (maxy - miny) * z) / 2 - miny * z;
     editor.zoom_refresh();
   }
@@ -272,7 +274,9 @@
       var sel = criar("select"); sel.id = "insp-metodo";
       C.METODOS.forEach(function (m) { var o = criar("option", "", m); o.value = m; if (m === d.config.metodo) o.selected = true; sel.appendChild(o); });
       sel.addEventListener("change", function () { atualizarDados(dfId, function (x) { x.config.metodo = sel.value; }); montarInspector(dfId); });
-      cm.appendChild(lm); cm.appendChild(sel); anexarErros(cm, "metodo");
+      var envoltorio = criar("div", "campo__select");
+      envoltorio.appendChild(sel); envoltorio.appendChild(icone("chevron-down", 16));
+      cm.appendChild(lm); cm.appendChild(envoltorio); anexarErros(cm, "metodo");
       form.appendChild(cm);
       form.appendChild(campoTexto("URL", d.config.url, { campo: "url", max: 2048, placeholder: "https://api.exemplo.com/recurso" }, function (v) {
         atualizarDados(dfId, function (x) { x.config.url = v; });

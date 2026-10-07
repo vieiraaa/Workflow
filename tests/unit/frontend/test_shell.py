@@ -102,3 +102,15 @@ def test_comentarios_de_template_em_uma_linha():
     for arquivo in TEMPLATES.rglob("*.html"):
         for achado in re.finditer(r"\{#(.*?)#\}", arquivo.read_text(encoding="utf-8"), re.S):
             assert "\n" not in achado.group(1), arquivo
+
+
+def test_500_renderiza_sem_requisicao_nem_banco():
+    from django.template.loader import render_to_string
+
+    html = render_to_string("erros/500.html")
+    assert "Algo deu errado" in html and "base.html" not in html
+
+
+def test_menu_movel_tem_rotulo_acessivel(cliente_adm):
+    conteudo = cliente_adm.get(reverse("contas:usuarios")).content.decode()
+    assert 'aria-label="Abrir menu"' in conteudo

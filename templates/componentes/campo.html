@@ -1,7 +1,7 @@
 {# campo: BoundField do Django. ajuda opcional. O erro por campo aparece abaixo. #}
 <div class="campo{% if campo.errors %} campo--erro{% endif %}">
   <label class="campo__rotulo" for="{{ campo.id_for_label }}">{{ rotulo|default:campo.label }}</label>
-  {{ campo }}
+  {% if campo.field.widget.input_type == "select" %}<div class="campo__select">{{ campo }}{% include "componentes/icone.html" with nome="chevron-down" tamanho=16 %}</div>{% else %}{{ campo }}{% endif %}
   {% if ajuda or campo.help_text %}<p class="campo__ajuda">{{ ajuda|default:campo.help_text }}</p>{% endif %}
   {% for erro in campo.errors %}<p class="campo__erro" role="alert">{{ erro }}</p>{% endfor %}
 </div>
