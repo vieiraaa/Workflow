@@ -36,7 +36,7 @@
         <td class="tabela__acoes">
           <div class="tabela__botoes">
             {% if f.url_executar %}
-            <form method="post" action="{{ f.url_executar }}">{% csrf_token %}{% include "componentes/botao.html" with rotulo="Executar" icone="play" tipo="submit" %}</form>
+            <form method="post" action="{{ f.url_executar }}">{% csrf_token %}{% include "componentes/botao.html" with rotulo="Executar" icone="play" tipo="submit" carregando="Executando…" %}</form>
             {% endif %}
             {% if f.url_status %}
             <form method="post" action="{{ f.url_status }}">{% csrf_token %}<input type="hidden" name="voltar" value="lista"><input type="hidden" name="status" value="{% if f.status == 'ativo' %}rascunho{% else %}ativo{% endif %}">{% if f.status == 'ativo' %}{% include "componentes/botao.html" with rotulo="Desativar" rotulo_acessivel="Voltar para rascunho" tipo="submit" %}{% else %}{% include "componentes/botao.html" with rotulo="Ativar" tipo="submit" %}{% endif %}</form>

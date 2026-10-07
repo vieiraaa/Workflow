@@ -40,7 +40,13 @@
         <div class="pendencias-pop" data-pendencias-lista hidden></div>
       </div>
       <span class="toolbar__sep"></span>
-      <button class="botao botao--secundario" type="button" disabled title="Disponível em breve" aria-label="Executar (em breve)">{% include "componentes/icone.html" with nome="play" tamanho=16 %}<span class="botao__rotulo-desktop">Executar</span></button>
+      {% if pode_executar %}
+      <form method="post" action="{{ url_executar }}" data-executar>{% csrf_token %}
+        <button class="botao botao--secundario" type="submit" data-carregando data-texto-carregando="Executando…" aria-label="Executar">{% include "componentes/icone.html" with nome="play" tamanho=16 %}<span class="botao__rotulo-desktop">Executar</span></button>
+      </form>
+      {% else %}
+      <button class="botao botao--secundario" type="button" disabled title="Execução indisponível para este fluxo" aria-label="Executar (indisponível)">{% include "componentes/icone.html" with nome="play" tamanho=16 %}<span class="botao__rotulo-desktop">Executar</span></button>
+      {% endif %}
       <button class="botao botao--primario" type="button" data-acao="salvar" data-salvar aria-label="Salvar">{% include "componentes/icone.html" with nome="save" tamanho=16 %}<span class="botao__rotulo-desktop">Salvar</span></button>
     </div>
     <div class="canvas" data-canvas></div>

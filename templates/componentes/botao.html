@@ -1,5 +1,5 @@
-{# rotulo, variante: primario|secundario|destrutivo|icone, icone, tipo: button|submit, href, bloco, desabilitado, rotulo_acessivel, atributos (texto escapado) #}
+{# rotulo, carregando (texto exibido enquanto envia, ex.: "Executando…"), variante: primario|secundario|destrutivo|icone, icone, tipo: button|submit, href, bloco, desabilitado, rotulo_acessivel, atributos (texto escapado) #}
 {% if href %}<a class="botao botao--{{ variante|default:'secundario' }}{% if bloco %} botao--bloco{% endif %}" href="{{ href }}"{% if rotulo_acessivel %} aria-label="{{ rotulo_acessivel }}"{% endif %}>
-{% else %}<button class="botao botao--{{ variante|default:'secundario' }}{% if bloco %} botao--bloco{% endif %}" type="{{ tipo|default:'button' }}"{% if desabilitado %} disabled{% endif %}{% if rotulo_acessivel %} aria-label="{{ rotulo_acessivel }}"{% endif %}{% if modal %} data-modal-abrir="{{ modal }}"{% endif %}>{% endif %}
+{% else %}<button class="botao botao--{{ variante|default:'secundario' }}{% if bloco %} botao--bloco{% endif %}" type="{{ tipo|default:'button' }}"{% if desabilitado %} disabled{% endif %}{% if rotulo_acessivel %} aria-label="{{ rotulo_acessivel }}"{% endif %}{% if modal %} data-modal-abrir="{{ modal }}"{% endif %}{% if carregando %} data-carregando data-texto-carregando="{{ carregando }}"{% endif %}>{% endif %}
 {% if icone %}{% include "componentes/icone.html" with nome=icone tamanho=16 %}{% endif %}{% if rotulo %}<span>{{ rotulo }}</span>{% endif %}
 {% if href %}</a>{% else %}</button>{% endif %}

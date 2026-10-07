@@ -97,9 +97,28 @@
     if (tag !== "error") setTimeout(function () { t.remove(); }, 5000);
   };
 
-  /* Botão de envio mostra estado "carregando" e evita duplo envio. */
+  /* Botão de envio ([data-carregando]) mostra "carregando" e bloqueia duplo envio do formulário. */
   document.addEventListener("submit", function (ev) {
-    var btn = ev.target.querySelector("[type=submit][data-carregando]");
-    if (btn) btn.setAttribute("aria-busy", "true");
+    var form = ev.target;
+    if (ev.defaultPrevented) return;
+    if (form.dataset.enviando === "true") { ev.preventDefault(); return; }
+    var btn = form.querySelector("[type=submit][data-carregando]");
+    if (!btn) return;
+    form.dataset.enviando = "true";
+    btn.setAttribute("aria-busy", "true");
+    var texto = btn.getAttribute("data-texto-carregando");
+    if (texto) {
+      btn.replaceChildren(svg("loader-circle", 16), document.createTextNode(texto));
+      btn.firstChild.setAttribute("class", "icone icone--16 icone--gira");
+    }
+  });
+
+  /* Voltar pelo histórico do navegador não deve deixar formulário travado. */
+  window.addEventListener("pageshow", function (ev) {
+    if (!ev.persisted) return;
+    document.querySelectorAll("form[data-enviando]").forEach(function (f) {
+      delete f.dataset.enviando;
+      f.querySelectorAll("[aria-busy]").forEach(function (b) { b.removeAttribute("aria-busy"); });
+    });
   });
 })();

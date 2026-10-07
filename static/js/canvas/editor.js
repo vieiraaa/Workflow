@@ -429,6 +429,21 @@
     });
   }
 
+  /* Executar (EXE-13): salva antes se houver alterações; só então envia o POST. */
+  var formExecutar = raiz.querySelector("[data-executar]");
+  if (formExecutar) {
+    formExecutar.addEventListener("submit", function (ev) {
+      if (!sujo) return;
+      ev.preventDefault();
+      var botao = formExecutar.querySelector("button");
+      botao.setAttribute("aria-busy", "true");
+      salvar().then(function (ok) {
+        botao.removeAttribute("aria-busy");
+        if (ok) { sujo = false; formExecutar.submit(); }
+      });
+    }, true);
+  }
+
   /* ---------- início ---------- */
   var inicial = JSON.parse(document.getElementById("grafo-inicial").textContent);
   carregar(inicial);
