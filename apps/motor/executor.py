@@ -11,6 +11,7 @@ import logging
 import time
 
 from django.conf import settings
+from django.db import DatabaseError
 from django.utils import timezone
 
 from apps.execucoes.models import Execucao, ExecucaoNo
@@ -101,9 +102,9 @@ def _textos_da_config(config):
             yield par["valor"]
 
 
-def _executar_http(no, anterior, prazo_restante):
+def _executar_http(no, anterior, prazo_restante, segredos):
     resolvido = _resolver_config(no["config"], anterior)
-    entrada = mascarar.mascarar_entrada_http(resolvido)
+    entrada = mascarar.ocultar_valores(mascarar.mascarar_entrada_http(resolvido), segredos)
     if prazo_restante <= 0:
         raise FalhaNo("timeout", http.MENSAGENS["timeout"], entrada=entrada)
     try:
@@ -135,8 +136,20 @@ class _Execucao:
             status=Execucao.EXECUTANDO,
         )
         self.prazo = time.monotonic() + float(settings.MOTOR_TIMEOUT_EXECUCAO)
+        self.segredos = set()  # valores de headers sensíveis já vistos nesta execução
 
     def _gravar(self, ordem, no, status, entrada, saida, duracao_ms, falha=None):
+        """Grava o nó e devolve a falha efetiva (se o banco recusar o conteúdo, o nó vira erro)."""
+        try:
+            self._criar_no(ordem, no, status, entrada, saida, duracao_ms, falha)
+        except DatabaseError, ValueError, TypeError:
+            # dado que o banco recusa (ex.: resposta estranha): grava o nó sem o conteúdo
+            logger.exception("Não foi possível gravar o nó %s; gravando sem conteúdo", no["id"])
+            falha = FalhaNo("conexao", "Não foi possível gravar o resultado deste nó.")
+            self._criar_no(ordem, no, ExecucaoNo.ERRO, {}, {}, duracao_ms, falha)
+        return falha
+
+    def _criar_no(self, ordem, no, status, entrada, saida, duracao_ms, falha):
         ExecucaoNo.objects.create(
             execucao=self.execucao,
             no_id=no["id"],
@@ -162,10 +175,13 @@ class _Execucao:
         if no["tipo"] == "saida":
             return {}, anterior_gravado, anterior_gravado
         try:
-            entrada, resposta = _executar_http(no, anterior_bruto, self.prazo - time.monotonic())
+            entrada, resposta = _executar_http(
+                no, anterior_bruto, self.prazo - time.monotonic(), self.segredos
+            )
         except placeholders.ErroPlaceholder as erro:
             raise FalhaNo(placeholders.CATEGORIA, erro.mensagem) from None
         gravada = mascarar.mascarar_saida_http(resposta)
+        self.segredos |= mascarar.valores_sensiveis(resposta["headers"])
         categoria = http.categoria_de_status(resposta["status"])
         if categoria:
             mensagem = f"{http.MENSAGENS[categoria]} (HTTP {resposta['status']})"
@@ -195,7 +211,7 @@ class _Execucao:
                 status = ExecucaoNo.ERRO
                 falha = FalhaNo("conexao", "Erro interno ao executar este nó.")
             duracao = int((time.monotonic() - inicio) * 1000)
-            self._gravar(ordem, no, status, entrada, saida, duracao, falha)
+            falha = self._gravar(ordem, no, status, entrada, saida, duracao, falha)
             if falha is not None:
                 falha_no = (no, falha)
         return self._finalizar(falha_no)
@@ -213,6 +229,13 @@ class _Execucao:
         return execucao
 
 
+def _terminar_com_erro_interno(execucao):
+    execucao.status = Execucao.ERRO
+    execucao.finalizada_em = timezone.now()
+    execucao.erro_resumo = "Erro interno durante a execução."
+    execucao.save(update_fields=["status", "finalizada_em", "erro_resumo"])
+
+
 def executar(fluxo, usuario):
     """Executa o fluxo de forma síncrona e devolve a `Execucao` gravada (EXE-01).
 
@@ -223,4 +246,11 @@ def executar(fluxo, usuario):
         pendencias = [{"no": None, "campo": e["campo"], "mensagem": e["mensagem"]} for e in erros]
     if pendencias:
         raise FluxoComPendencias(pendencias)
-    return _Execucao(fluxo, usuario).executar()
+    em_andamento = _Execucao(fluxo, usuario)
+    try:
+        return em_andamento.executar()
+    except Exception:
+        # a execução nunca pode ficar presa em "executando"
+        logger.exception("Falha inesperada na execução %s", em_andamento.execucao.pk)
+        _terminar_com_erro_interno(em_andamento.execucao)
+        return em_andamento.execucao

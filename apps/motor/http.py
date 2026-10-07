@@ -18,7 +18,9 @@ import ipaddress
 import json
 import re
 import socket
+import threading
 import time
+import zlib
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as PrazoDeDns
 from urllib.parse import quote, urlencode, urljoin, urlsplit
@@ -30,7 +32,14 @@ from .mascarar import sensivel
 
 PRAZO_DNS = 5.0
 REDIRECTS = {301, 302, 303, 307, 308}
-IGNORADOS_DO_USUARIO = {"host", "content-length", "transfer-encoding", "connection", "upgrade"}
+IGNORADOS_DO_USUARIO = {
+    "host",
+    "content-length",
+    "transfer-encoding",
+    "connection",
+    "upgrade",
+    "accept-encoding",  # o cliente só aceita gzip/deflate, que ele mesmo descompacta com limite
+}
 NOMES_LOCAIS = {"localhost", "localhost.localdomain", "ip6-localhost", "ip6-loopback"}
 
 MENSAGENS = {
@@ -169,18 +178,18 @@ class _Destino:
         return (self.esquema, self.host, self.porta)
 
 
-def _resolver_dns(host, porta):
+def _resolver_dns(host, porta, limite_tempo):
     with ThreadPoolExecutor(max_workers=1) as pool:
         futuro = pool.submit(socket.getaddrinfo, host, porta, 0, socket.SOCK_STREAM)
         try:
-            return futuro.result(timeout=PRAZO_DNS)
+            return futuro.result(timeout=max(0.05, min(PRAZO_DNS, limite_tempo - time.monotonic())))
         except PrazoDeDns:
             raise ErroHttp("dns") from None
         except OSError:  # socket.gaierror e afins
             raise ErroHttp("dns") from None
 
 
-def _enderecos_validados(destino):
+def _enderecos_validados(destino, limite_tempo):
     """IPs do destino, todos validados (exceto host:porta liberado em teste). Resolve uma vez."""
     literal = _ip_literal(destino.host)
     if literal is not None:
@@ -193,7 +202,7 @@ def _enderecos_validados(destino):
             destino.host.encode("idna")
         except UnicodeError:
             raise _bloqueado("URL inválida.") from None
-        resolvidos = _resolver_dns(destino.host, destino.porta)
+        resolvidos = _resolver_dns(destino.host, destino.porta, limite_tempo)
         ips = []
         for _familia, _tipo, _proto, _nome, endereco in resolvidos:
             ip = ipaddress.ip_address(endereco[0].split("%")[0])
@@ -207,6 +216,37 @@ def _enderecos_validados(destino):
 
 
 # ---------------------------------------------------------------- resposta
+_PAR_SUBSTITUTO = re.compile(r"\\\\|\\u[dD][0-9a-fA-F]{3}(?:\\u[dD][0-9a-fA-F]{3})?|\\u0000")
+
+
+def _escapes_seguros(achado):
+    """Troca por U+FFFD escapes JSON que o Postgres recusa: NUL e surrogate sem par válido."""
+    texto = achado.group(0)
+    if texto == "\\\\":
+        return texto
+    if texto == "\\u0000":
+        return "\\ufffd"
+    partes = [texto[:6], texto[6:]] if len(texto) == 12 else [texto]
+    if (
+        len(partes) == 2
+        and partes[0][2].lower() == "d"
+        and partes[0][3].lower() in "89ab"
+        and (partes[1][3].lower() in "cdef")
+    ):
+        return texto  # par alto+baixo válido (caractere fora do plano básico)
+    return "".join("\\ufffd" if p[3].lower() in "89abcdef" else p for p in partes)
+
+
+def sanear_json_bruto(texto):
+    """Texto JSON sem escapes de NUL nem surrogates soltos (que o jsonb não aceita)."""
+    return _PAR_SUBSTITUTO.sub(_escapes_seguros, texto)
+
+
+def sanear_texto(texto):
+    """Texto sem NUL e sem surrogates (seguro para gravar em jsonb/text)."""
+    return re.sub("[\ud800-\udfff\x00]", "\ufffd", texto)
+
+
 def _decodificar_corpo(bruto, content_type):
     charset = "utf-8"
     achado = re.search(r"charset=([\w.-]+)", content_type or "", re.IGNORECASE)
@@ -219,10 +259,10 @@ def _decodificar_corpo(bruto, content_type):
     parece_json = "json" in (content_type or "").lower() or texto.lstrip()[:1] in ("{", "[")
     if parece_json:
         try:
-            return json.loads(texto, parse_constant=_recusar_constante)
+            return json.loads(sanear_json_bruto(texto), parse_constant=_recusar_constante)
         except ValueError, RecursionError:
             pass
-    return texto
+    return sanear_texto(texto)
 
 
 def _recusar_constante(nome):
@@ -232,22 +272,68 @@ def _recusar_constante(nome):
 def _headers_da_resposta(resposta):
     juntos = {}
     for nome, valor in resposta.headers.multi_items():
-        nome = nome.lower()
+        nome = sanear_texto(nome.lower())
+        valor = sanear_texto(valor)
         juntos[nome] = f"{juntos[nome]}, {valor}" if nome in juntos else valor
     return juntos
 
 
+class _Descompactador:
+    """Descompacta gzip/deflate de forma incremental, sem nunca passar de `max_length` por vez."""
+
+    def __init__(self, codificacao):
+        codificacao = (codificacao or "identity").strip().lower()
+        if codificacao in ("", "identity"):
+            self._z = None
+        elif codificacao in ("gzip", "x-gzip"):
+            self._z = zlib.decompressobj(zlib.MAX_WBITS | 16)
+        elif codificacao == "deflate":
+            self._z = zlib.decompressobj(zlib.MAX_WBITS)
+        else:
+            raise ErroHttp("conexao", "Codificação de resposta não suportada.")
+        self._pendente = b""
+
+    def alimentar(self, pedaco, max_length):
+        """Bytes descompactados (até `max_length`). O resto fica pendente para a próxima chamada."""
+        if self._z is None:
+            return pedaco
+        try:
+            entrada = self._pendente + pedaco if self._pendente else pedaco
+            saida = self._z.decompress(entrada, max_length)
+            self._pendente = self._z.unconsumed_tail
+            return saida
+        except zlib.error:
+            raise ErroHttp("conexao", "Resposta compactada inválida.") from None
+
+    @property
+    def pendente(self):
+        return bool(self._pendente)
+
+    def esvaziar(self, max_length):
+        return self.alimentar(b"", max_length)
+
+
 def _ler_limitado(resposta, limite_tempo):
-    """Lê o corpo (já descompactado) até 1 MB. Devolve (bytes, truncado)."""
+    """Lê o corpo (descompactado aos poucos) até o limite. Devolve (bytes, truncado)."""
     limite_corpo = _limite("LIMITE_RESPOSTA")
+    descompactador = _Descompactador(resposta.headers.get("content-encoding"))
     pedacos, total = [], 0
-    for pedaco in resposta.iter_bytes():
+
+    def aceitar(dados):
+        nonlocal total
+        pedacos.append(dados)
+        total += len(dados)
+        return total > limite_corpo
+
+    for bruto in resposta.iter_raw():
         if time.monotonic() > limite_tempo:
             raise ErroHttp("timeout")
-        pedacos.append(pedaco)
-        total += len(pedaco)
-        if total > limite_corpo:
+        dados = descompactador.alimentar(bruto, limite_corpo + 1 - total)
+        if aceitar(dados):
             return b"".join(pedacos)[:limite_corpo], True
+        while descompactador.pendente:  # a mesma entrada pode render mais saída
+            if aceitar(descompactador.esvaziar(limite_corpo + 1 - total)):
+                return b"".join(pedacos)[:limite_corpo], True
     return b"".join(pedacos), False
 
 
@@ -312,6 +398,7 @@ def _enviar_uma_vez(cliente, metodo, destino, ips, cabecalhos, corpo, limite_tem
                 headers=_headers_em_bytes(cabecalhos),
                 content=corpo.encode("utf-8") if corpo else None,
                 extensions={"sni_hostname": destino.host},
+                timeout=_timeout_do_salto(limite_tempo),
             )
         except httpx.InvalidURL:
             raise _bloqueado("URL inválida.") from None
@@ -328,61 +415,96 @@ def _enviar_uma_vez(cliente, metodo, destino, ips, cabecalhos, corpo, limite_tem
     raise ultimo or ErroHttp("conexao")
 
 
+def _timeout_do_salto(limite_tempo):
+    """Timeouts deste salto, nunca acima do que resta do prazo do nó."""
+    restante = limite_tempo - time.monotonic()
+    if restante <= 0:
+        raise ErroHttp("timeout")
+    conexao = min(_limite("TIMEOUT_CONEXAO"), restante)
+    leitura = min(_limite("TIMEOUT_LEITURA"), restante)
+    return httpx.Timeout(connect=conexao, read=leitura, write=leitura, pool=conexao)
+
+
 def requisitar(*, metodo, url, headers=(), query=(), corpo="", prazo_s=None):
     """Faz a requisição com proteção SSRF. Devolve {status, headers, corpo, truncado}.
 
     Respostas 4xx/5xx NÃO levantam erro aqui (o executor grava a saída e mapeia a categoria com
     `categoria_de_status`). Levanta `ErroHttp` para bloqueio, DNS, conexão, TLS, timeout e
     redirect excessivo.
+
+    O prazo (MOTOR_TIMEOUT_NO e o que resta da execução) vale para o conjunto: cada salto recebe
+    só o que sobra e um vigia fecha o cliente ao estourar, derrubando também servidores que
+    gotejam bytes (slowloris) sem nunca estourar o timeout de uma única leitura.
     """
     prazo_no = _limite("TIMEOUT_NO")
     prazo_s = prazo_no if prazo_s is None else min(prazo_s, prazo_no)
     limite_tempo = time.monotonic() + max(0.1, prazo_s)
+    cliente = httpx.Client(trust_env=False, follow_redirects=False)
+    vigia = threading.Timer(max(0.1, prazo_s), _fechar_sem_erro, args=(cliente,))
+    vigia.daemon = True
+    vigia.start()
+    try:
+        return _seguir(cliente, metodo.upper(), url, headers, query, corpo, limite_tempo)
+    except ErroHttp as erro:
+        if erro.categoria in ("conexao", "tls") and time.monotonic() >= limite_tempo:
+            raise ErroHttp("timeout") from None
+        raise
+    except httpx.HTTPError, RuntimeError, OSError:
+        # cliente fechado pelo vigia (ou conexão derrubada) depois do prazo
+        if time.monotonic() >= limite_tempo - 0.05:
+            raise ErroHttp("timeout") from None
+        raise ErroHttp("conexao") from None
+    finally:
+        vigia.cancel()
+        _fechar_sem_erro(cliente)
+
+
+def _fechar_sem_erro(cliente):
+    try:
+        cliente.close()
+    except Exception:  # noqa: BLE001 - fechar é melhor esforço
+        pass
+
+
+def _seguir(cliente, metodo, url, headers, query, corpo, limite_tempo):
     max_redirects = _limite("MAX_REDIRECTS")
     atual = _montar_url(url, query)
-    metodo = metodo.upper()
     cabecalhos_do_usuario = [dict(par) for par in headers]
-    conexao, leitura = _limite("TIMEOUT_CONEXAO"), _limite("TIMEOUT_LEITURA")
-    conexao, leitura = min(conexao, prazo_s), min(leitura, prazo_s)  # nenhum passo passa do prazo
-    timeout = httpx.Timeout(connect=conexao, read=leitura, write=leitura, pool=conexao)
-    with httpx.Client(trust_env=False, follow_redirects=False, timeout=timeout) as cliente:
-        origem_inicial = None
-        for salto in range(max_redirects + 1):
-            destino = _Destino(atual)
-            origem_inicial = origem_inicial or destino.origem
-            if destino.origem != origem_inicial:  # não vaza credenciais para outra origem
-                cabecalhos_do_usuario = [
-                    p for p in cabecalhos_do_usuario if not sensivel(p["nome"])
-                ]
-            ips = _enderecos_validados(destino)
-            resposta = _enviar_uma_vez(
-                cliente,
-                metodo,
-                destino,
-                ips,
-                _cabecalhos(cabecalhos_do_usuario, destino, corpo),
-                corpo,
-                limite_tempo,
-            )
+    origem_inicial = None
+    for salto in range(max_redirects + 1):
+        destino = _Destino(atual)
+        origem_inicial = origem_inicial or destino.origem
+        if destino.origem != origem_inicial:  # não vaza credenciais para outra origem
+            cabecalhos_do_usuario = [p for p in cabecalhos_do_usuario if not sensivel(p["nome"])]
+        ips = _enderecos_validados(destino, limite_tempo)
+        resposta = _enviar_uma_vez(
+            cliente,
+            metodo,
+            destino,
+            ips,
+            _cabecalhos(cabecalhos_do_usuario, destino, corpo),
+            corpo,
+            limite_tempo,
+        )
+        try:
+            local = resposta.headers.get("location")
+            if resposta.status_code in REDIRECTS and local:
+                if salto == max_redirects:
+                    raise ErroHttp("redirect_excessivo")
+                atual = urljoin(atual.split("#", 1)[0], local)
+                if resposta.status_code in (301, 302, 303) and metodo not in ("GET", "HEAD"):
+                    metodo, corpo = "GET", ""
+                continue
             try:
-                local = resposta.headers.get("location")
-                if resposta.status_code in REDIRECTS and local:
-                    if salto == max_redirects:
-                        raise ErroHttp("redirect_excessivo")
-                    atual = urljoin(atual.split("#", 1)[0], local)
-                    if resposta.status_code in (301, 302, 303) and metodo not in ("GET", "HEAD"):
-                        metodo, corpo = "GET", ""
-                    continue
-                try:
-                    bruto, truncado = _ler_limitado(resposta, limite_tempo)
-                except httpx.HTTPError as erro:
-                    raise _erro_de_transporte(erro) from None
-                return {
-                    "status": resposta.status_code,
-                    "headers": _headers_da_resposta(resposta),
-                    "corpo": _decodificar_corpo(bruto, resposta.headers.get("content-type")),
-                    "truncado": truncado,
-                }
-            finally:
-                resposta.close()
+                bruto, truncado = _ler_limitado(resposta, limite_tempo)
+            except httpx.HTTPError as erro:
+                raise _erro_de_transporte(erro) from None
+            return {
+                "status": resposta.status_code,
+                "headers": _headers_da_resposta(resposta),
+                "corpo": _decodificar_corpo(bruto, resposta.headers.get("content-type")),
+                "truncado": truncado,
+            }
+        finally:
+            resposta.close()
     raise ErroHttp("redirect_excessivo")  # inalcançável; mantém o contrato
