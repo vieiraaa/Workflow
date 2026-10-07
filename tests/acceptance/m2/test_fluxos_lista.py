@@ -45,7 +45,7 @@ def test_todos_os_papeis_abrem_a_lista(request, cliente):
 @pytest.mark.modulo("m2")
 def test_lista_mostra_colunas(cliente_coordenador, fabrica_fluxo, usuario_adm):
     """FLX-01: nome, descrição, dono, status e link por linha."""
-    f = fabrica_fluxo(nome="Fluxo Visível", descricao="Descrição única xyz", status="ativo")
+    fabrica_fluxo(nome="Fluxo Visível", descricao="Descrição única xyz", status="ativo")
     h = _h(cliente_coordenador.get(reverse("fluxos:lista")))
     assert "Fluxo Visível" in h and "Descrição única xyz" in h
     assert usuario_adm.nome in h
@@ -145,7 +145,7 @@ def test_filtro_status(cliente_adm, fabrica_fluxo):
 def test_ordenacao_padrao_e_por_atualizado_em_desc(cliente_adm, fabrica_fluxo):
     """FLX-01: padrão -atualizado_em (o mais recente primeiro)."""
     antigo = fabrica_fluxo(nome="Zebra Antigo")
-    novo = fabrica_fluxo(nome="Abelha Novo")
+    fabrica_fluxo(nome="Abelha Novo")
     _Fluxo().objects.filter(pk=antigo.pk).update(atualizado_em=timezone.now() - timedelta(days=5))
     h = _h(cliente_adm.get(reverse("fluxos:lista")))
     assert h.index("Abelha Novo") < h.index("Zebra Antigo")

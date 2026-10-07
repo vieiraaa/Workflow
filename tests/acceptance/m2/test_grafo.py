@@ -100,13 +100,18 @@ FORMATO = {
     "config_lista": _mut(lambda g: g["nos"][1].update(config=[])),
     "no_nao_objeto": _mut(lambda g: g["nos"].append("n9")),
     "id_numerico": _mut(lambda g: g["nos"][0].update(id=7)),
+    "headers_string": _mut(lambda g: g["nos"][1]["config"].update(headers="Accept: x")),
+    "query_nao_lista": _mut(lambda g: g["nos"][1]["config"].update(query={"a": "b"})),
+    "header_item_sem_nome": _mut(lambda g: g["nos"][1]["config"].update(headers=[{"valor": "v"}])),
+    "header_valor_numero": _mut(lambda g: g["nos"][1]["config"].update(headers=[{"nome": "X", "valor": 1}])),
+    "posicao_sem_y": _mut(lambda g: g["nos"][0].update(posicao={"x": 1})),
 }
 
 
 @pytest.mark.modulo("m2")
 @pytest.mark.parametrize("nome", sorted(FORMATO))
 def test_formato_invalido_400_nada_gravado(nome, cliente_coordenador, fabrica_fluxo, grafo_valido, salvar_grafo):
-    """GRF-02: erro de formato → 400, ok=false, grafo anterior intacto."""
+    """GRF-02/GRF-08(b): erro de formato (forma/tipo JSON errado) → 400, ok=false, grafo anterior intacto."""
     f = fabrica_fluxo()
     antes = copy.deepcopy(f.grafo)
     r = salvar_grafo(cliente_coordenador, f, FORMATO[nome](grafo_valido))
@@ -281,8 +286,7 @@ def test_config_invalida_vira_pendencia_no_no(nome, cliente_coordenador, fabrica
     f = fabrica_fluxo()
     g = CONFIG_INVALIDA[nome](grafo_valido)
     r = salvar_grafo(cliente_coordenador, f, g)
-    if r.status_code == 400:
-        pytest.fail(f"{nome}: spec GRF-03 diz que config inválida é pendência (200), não erro de formato")
+    assert r.status_code == 200, f"{nome}: valor inválido com tipo certo é pendência (GRF-08b), não formato"
     corpo = r.json()
     assert corpo["ok"] is True
     assert any(p["no"] == "n2" for p in corpo["pendencias"]), nome
@@ -350,11 +354,28 @@ def test_editor_permissoes(cliente_adm, cliente_coordenador, cliente_base, clien
 
 
 @pytest.mark.modulo("m2")
-def test_editor_expoe_atualizado_em_iso(cliente_adm, fabrica_fluxo):
-    """FLX-06: editor entrega `atualizado_em` em ISO-8601 na página."""
+def test_editor_expoe_atualizado_em_em_data_attribute(cliente_adm, fabrica_fluxo):
+    """FLX-06/GRF-08(f): data-atualizado-em com o isoformat() do banco."""
     f = fabrica_fluxo()
     html = cliente_adm.get(reverse("fluxos:editor", kwargs={"pk": f.pk})).content.decode()
-    assert re.search(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}", html)
+    f.refresh_from_db()
+    m = re.search(r'data-atualizado-em="([^"]+)"', html)
+    assert m and m.group(1) == f.atualizado_em.isoformat()
+
+
+@pytest.mark.modulo("m2")
+def test_resposta_ok_devolve_novo_atualizado_em_usavel_no_proximo_save(
+        cliente_adm, fabrica_fluxo, grafo_valido, salvar_grafo):
+    """GRF-08(a): a resposta ok traz o novo atualizado_em (ISO-8601), válido para o salvamento seguinte."""
+    f = fabrica_fluxo()
+    r1 = salvar_grafo(cliente_adm, f, grafo_valido)
+    novo = r1.json()["atualizado_em"]
+    assert re.match(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}", novo)
+    f.refresh_from_db()
+    assert novo == f.atualizado_em.isoformat()
+    grafo_valido["nos"][1]["titulo"] = "Segundo save"
+    r2 = salvar_grafo(cliente_adm, f, grafo_valido, atualizado_em=novo)
+    assert r2.status_code == 200 and r2.json()["ok"] is True
 
 
 @pytest.mark.modulo("m2")
@@ -369,7 +390,10 @@ def test_concorrencia_409(cliente_adm, cliente_coordenador, fabrica_fluxo, grafo
     segundo["nos"][1]["titulo"] = "Edição da pessoa B"
     r = salvar_grafo(cliente_coordenador, f, segundo, atualizado_em=lido)
     assert r.status_code == 409
-    assert "Este fluxo foi alterado por outra pessoa. Recarregue para continuar." in r.content.decode()
+    corpo = r.json()
+    assert corpo["ok"] is False
+    assert corpo["erros"] == [{"campo": None, "mensagem":
+                               "Este fluxo foi alterado por outra pessoa. Recarregue para continuar."}]
     assert _salvo(f)["nos"][1]["titulo"] == "Edição da pessoa A"
 
 

@@ -4,7 +4,9 @@ CONTRATO (docs/spec/usuarios.yaml USR-13..15):
 - nomes de campos e manager: USR-13, USR-15; papel = id (adm|coordenador|base): USR-14.
   `fabrica_usuario(papel=...)` usa o NOME do Group (Adm|Coordenador|Base); `dados_usuario(papel=...)` usa o ID.
 """
+import copy
 import itertools
+import json as _json
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -70,8 +72,6 @@ def dados_usuario():
 
 
 # ---------- M2: fluxos e grafo (docs/spec/grafo.yaml) ----------
-import copy
-import json as _json
 
 
 def grafo_minimo_valido():

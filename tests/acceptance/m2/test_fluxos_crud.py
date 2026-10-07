@@ -80,6 +80,7 @@ def test_criar_descricao_acima_de_1000_recusada(cliente_adm):
     """Modelo: descricao max 1000; 1001 recusada sem 500 e nada criado."""
     r = cliente_adm.post(reverse("fluxos:novo"), {"nome": "Desc Longa", "descricao": "d" * 1001})
     assert r.status_code == 200
+    assert "Use no máximo 1000 caracteres." in _h(r)
     assert not _Fluxo().objects.filter(nome="Desc Longa").exists()
     cliente_adm.post(reverse("fluxos:novo"), {"nome": "Desc Limite", "descricao": "d" * 1000})
     assert _Fluxo().objects.filter(nome="Desc Limite").exists()
@@ -261,10 +262,10 @@ def test_voltar_para_rascunho_sempre_permitido(cliente_adm, fabrica_fluxo):
 @pytest.mark.modulo("m2")
 @pytest.mark.parametrize("valor", ["arquivado", "", "ATIVO", "1"])
 def test_status_invalido_nao_altera(cliente_adm, fabrica_fluxo, valor):
-    """FLX-06: status fora de rascunho|ativo é recusado (nunca 500) e não altera."""
+    """GRF-08(d): status fora de rascunho|ativo → 400 e não altera."""
     f = fabrica_fluxo(status="rascunho")
     r = cliente_adm.post(reverse("fluxos:status", kwargs={"pk": f.pk}), {"status": valor})
-    assert r.status_code < 500
+    assert r.status_code == 400
     f.refresh_from_db()
     assert f.status == "rascunho"
 
