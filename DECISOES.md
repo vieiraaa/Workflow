@@ -15,3 +15,4 @@
 - D-013 · M2 · Lupa autorizada pelo usuário a criar portais de visualização (iOS/Android/Windows). Sem simulador/emulador na máquina → portais de navegador com viewport 390x844, 412x915, 1440x900 contra servidor demo local (config/settings/demo.py, nunca Supabase).
 - D-014 · M2 · Menu móvel 'não abre' nos portais: artefato do portal (visibilityState=hidden pausa transições CSS no WebKit), não bug da app; Playwright WebKit instalado para testar o motor do iOS/Safari.
 - D-015 · M2 · Drawflow 0.0.60 (npm drawflow), MIT, vendorizado em static/vendor/drawflow/0.0.60/.
+- D-016 · M3 · Usuário ligou a Lupa a um terminal 'OpenCode - Test Terminal' no canvas (confirmado); mantido. Revisor de Segurança = Atalaia (opus), entra na T-030 e sai depois.
