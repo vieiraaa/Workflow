@@ -1,0 +1,8 @@
+id: T-027
+titulo: M3 · Executor, rota executar, histórico e detalhe (fatia vertical back)
+dono: Forja (back)
+depende_de: [T-024, T-025, T-026]
+skills: [backend, integracao]
+regras: [EXE-01..13, PRM-03, PRM-04]
+objetivo: apps/motor/executor.py + views fluxos:executar, execucoes:lista, execucoes:detalhe (substitui placeholder), contexto documentado, aviso ao Vitral; preparadores do telas.py TEL-06/TEL-07 (sucesso, erro_http, bloqueado_ssrf) com servidor local; demo com execuções de exemplo.
+arquivos: [apps/motor/, apps/execucoes/, apps/fluxos/views.py, apps/fluxos/urls.py, config/urls.py, scripts/telas.py, apps/fluxos/demo.py, tests/unit/]

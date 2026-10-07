@@ -1,0 +1,11 @@
+id: T-026
+titulo: M3 · Cliente HTTP com proteção SSRF
+dono: Forja (back)
+skills: [integracao]
+regras: [SEG-01..08, SEG-10, SEG-11]
+objetivo: >
+  apps/motor/http.py conforme a skill integracao: resolver DNS, validar TODOS os IPs (normalizando formas alternativas),
+  conectar ao IP validado com Host/SNI original (anti-rebinding), redirects manuais (máx. 5) revalidados, streaming até
+  1 MB com truncado, trust_env=False, timeouts, categorias de erro sem mensagem crua do driver. MOTOR_SSRF_LIBERAR só em teste.
+aceite: unidade com servidor local + monkeypatch de DNS; nada toca a internet
+arquivos: [apps/motor/, config/settings/, tests/unit/motor/]

@@ -45,6 +45,22 @@ execucao:
     - id: EXE-09
       texto: >
         Detalhe (TEL-07) mostra cabeçalho (fluxo, status, quem, início, fim, duração) e a lista de nós em ordem, cada um expansível com entrada, saída (status HTTP, headers, corpo) e erro.
+    - id: EXE-11
+      texto: >
+        Contrato de rotas (nomes EXATOS). fluxos:executar (kwarg pk, só POST, CSRF) → redirect execucoes:detalhe + toast
+        "Execução concluída." (sucesso) ou "A execução terminou com erro." (erro); pendências → redirect de volta com toast
+        de erro e nenhuma execução criada. execucoes:lista (GET; ?q=, ?status=executando|sucesso|erro, ?ordem=, ?pagina=).
+        execucoes:detalhe (kwarg pk, GET). Fora do escopo → 404 (PRM-03).
+    - id: EXE-12
+      texto: >
+        Formato gravado por nó http — entrada: {"metodo", "url", "headers": [{nome, valor}], "query": [{nome, valor}],
+        "corpo"} já com placeholders resolvidos e SEG-09 aplicado; saída: {"status": int, "headers": {nome-minúsculo: valor},
+        "corpo": json ou texto, "truncado": bool}. Gatilho: saída PLH-02. Saída: saída = saída do anterior. Erro:
+        erro_categoria (SEG-10) + erro_mensagem própria.
+    - id: EXE-13
+      texto: >
+        Executar é síncrono com limite total de 60 s por execução (além dos limites por nó de SEG-07); estourou → nó atual
+        com categoria timeout e execução erro. O botão Executar (lista e editor) mostra carregando e bloqueia duplo envio.
     - id: EXE-10
       texto: >
         Uma execução que ficar em `executando` por mais de 5 minutos (ex.: processo morto) é exibida como `erro` com resumo "Execução interrompida".

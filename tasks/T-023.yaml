@@ -1,0 +1,11 @@
+id: T-023
+titulo: M3 · Testes de aceite (execução, histórico, saídas, SSRF, placeholders, mascaramento) só pela spec
+dono: Lupa (qa)
+depende_de: []
+fontes: [docs/spec/estados.yaml (EXE-01..13), grafo.yaml (PLH-01..04), seguranca.yaml (SEG-01..11), permissoes.yaml (fluxos.executar, execucoes.ver), telas.yaml (m3), CLAUDE.md]
+regras:
+  - executor testado contra servidor HTTP LOCAL (fixture própria em tests/acceptance/m3/, ex. http.server em thread) liberado só no teste via settings.MOTOR_SSRF_LIBERAR (SEG-08); NUNCA internet
+  - SSRF: todas as formas de SEG-01..06 com o motor real (sem liberar) → categoria bloqueado_ssrf, sem conexão
+  - resolução de DNS em teste: use nomes que resolvem localmente (localhost) ou monkeypatch de socket.getaddrinfo — sem rede externa
+  - @pytest.mark.modulo("m3"); docstring com o id
+arquivos: [tests/acceptance/]
