@@ -38,7 +38,17 @@ regras_fluxo:
   - id: FLX-05
     texto: >
       Base vê na lista só fluxos ativos, sem botões de editar/excluir, com botão Executar. Base no editor recebe 403 (ação fluxos.editar = nenhum, PRM-02); Base executando fluxo em rascunho recebe 404 (objeto fora do escopo, PRM-03).
-
+  - id: FLX-06
+    texto: >
+      Contrato de rotas e campos (nomes EXATOS). fluxos:lista (GET). fluxos:novo (POST; campos `nome`, `descricao`;
+      erro → re-renderiza a lista com o modal aberto e erros por campo, 200; sucesso → redirect fluxos:editor + toast
+      "Fluxo <nome> criado."). fluxos:editar (kwarg pk, POST; `nome`, `descricao`; sucesso → redirect fluxos:editor +
+      toast "Fluxo atualizado."). fluxos:excluir (kwarg pk, POST; → redirect fluxos:lista + toast "Fluxo <nome> excluído.").
+      fluxos:status (kwarg pk, POST; campo `status` = rascunho|ativo; ativar com pendências → 400 JSON
+      {"ok": false, "pendencias": [...]} se Accept: application/json, senão redirect para o editor com toast de erro).
+      fluxos:editor (kwarg pk, GET; o template recebe o grafo canônico em json_script id="grafo-inicial" e
+      `atualizado_em` em ISO-8601). fluxos:salvar_grafo (kwarg pk, POST JSON {"grafo": {...}, "atualizado_em": "..."}).
+      Nome vazio → "Este campo é obrigatório."; nome > 120 → "Use no máximo 120 caracteres.".
 regras_grafo:
   - id: GRF-01
     texto: >
