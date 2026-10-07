@@ -62,3 +62,20 @@ web:
   - id: SEG-15
     texto: >
       Login com mensagem genérica ("E-mail ou senha inválidos.") sem revelar se o e-mail existe; logout só por POST.
+
+lacunas_m3:
+  - id: SEG-16
+    texto: >
+      Fecha lacunas do T-023. (1) Models conforme estados.yaml (execucoes.Execucao e execucoes.ExecucaoNo, FK simples).
+      (2) MOTOR_SSRF_LIBERAR casa com o host LITERAL da URL (nome ou IP, sem diferenciar maiúsculas) + porta exata; mesmo
+      liberado, a conexão continua pinada no IP resolvido na validação (SEG-04). (3) CR/LF vindo de placeholder em header
+      ou query = erro do nó com categoria placeholder, sem enviar a requisição. (4) json_invalido = corpo resolvido que
+      não é JSON válido no momento do envio (defensivo; o editor já valida o corpo salvo). (5) O grafo_snapshot da
+      execução também passa pelo mascaramento SEG-09 (headers/query sensíveis gravados como "••••"): segredo digitado no
+      nó não fica no histórico. (6) Segredo refletido no CORPO da resposta pelo servidor remoto não é mascarado
+      (limitação documentada; só headers e query são). (7) Limites configuráveis por setting, com estes padrões:
+      MOTOR_TIMEOUT_CONEXAO=5, MOTOR_TIMEOUT_LEITURA=10, MOTOR_TIMEOUT_NO=15, MOTOR_TIMEOUT_EXECUCAO=60 (segundos),
+      MOTOR_LIMITE_RESPOSTA=1048576 (bytes), MOTOR_MAX_REDIRECTS=5; os testes reduzem via fixture settings.
+      (8) Esquema não-http salvo no editor = pendência (GRF-04); alcançado por redirect na execução = bloqueado_ssrf.
+      (9) Toast de fluxos:executar com pendências: "Este fluxo tem pendências. Corrija no editor antes de executar."
+
