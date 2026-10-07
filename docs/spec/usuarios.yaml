@@ -19,7 +19,7 @@ regras:
       Paginação de 25 por página (`?pagina=N`); página fora do intervalo mostra a última página válida. Número de queries da lista é constante (não cresce com o número de usuários).
   - id: USR-04
     texto: >
-      Criar usuário (TEL-03) com nome, e-mail, papel, senha e confirmação de senha. Senha passa pelos AUTH_PASSWORD_VALIDATORS do Django (mín. 10 caracteres). Sucesso → redirect para a lista + toast "Usuário <nome> criado.".
+      Criar usuário (TEL-03) com nome, e-mail, papel, senha e confirmação de senha. Senha passa pelos AUTH_PASSWORD_VALIDATORS do Django (mín. 10 caracteres) mais SenhaRepetitivaValidator (mín. 5 caracteres distintos; recusa 'aaaaaaaaaaaa'). Sucesso → redirect para a lista + toast "Usuário <nome> criado.".
   - id: USR-05
     texto: >
       E-mail duplicado (inclusive com maiúsculas diferentes) → erro no campo e-mail "Já existe um usuário com este e-mail." Campos obrigatórios vazios → erro por campo. Senhas diferentes → erro no campo confirmação.
