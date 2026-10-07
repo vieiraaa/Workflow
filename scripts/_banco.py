@@ -32,3 +32,34 @@ def criar_se_faltar(config):
 def apagar(config):
     with _conexao_admin(config) as admin:
         admin.execute(f'DROP DATABASE IF EXISTS "{config["NAME"]}" WITH (FORCE)')
+
+
+def _pid_vivo(pid):
+    import os
+
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def limpar_orfaos(config, prefixos=("test_construtor_teste_", "construtor_telas_")):
+    """Apaga bancos temporários do projeto cujo processo (pid no sufixo) já morreu.
+
+    Só mexe em bancos com um dos prefixos do projeto e sufixo numérico; nunca em outros bancos
+    e nunca nos de execuções ainda vivas. Devolve os nomes apagados.
+    """
+    apagados = []
+    with _conexao_admin(config) as admin:
+        nomes = [linha[0] for linha in admin.execute("SELECT datname FROM pg_database")]
+        for nome in nomes:
+            for prefixo in prefixos:
+                resto = nome[len(prefixo) :] if nome.startswith(prefixo) else ""
+                pid = resto.split("_")[0]
+                if pid.isdigit() and not _pid_vivo(int(pid)):
+                    admin.execute(f'DROP DATABASE IF EXISTS "{nome}" WITH (FORCE)')
+                    apagados.append(nome)
+    return apagados

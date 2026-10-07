@@ -17,11 +17,17 @@ CSRF_COOKIE_SECURE = False
 SECURE_SSL_REDIRECT = False
 SECURE_HSTS_SECONDS = 0
 
-DATABASES = {
-    "default": dj_database_url.parse(
-        verificar_banco_teste(
-            os.environ.get("TEST_DATABASE_URL", "postgres://localhost:5432/construtor_teste")
-        )
-    )
-}
+
+def _url_do_banco_de_teste():
+    """TEST_DATABASE_URL explícita vale como está; senão o nome ganha sufixo único por processo
+    (e por worker do xdist), para execuções simultâneas não colidirem no mesmo banco."""
+    explicita = os.environ.get("TEST_DATABASE_URL")
+    if explicita:
+        return explicita
+    worker = os.environ.get("PYTEST_XDIST_WORKER", "")
+    sufixo = f"{os.getpid()}{('_' + worker) if worker else ''}"
+    return f"postgres://localhost:5432/construtor_teste_{sufixo}"
+
+
+DATABASES = {"default": dj_database_url.parse(verificar_banco_teste(_url_do_banco_de_teste()))}
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]

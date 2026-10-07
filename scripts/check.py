@@ -121,6 +121,19 @@ def checar_ssrf_liberar():
     return Resultado("MOTOR_SSRF_LIBERAR vazia (SEG-08)", codigo_saida == 0, CODIGO, saida)
 
 
+def limpar_bancos_orfaos():
+    """Início do check: apaga bancos temporários de execuções já mortas (não conta como etapa)."""
+    codigo = (
+        "import sys; sys.path.insert(0, 'scripts')\n"
+        "import dj_database_url, _banco\n"
+        "cfg = dj_database_url.parse('postgres://localhost:5432/postgres')\n"
+        "print(len(_banco.limpar_orfaos(cfg)))\n"
+    )
+    codigo_saida, saida = _rodar(_py("-c", codigo))
+    if codigo_saida == 0 and saida.strip() not in ("", "0"):
+        print(f"[limpeza] {saida.strip()} banco(s) temporário(s) órfão(s) apagado(s).")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawTextHelpFormatter
@@ -134,6 +147,7 @@ def main():
     args = parser.parse_args()
     limite = ["--modulo-ate", str(args.modulo)] if args.modulo is not None else []
 
+    limpar_bancos_orfaos()
     resultados = []
     if args.rapido:
         tocados = arquivos_tocados()
