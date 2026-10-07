@@ -1,0 +1,16 @@
+id: T-022
+titulo: Banco de teste isolado por processo (contenção entre agentes)
+dono: Forja (back)
+depende_de: [T-021]
+skills: [integracao]
+problema: >
+  Os 4 agentes rodam pytest no mesmo diretório e todos usam test_construtor_teste; execuções simultâneas colidem
+  (357 errors numa rodada do Lead às 14:55; Vitral e Lupa tiveram que usar TEST_DATABASE_URL próprio).
+correcao: >
+  config/settings/teste.py deriva o NOME do banco de teste com sufixo único por execução (ex.: pid ou
+  PYTEST_XDIST_WORKER + pid) quando TEST_DATABASE_URL não for explícito; check.py e telas.py usam o mesmo mecanismo;
+  limpeza dos bancos órfãos no início do check (só os com o prefixo do projeto, nunca outros bancos).
+aceite:
+  - duas execuções simultâneas de pytest no mesmo diretório passam sem colisão
+  - check completo verde
+arquivos: [config/settings/teste.py, tests/conftest.py, scripts/check.py, scripts/telas.py, tests/unit/]
