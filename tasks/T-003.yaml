@@ -1,0 +1,21 @@
+id: T-003
+titulo: M1 · Testes de aceite (login, permissões, usuários) a partir só da spec
+dono: Lupa (qa)
+depende_de: []   # escreve antes do código; os testes ficam vermelhos até o Back entregar
+objetivo: >
+  Contrato executável do M0/M1: login/logout, motor de permissão por rota e tela de usuários.
+fontes: [docs/spec/papeis.yaml, docs/spec/permissoes.yaml, docs/spec/usuarios.yaml, docs/spec/seguranca.yaml (SEG-12, SEG-13, SEG-15), docs/spec/telas.yaml (m0, m1), CLAUDE.md (rotas, fixtures)]
+entregas:
+  - tests/acceptance/m1/test_login.py (PAP-04, SEG-15, PRM-01, PRM-07)
+  - tests/acceptance/m1/test_permissoes.py (PRM-01..08 para as rotas do M1, 3 papéis + anônimo + sem papel)
+  - tests/acceptance/m1/test_usuarios.py (USR-01..12, inclusive paginação com 30 usuários, queries constantes, IDOR, XSS no nome)
+  - tests/acceptance/conftest.py só se precisar de fixture própria (não redefina as do tests/conftest.py)
+regras:
+  - cada teste cita o id na docstring e tem @pytest.mark.modulo("m1"); reverse() dentro do teste
+  - use as fixtures de CLAUDE.md (usuario_adm, cliente_adm, ...); a de "sem papel", crie localmente
+  - para queries constantes, use django_assert_max_num_queries comparando 1 vs 30 usuários
+  - lacuna na spec: registre no relatório, não invente comportamento
+aceite:
+  - testes coletam sem erro de import (pytest --collect-only) assim que o projeto existir
+  - relatório: regras cobertas/não cobertas, lacunas
+arquivos: [tests/acceptance/]
