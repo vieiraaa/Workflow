@@ -24,19 +24,25 @@ grafo_canonico:
 
 regras_fluxo:
   - id: FLX-01
-    texto: Lista de fluxos (TEL-04) com nome, descrição (1 linha), dono, status (badge), atualizado em. Escopo pelo motor (Base só vê ativos). Busca ?q= no nome, filtro ?status=rascunho|ativo (segmentado), ordenação ?ordem=nome|-nome|atualizado_em|-atualizado_em (padrão -atualizado_em), paginação 25, queries constantes.
+    texto: >
+      Lista de fluxos (TEL-04) com nome, descrição (1 linha), dono, status (badge), atualizado em. Escopo pelo motor (Base só vê ativos). Busca ?q= no nome, filtro ?status=rascunho|ativo (segmentado), ordenação ?ordem=nome|-nome|atualizado_em|-atualizado_em (padrão -atualizado_em), paginação 25, queries constantes.
   - id: FLX-02
-    texto: Criar fluxo (modal ou tela) pede nome e descrição; nasce rascunho, dono = usuário logado, grafo inicial só com um nó gatilho; redirect para o editor.
+    texto: >
+      Criar fluxo (modal ou tela) pede nome e descrição; nasce rascunho, dono = usuário logado, grafo inicial só com um nó gatilho; redirect para o editor.
   - id: FLX-03
-    texto: Editar nome/descrição e excluir (com confirmação em modal, POST) para quem tem fluxos.editar/excluir. Excluir mantém as execuções no histórico (fluxo vira nulo; a execução guarda o nome do fluxo).
+    texto: >
+      Editar nome/descrição e excluir (com confirmação em modal, POST) para quem tem fluxos.editar/excluir. Excluir mantém as execuções no histórico (fluxo vira nulo; a execução guarda o nome do fluxo).
   - id: FLX-04
-    texto: Ativar exige grafo sem pendências (GRF-*); se houver, recusa e devolve as pendências por nó. Voltar para rascunho é sempre permitido.
+    texto: >
+      Ativar exige grafo sem pendências (GRF-*); se houver, recusa e devolve as pendências por nó. Voltar para rascunho é sempre permitido.
   - id: FLX-05
-    texto: Base vê na lista só fluxos ativos, sem botões de editar/excluir, com botão Executar. Base no editor recebe 403 (ação fluxos.editar = nenhum, PRM-02); Base executando fluxo em rascunho recebe 404 (objeto fora do escopo, PRM-03).
+    texto: >
+      Base vê na lista só fluxos ativos, sem botões de editar/excluir, com botão Executar. Base no editor recebe 403 (ação fluxos.editar = nenhum, PRM-02); Base executando fluxo em rascunho recebe 404 (objeto fora do escopo, PRM-03).
 
 regras_grafo:
   - id: GRF-01
-    texto: Salvar o grafo = POST JSON em `fluxos:salvar_grafo` com X-CSRFToken; resposta {"ok": bool, "pendencias": [{"no": id|null, "campo": str|null, "mensagem": str}], "erros": [...]}.
+    texto: >
+      Salvar o grafo = POST JSON em `fluxos:salvar_grafo` com X-CSRFToken; resposta {"ok": bool, "pendencias": [{"no": id|null, "campo": str|null, "mensagem": str}], "erros": [...]}.
   - id: GRF-02
     texto: >
       Erros de FORMATO recusam o salvamento (ok=false, nada gravado, HTTP 400): JSON inválido, versao != 1,
@@ -56,18 +62,25 @@ regras_grafo:
       caracteres sem CR/LF; corpo: vazio ou JSON válido (até 100 KB) só para POST/PUT/PATCH; placeholders no
       corpo só dentro de valores string. Título de qualquer nó: obrigatório, até 80 caracteres.
   - id: GRF-05
-    texto: O editor mostra cada pendência no nó correspondente (badge de erro + mensagem no inspector) e as pendências globais (no=null) na toolbar.
+    texto: >
+      O editor mostra cada pendência no nó correspondente (badge de erro + mensagem no inspector) e as pendências globais (no=null) na toolbar.
   - id: GRF-06
-    texto: Salvar e recarregar devolve o mesmo grafo canônico (ids, títulos, configs, posições e arestas idênticos).
+    texto: >
+      Salvar e recarregar devolve o mesmo grafo canônico (ids, títulos, configs, posições e arestas idênticos).
   - id: GRF-07
-    texto: Concorrência — o POST envia `atualizado_em` lido ao abrir; se o fluxo mudou depois, recusa com 409 e mensagem "Este fluxo foi alterado por outra pessoa. Recarregue para continuar." (sem sobrescrever).
+    texto: >
+      Concorrência — o POST envia `atualizado_em` lido ao abrir; se o fluxo mudou depois, recusa com 409 e mensagem "Este fluxo foi alterado por outra pessoa. Recarregue para continuar." (sem sobrescrever).
 
 placeholders:
   - id: PLH-01
-    texto: Sintaxe `{{ anterior.<caminho> }}` (espaços internos opcionais). `anterior` = saída do nó imediatamente anterior. Caminho = segmentos [A-Za-z0-9_-]+ separados por ponto; segmento numérico indexa lista.
+    texto: >
+      Sintaxe `{{ anterior.<caminho> }}` (espaços internos opcionais). `anterior` = saída do nó imediatamente anterior. Caminho = segmentos [A-Za-z0-9_-]+ separados por ponto; segmento numérico indexa lista.
   - id: PLH-02
-    texto: Saída de um nó http para placeholders = {"status": int, "headers": {nome-minúsculo: valor}, "corpo": json ou texto}. Saída do gatilho = {"disparado_em": ISO-8601, "executado_por": email}.
+    texto: >
+      Saída de um nó http para placeholders = {"status": int, "headers": {nome-minúsculo: valor}, "corpo": json ou texto}. Saída do gatilho = {"disparado_em": ISO-8601, "executado_por": email}.
   - id: PLH-03
-    texto: Resolvido por parser próprio (sem eval, exec ou engine de template). Caminho inexistente → erro do nó, categoria `placeholder`, mensagem com o caminho.
+    texto: >
+      Resolvido por parser próprio (sem eval, exec ou engine de template). Caminho inexistente → erro do nó, categoria `placeholder`, mensagem com o caminho.
   - id: PLH-04
-    texto: Inserção segura por contexto — na URL o valor é percent-encoded (não injeta /, ?, #, @); em headers/query vira string e CR/LF é recusado; no corpo é escapado como string JSON. Objetos e listas viram JSON compacto.
+    texto: >
+      Inserção segura por contexto — na URL o valor é percent-encoded (não injeta /, ?, #, @); em headers/query vira string e CR/LF é recusado; no corpo é escapado como string JSON. Objetos e listas viram JSON compacto.
