@@ -7,6 +7,8 @@ objetivo: >
   Templates das telas do M1, cada um assim que o Forja avisar a fatia: lista (tabela em card,
   busca, segmentado de papel, paginação, estado vazio de busca), formulário de novo usuário,
   edição com seção de redefinir senha, trocar minha senha. Erros por campo, toasts, foco visível.
+extra:
+  - erros/403.html para usuário SEM papel (TEL-10) oferece "Sair" (POST logout) em vez de "Ir para o início" (que volta ao 403). Peça ao Forja a flag de contexto (ex.: sem_papel).
 aceite:
   - teste de render (assertTemplateUsed) de cada tela em tests/unit/frontend/
   - checklist alto da design-base sem pendência nas capturas do m1
