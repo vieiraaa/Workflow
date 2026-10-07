@@ -10,6 +10,8 @@ from django.urls import reverse
 from django.views import View
 from django.views.generic import TemplateView
 
+from apps.nucleo.entrada import limpar_texto
+
 from .forms_usuarios import (
     RedefinirSenhaForm,
     TrocarSenhaForm,
@@ -62,7 +64,7 @@ class UsuarioListaView(PermissaoMixin, TemplateView):
         papel = get.get("papel", "")
         ativo = get.get("ativo", "")
         return {
-            "q": get.get("q", "").strip()[:200],
+            "q": limpar_texto(get.get("q", "")),
             "papel": papel if papel in grupos_por_id else "",
             "ativo": ativo if ativo in ("1", "0") else "",
             "ordem": _ordem_valida(get.get("ordem", ORDEM_PADRAO)),

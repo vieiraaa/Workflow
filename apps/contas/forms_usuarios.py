@@ -6,6 +6,7 @@ from django.db import transaction
 
 from .models import Usuario
 from .permissoes import papeis
+from .sessoes import encerrar_sessoes
 
 MSG_EMAIL_DUPLICADO = "Já existe um usuário com este e-mail."
 MSG_SENHAS_DIFERENTES = "As senhas não conferem."
@@ -141,8 +142,11 @@ class UsuarioEditarForm(forms.Form):
         usuario = self.instance
         usuario.nome = dados["nome"]
         usuario.email = dados["email"]
+        foi_desativado = usuario.is_active and not dados["ativo"]
         usuario.is_active = dados["ativo"]
         usuario.save()
+        if foi_desativado:
+            encerrar_sessoes(usuario)
         usuario.groups.set([Group.objects.get(name=_grupo_do_papel(dados["papel"]))])
         usuario.__dict__.pop("_papel_cache", None)
         return usuario
