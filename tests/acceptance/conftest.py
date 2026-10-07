@@ -1,11 +1,8 @@
 """Fixtures próprias do aceite. As de papel/cliente vêm de tests/conftest.py.
 
-SUPOSIÇÕES DE CONTRATO (a spec não fixa; ver relatório de lacunas), centralizadas aqui:
-- campos de login: `username` (e-mail) e `password` (padrão do AuthenticationForm do Django);
-- campos do formulário de usuário: nome, email, papel (valor = nome do Group), ativo (checkbox),
-  senha, confirmacao;
-- trocar senha: senha_atual, nova_senha, confirmacao;
-- o Manager do Usuario aceita create_user(email=, password=, nome=).
+CONTRATO (docs/spec/usuarios.yaml USR-13..15):
+- nomes de campos e manager: USR-13, USR-15; papel = id (adm|coordenador|base): USR-14.
+  `fabrica_usuario(papel=...)` usa o NOME do Group (Adm|Coordenador|Base); `dados_usuario(papel=...)` usa o ID.
 """
 import itertools
 
@@ -59,7 +56,7 @@ def cliente_sem_papel(client, usuario_sem_papel):
 def dados_usuario():
     """Monta o POST do formulário de usuário (criar/editar)."""
 
-    def _dados(nome="Maria Ficticia", email="maria@exemplo.test", papel="Base",
+    def _dados(nome="Maria Ficticia", email="maria@exemplo.test", papel="base",
                senha=SENHA, confirmacao=None, ativo=True, com_senha=True):
         d = {"nome": nome, "email": email, "papel": papel}
         if ativo:

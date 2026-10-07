@@ -62,9 +62,9 @@ def test_sessao_de_quem_foi_desativado_encerra_na_proxima_requisicao(client, fab
 
 @pytest.mark.modulo("m1")
 def test_logout_so_por_post(cliente_base):
-    """SEG-15: GET em logout não encerra a sessão (405 ou sem efeito); POST encerra."""
+    """SEG-15/USR-13: GET em logout → 405 e não encerra a sessão; POST encerra."""
     r = cliente_base.get(reverse("logout"))
-    assert r.status_code in (302, 405)
+    assert r.status_code == 405
     assert "_auth_user_id" in cliente_base.session
     r = cliente_base.post(reverse("logout"))
     assert r.status_code == 302

@@ -105,6 +105,53 @@ def test_sem_papel_nao_acessa_usuarios(cliente_sem_papel, usuario_base, nome):
 
 
 @pytest.mark.modulo("m1")
+def test_sem_papel_trocar_senha_403(cliente_sem_papel):
+    """USR-15/PAP-02: sem papel recebe 403 também em trocar_senha."""
+    assert cliente_sem_papel.get(reverse("contas:trocar_senha")).status_code == 403
+
+
+@pytest.mark.modulo("m1")
+def test_sem_papel_pode_sair(cliente_sem_papel):
+    """USR-15: logout é exceção ao 403 de PAP-02 (POST encerra a sessão)."""
+    r = cliente_sem_papel.post(reverse("logout"))
+    assert r.status_code == 302
+    assert "_auth_user_id" not in cliente_sem_papel.session
+
+
+@pytest.mark.modulo("m1")
+def test_redefinir_senha_exige_login_e_adm(cliente_anonimo, cliente_coordenador, cliente_base, usuario_base):
+    """PRM-01/PRM-02/USR-13: redefinir senha só Adm; anônimo → login; demais 403; nada muda."""
+    url = reverse("contas:usuario_redefinir_senha", kwargs={"pk": usuario_base.pk})
+    dados = {"nova_senha": "Invasora-Forte-88", "confirmacao": "Invasora-Forte-88"}
+    r = cliente_anonimo.post(url, dados)
+    assert r.status_code == 302 and r.url.startswith(reverse("login"))
+    assert cliente_coordenador.post(url, dados).status_code == 403
+    assert cliente_base.post(url, dados).status_code == 403
+    usuario_base.refresh_from_db()
+    assert not usuario_base.check_password("Invasora-Forte-88")
+
+
+@pytest.mark.modulo("m1")
+def test_redefinir_senha_get_405(cliente_adm, usuario_base):
+    """PRM-08/USR-13: rota de redefinir senha é só POST."""
+    r = cliente_adm.get(reverse("contas:usuario_redefinir_senha", kwargs={"pk": usuario_base.pk}))
+    assert r.status_code == 405
+
+
+@pytest.mark.modulo("m1")
+def test_redefinir_senha_sem_csrf_recusada(usuario_adm, usuario_base):
+    """PRM-08/SEG-12: redefinir senha exige CSRF."""
+    from django.test import Client
+    c = Client(enforce_csrf_checks=True)
+    c.force_login(usuario_adm)
+    r = c.post(reverse("contas:usuario_redefinir_senha", kwargs={"pk": usuario_base.pk}),
+               {"nova_senha": "Invasora-Forte-88", "confirmacao": "Invasora-Forte-88"})
+    assert r.status_code == 403
+    usuario_base.refresh_from_db()
+    assert not usuario_base.check_password("Invasora-Forte-88")
+
+
+@pytest.mark.modulo("m1")
 def test_superuser_sem_grupo_nao_tem_bypass(client, fabrica_usuario):
     """PAP-03: superuser sem grupo não acessa a lista de usuários."""
     u = fabrica_usuario(papel=None)

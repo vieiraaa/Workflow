@@ -140,7 +140,7 @@ def test_criar_usuario_sucesso_redireciona_com_toast(cliente_adm, dados_usuario)
 @pytest.mark.parametrize("papel", ["Adm", "Coordenador", "Base"])
 def test_criar_com_cada_papel(cliente_adm, dados_usuario, papel):
     """USR-04: o papel escolhido vira o único grupo do usuário."""
-    cliente_adm.post(reverse("contas:usuario_novo"), dados_usuario(email=f"{papel.lower()}@exemplo.test", papel=papel))
+    cliente_adm.post(reverse("contas:usuario_novo"), dados_usuario(email=f"{papel.lower()}@exemplo.test", papel=papel.lower()))
     u = get_user_model().objects.get(email=f"{papel.lower()}@exemplo.test")
     assert list(u.groups.values_list("name", flat=True)) == [papel]
 
@@ -208,10 +208,39 @@ def test_nome_com_120_aceito(cliente_adm, dados_usuario):
 
 
 @pytest.mark.modulo("m1")
+def test_papel_pelo_nome_do_group_e_invalido(cliente_adm, dados_usuario):
+    """USR-14: o valor do papel é o id; o nome do Group ('Adm') não vale."""
+    r = cliente_adm.post(reverse("contas:usuario_novo"), dados_usuario(email="nomegrp@exemplo.test", papel="Adm"))
+    assert r.status_code == 200
+    assert "Papel inválido." in _html(r)
+    assert not get_user_model().objects.filter(email="nomegrp@exemplo.test").exists()
+
+
+@pytest.mark.modulo("m1")
+def test_papel_vazio_mensagem(cliente_adm, dados_usuario):
+    """USR-14: papel vazio → 'Escolha um papel.'"""
+    r = cliente_adm.post(reverse("contas:usuario_novo"), dados_usuario(email="semp@exemplo.test", papel=""))
+    assert r.status_code == 200
+    assert "Escolha um papel." in _html(r)
+
+
+@pytest.mark.modulo("m1")
+@pytest.mark.parametrize("campo", ["nome", "email", "senha"])
+def test_obrigatorio_vazio_mensagem_padrao(cliente_adm, dados_usuario, campo):
+    """USR-14: campo obrigatório vazio → 'Este campo é obrigatório.'"""
+    d = dados_usuario(email="obrig@exemplo.test")
+    d[campo] = ""
+    r = cliente_adm.post(reverse("contas:usuario_novo"), d)
+    assert r.status_code == 200
+    assert "Este campo é obrigatório." in _html(r)
+
+
+@pytest.mark.modulo("m1")
 def test_papel_inexistente_recusado(cliente_adm, dados_usuario):
     """USR-04: papel fora de Adm|Coordenador|Base é recusado."""
-    r = cliente_adm.post(reverse("contas:usuario_novo"), dados_usuario(email="papel@exemplo.test", papel="Root"))
+    r = cliente_adm.post(reverse("contas:usuario_novo"), dados_usuario(email="papel@exemplo.test", papel="root"))
     assert r.status_code == 200
+    assert "Papel inválido." in _html(r)
     assert not get_user_model().objects.filter(email="papel@exemplo.test").exists()
 
 
@@ -222,7 +251,7 @@ def test_editar_altera_nome_email_papel_ativo(cliente_adm, fabrica_usuario, dado
     """USR-06: edita nome, e-mail, papel e ativo."""
     u = fabrica_usuario(papel="Base")
     r = cliente_adm.post(reverse("contas:usuario_editar", kwargs={"pk": u.pk}),
-                         dados_usuario(nome="Novo Nome", email="novo@exemplo.test", papel="Coordenador",
+                         dados_usuario(nome="Novo Nome", email="novo@exemplo.test", papel="coordenador",
                                        ativo=False, com_senha=False))
     assert r.status_code == 302
     u.refresh_from_db()
@@ -261,9 +290,10 @@ def test_editar_pk_inexistente_404(cliente_adm):
 def test_adm_nao_se_desativa(cliente_adm, usuario_adm, dados_usuario):
     """USR-07: Adm não desativa a si mesmo."""
     r = cliente_adm.post(reverse("contas:usuario_editar", kwargs={"pk": usuario_adm.pk}),
-                         dados_usuario(nome=usuario_adm.nome, email=usuario_adm.email, papel="Adm",
+                         dados_usuario(nome=usuario_adm.nome, email=usuario_adm.email, papel="adm",
                                        ativo=False, com_senha=False))
     assert r.status_code == 200
+    assert "Você não pode desativar a si mesmo nem remover o seu papel de administrador." in _html(r)
     usuario_adm.refresh_from_db()
     assert usuario_adm.is_active
 
@@ -272,9 +302,10 @@ def test_adm_nao_se_desativa(cliente_adm, usuario_adm, dados_usuario):
 def test_adm_nao_tira_de_si_o_papel(cliente_adm, usuario_adm, dados_usuario):
     """USR-07: Adm não troca o próprio papel."""
     r = cliente_adm.post(reverse("contas:usuario_editar", kwargs={"pk": usuario_adm.pk}),
-                         dados_usuario(nome=usuario_adm.nome, email=usuario_adm.email, papel="Base",
+                         dados_usuario(nome=usuario_adm.nome, email=usuario_adm.email, papel="base",
                                        com_senha=False))
     assert r.status_code == 200
+    assert "Você não pode desativar a si mesmo nem remover o seu papel de administrador." in _html(r)
     assert usuario_adm.groups.filter(name="Adm").exists()
 
 
@@ -282,7 +313,7 @@ def test_adm_nao_tira_de_si_o_papel(cliente_adm, usuario_adm, dados_usuario):
 def test_adm_pode_editar_o_proprio_nome(cliente_adm, usuario_adm, dados_usuario):
     """USR-07 (limite): editar outros campos de si mesmo, mantendo papel e ativo, é permitido."""
     r = cliente_adm.post(reverse("contas:usuario_editar", kwargs={"pk": usuario_adm.pk}),
-                         dados_usuario(nome="Adm Renomeado", email=usuario_adm.email, papel="Adm",
+                         dados_usuario(nome="Adm Renomeado", email=usuario_adm.email, papel="adm",
                                        com_senha=False))
     assert r.status_code == 302
     usuario_adm.refresh_from_db()
@@ -294,7 +325,7 @@ def test_nunca_zero_adm_ativo(cliente_adm, usuario_adm, fabrica_usuario, dados_u
     """USR-08: com um único Adm ativo (e outro Adm inativo), nenhuma edição o remove."""
     fabrica_usuario(papel="Adm", ativo=False)
     cliente_adm.post(reverse("contas:usuario_editar", kwargs={"pk": usuario_adm.pk}),
-                     dados_usuario(nome=usuario_adm.nome, email=usuario_adm.email, papel="Coordenador",
+                     dados_usuario(nome=usuario_adm.nome, email=usuario_adm.email, papel="coordenador",
                                    ativo=False, com_senha=False))
     assert get_user_model().objects.filter(is_active=True, groups__name="Adm").exists()
 
@@ -304,7 +335,7 @@ def test_adm_pode_desativar_outro_adm_havendo_mais_de_um(cliente_adm, fabrica_us
     """USR-08 (limite): com dois Adm ativos, desativar o outro é permitido."""
     outro = fabrica_usuario(papel="Adm")
     r = cliente_adm.post(reverse("contas:usuario_editar", kwargs={"pk": outro.pk}),
-                         dados_usuario(nome=outro.nome, email=outro.email, papel="Adm", ativo=False,
+                         dados_usuario(nome=outro.nome, email=outro.email, papel="adm", ativo=False,
                                        com_senha=False))
     assert r.status_code == 302
     outro.refresh_from_db()
@@ -336,6 +367,7 @@ def test_trocar_senha_sucesso_mantem_sessao(client, fabrica_usuario, papel, senh
                     {"senha_atual": senha_padrao, "nova_senha": "Nova-Senha-Forte-42",
                      "confirmacao": "Nova-Senha-Forte-42"}, follow=True)
     assert r.status_code == 200
+    assert "Senha alterada." in _html(r)
     u.refresh_from_db()
     assert u.check_password("Nova-Senha-Forte-42")
     assert client.get(reverse("contas:trocar_senha")).status_code == 200  # ainda logado
@@ -378,7 +410,7 @@ def test_desativar_usuario_derruba_acesso_na_proxima_requisicao(cliente_adm, fab
     client.force_login(alvo)
     assert client.get(reverse("contas:trocar_senha")).status_code == 200
     cliente_adm.post(reverse("contas:usuario_editar", kwargs={"pk": alvo.pk}),
-                     dados_usuario(nome=alvo.nome, email=alvo.email, papel="Coordenador", ativo=False,
+                     dados_usuario(nome=alvo.nome, email=alvo.email, papel="coordenador", ativo=False,
                                    com_senha=False))
     r = client.get(reverse("contas:trocar_senha"))
     assert r.status_code == 302 and reverse("login") in r.url
@@ -418,7 +450,7 @@ def test_idor_base_nao_edita_nem_le_outro_usuario(cliente_base, usuario_coordena
     """PRM-02/USR-01: Base não lê nem altera outro usuário por pk (403, nada muda)."""
     url = reverse("contas:usuario_editar", kwargs={"pk": usuario_coordenador.pk})
     assert cliente_base.get(url).status_code == 403
-    r = cliente_base.post(url, dados_usuario(nome="Invadido", email="inv@exemplo.test", papel="Adm", com_senha=False))
+    r = cliente_base.post(url, dados_usuario(nome="Invadido", email="inv@exemplo.test", papel="adm", com_senha=False))
     assert r.status_code == 403
     usuario_coordenador.refresh_from_db()
     assert usuario_coordenador.nome != "Invadido"
@@ -434,3 +466,65 @@ def test_escalada_via_trocar_senha_nao_muda_papel(cliente_base, usuario_base, se
     usuario_base.refresh_from_db()
     assert not usuario_base.is_superuser
     assert not usuario_base.groups.filter(name="Adm").exists()
+
+
+# ---------- USR-06: redefinir senha (USR-13) ----------
+
+@pytest.mark.modulo("m1")
+def test_redefinir_senha_sucesso(cliente_adm, fabrica_usuario):
+    """USR-06/USR-13: POST válido → redirect para editar + toast 'Senha de <nome> redefinida.'"""
+    alvo = fabrica_usuario(nome="Alvo Ficticio")
+    url_editar = reverse("contas:usuario_editar", kwargs={"pk": alvo.pk})
+    r = cliente_adm.post(reverse("contas:usuario_redefinir_senha", kwargs={"pk": alvo.pk}),
+                         {"nova_senha": "Redefinida-Forte-31", "confirmacao": "Redefinida-Forte-31"},
+                         follow=True)
+    assert r.redirect_chain and r.redirect_chain[-1][0] == url_editar
+    assert "Senha de Alvo Ficticio redefinida." in _html(r)
+    alvo.refresh_from_db()
+    assert alvo.check_password("Redefinida-Forte-31")
+
+
+@pytest.mark.modulo("m1")
+@pytest.mark.parametrize("nova,conf", [("Redefinida-Forte-31", "Outra-Forte-32"), ("curta1", "curta1"),
+                                        ("", "")])
+def test_redefinir_senha_erro_rerenderiza_edicao(cliente_adm, fabrica_usuario, senha_padrao, nova, conf):
+    """USR-06/USR-13: erro → 200 (tela de edição) e senha inalterada."""
+    alvo = fabrica_usuario()
+    r = cliente_adm.post(reverse("contas:usuario_redefinir_senha", kwargs={"pk": alvo.pk}),
+                         {"nova_senha": nova, "confirmacao": conf})
+    assert r.status_code == 200
+    assert alvo.email in _html(r)
+    alvo.refresh_from_db()
+    assert alvo.check_password(senha_padrao)
+
+
+@pytest.mark.modulo("m1")
+def test_redefinir_senha_pk_inexistente_404(cliente_adm):
+    """PRM-03/USR-13: pk inexistente → 404."""
+    r = cliente_adm.post(reverse("contas:usuario_redefinir_senha", kwargs={"pk": 999999}),
+                         {"nova_senha": "Redefinida-Forte-31", "confirmacao": "Redefinida-Forte-31"})
+    assert r.status_code == 404
+
+
+@pytest.mark.modulo("m1")
+def test_adm_redefine_a_propria_senha_pelo_fluxo_admin(cliente_adm, usuario_adm):
+    """USR-06 (limite): redefinir a própria senha pela rota admin é permitido e não derruba o Adm."""
+    r = cliente_adm.post(reverse("contas:usuario_redefinir_senha", kwargs={"pk": usuario_adm.pk}),
+                         {"nova_senha": "Redefinida-Forte-31", "confirmacao": "Redefinida-Forte-31"})
+    assert r.status_code == 302
+    usuario_adm.refresh_from_db()
+    assert usuario_adm.is_active and usuario_adm.groups.filter(name="Adm").exists()
+
+
+# ---------- USR-08: mensagem exata (USR-14) ----------
+
+@pytest.mark.modulo("m1")
+def test_ultimo_adm_mensagem(cliente_adm, usuario_adm, dados_usuario):
+    """USR-08/USR-14: recusa de zerar Adm ativo mostra uma das mensagens definidas em USR-14."""
+    r = cliente_adm.post(reverse("contas:usuario_editar", kwargs={"pk": usuario_adm.pk}),
+                         dados_usuario(nome=usuario_adm.nome, email=usuario_adm.email, papel="coordenador",
+                                       ativo=False, com_senha=False))
+    h = _html(r)
+    assert r.status_code == 200
+    assert ("É preciso manter pelo menos um administrador ativo." in h
+            or "Você não pode desativar a si mesmo nem remover o seu papel de administrador." in h)
