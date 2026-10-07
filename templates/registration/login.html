@@ -1,0 +1,24 @@
+{% extends "base_publica.html" %}
+{% block titulo %}Entrar · Construtor de Workflows{% endblock %}
+{% block conteudo %}
+<header class="publica__cabecalho">
+  <div class="publica__logo">{% include "componentes/icone.html" with nome="workflow" tamanho=24 %}</div>
+  <h1>Entrar</h1>
+  <p class="texto-2">Acesse o Construtor de Workflows</p>
+</header>
+<section class="card">
+  <form class="formulario" method="post" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+    <div class="alerta alerta--erro" role="alert" data-estado="erro_credenciais">
+      {% include "componentes/icone.html" with nome="circle-alert" tamanho=16 %}
+      <span>{% for erro in form.non_field_errors %}{{ erro }}{% if not forloop.last %} {% endif %}{% endfor %}</span>
+    </div>
+    {% endif %}
+    {% include "componentes/campo.html" with campo=form.username rotulo="E-mail" %}
+    {% include "componentes/campo.html" with campo=form.password rotulo="Senha" %}
+    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+    <button class="botao botao--primario botao--bloco" type="submit" data-carregando>Entrar</button>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,6 @@
+{# tag: success|error|warning|info; texto #}
+<div class="toast toast--{{ tag }}" role="{% if tag == 'error' %}alert{% else %}status{% endif %}" data-toast>
+  {% if tag == 'success' %}{% include "componentes/icone.html" with nome="circle-check" %}{% elif tag == 'error' %}{% include "componentes/icone.html" with nome="circle-alert" %}{% elif tag == 'warning' %}{% include "componentes/icone.html" with nome="triangle-alert" %}{% else %}{% include "componentes/icone.html" with nome="info" %}{% endif %}
+  <span class="toast__texto">{{ texto }}</span>
+  <button class="botao botao--icone" type="button" data-toast-fechar aria-label="Fechar">{% include "componentes/icone.html" with nome="x" tamanho=16 %}</button>
+</div>

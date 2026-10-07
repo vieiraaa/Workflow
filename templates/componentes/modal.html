@@ -1,0 +1,12 @@
+{# id, titulo, texto, confirmar_rotulo, acao_url (POST + CSRF), destrutivo. Abre com botao.html modal="<id>". #}
+<dialog class="modal" id="{{ id }}" aria-labelledby="{{ id }}-titulo">
+  <form class="modal__corpo" method="post" action="{{ acao_url }}">
+    {% csrf_token %}
+    <h2 id="{{ id }}-titulo">{{ titulo }}</h2>
+    {% if texto %}<p class="texto-2">{{ texto }}</p>{% endif %}
+    <div class="modal__acoes">
+      <button class="botao botao--secundario" type="button" data-modal-fechar>Cancelar</button>
+      <button class="botao botao--{% if destrutivo %}destrutivo{% else %}primario{% endif %}" type="submit">{{ confirmar_rotulo|default:"Confirmar" }}</button>
+    </div>
+  </form>
+</dialog>

@@ -1,0 +1,3 @@
+<div class="toasts" data-toasts aria-live="polite">
+  {% for mensagem in messages %}{% include "componentes/toast.html" with tag=mensagem.level_tag texto=mensagem %}{% endfor %}
+</div>

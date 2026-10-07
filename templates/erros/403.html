@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block titulo %}Sem permissão · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}Sem permissão{% endblock %}
+{% block conteudo %}
+{% url 'inicio' as url_inicio %}
+<section class="card">{% include "componentes/vazio.html" with icone="lock" titulo="Sem permissão" texto="Você não tem acesso a esta página." acao_rotulo="Ir para o início" acao_url=url_inicio %}</section>
+{% endblock %}

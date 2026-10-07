@@ -1,0 +1,45 @@
+{% load static %}<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}Construtor de Workflows{% endblock %}</title>
+  {% include "componentes/_tema_inicial.html" %}
+  <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  {% block estilos %}{% endblock %}
+</head>
+<body>
+<div class="shell" data-shell>
+  <aside class="sidebar" id="sidebar" aria-label="Menu principal">
+    <div class="sidebar__marca">{% include "componentes/icone.html" with nome="workflow" %}<span>Construtor</span></div>
+    <ul class="sidebar__menu">
+      {% for item in menu %}
+      <li><a class="sidebar__item" href="{{ item.url }}"{% if item.ativo %} aria-current="page"{% endif %}>{% include "componentes/icone.html" with nome=item.icone %}<span>{{ item.rotulo }}</span></a></li>
+      {% endfor %}
+    </ul>
+    <div class="sidebar__rodape">
+      <div class="sidebar__usuario"><strong>{{ usuario_nome }}</strong><span class="texto-2 texto-sm">{{ usuario_papel }}</span></div>
+      <form method="post" action="{% url 'logout' %}">{% csrf_token %}
+        <button class="botao botao--secundario botao--bloco" type="submit">{% include "componentes/icone.html" with nome="log-out" tamanho=16 %}<span>Sair</span></button>
+      </form>
+    </div>
+  </aside>
+  <div class="sidebar-fundo" data-menu-fechar></div>
+  <div class="principal">
+    <header class="topbar">
+      <button class="botao botao--icone topbar__menu" type="button" data-menu-alternar aria-controls="sidebar" aria-expanded="false" aria-label="Abrir menu">{% include "componentes/icone.html" with nome="menu" %}</button>
+      <h1 class="topbar__titulo">{% block titulo_pagina %}{% endblock %}</h1>
+      <div class="topbar__acoes">
+        {% block acoes %}{% endblock %}
+        {% include "componentes/botao_tema.html" %}
+      </div>
+    </header>
+    <main class="conteudo">{% block conteudo %}{% endblock %}</main>
+  </div>
+</div>
+{% include "componentes/toasts.html" %}
+<script src="{% static 'js/app.js' %}" defer></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
