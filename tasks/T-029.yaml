@@ -1,0 +1,17 @@
+id: T-029
+titulo: M3 · QA adversarial contra a aplicação rodando (execução e SSRF)
+dono: Lupa (qa)
+depende_de: [T-027, T-028]
+fontes: [docs/spec/seguranca.yaml (SEG-01..16), estados.yaml (EXE), grafo.yaml (PLH), permissoes.yaml]
+ataques_minimos:
+  - IDOR: Base vendo/executando execuções e fluxos de outros (lista, detalhe, filtros, paginação, pk hostil)
+  - SSRF de ponta a ponta pelo executor (não só pela função): placeholders que montam host/esquema/porta a partir da
+    saída do nó anterior; redirect para 169.254.169.254/::ffff:127.0.0.1/0x7f.1; DNS que muda entre chamadas; porta alta;
+    URL com espaços/tab/unicode no host (IDN, homóglifos); IPv6 com zona (fe80::1%en0)
+  - placeholders hostis em execução: profundidade, índice gigante, chaves com ponto, valores enormes (perto de 1 MB)
+  - vazamento: segredo em headers/query aparecendo em histórico, detalhe, snapshot, mensagens de erro, logs da resposta
+  - limites: resposta infinita/lenta (slowloris), gzip bomba, muitos headers, cadeia de 50 nós x timeouts (limite total)
+  - XSS no detalhe com corpo/headers de resposta hostis (chromium e webkit)
+  - CSRF e duplo envio em fluxos:executar
+regras: caixa-preta; só servidor local e DNS simulado; nunca internet.
+arquivos: [tests/adversarial/m3/]
