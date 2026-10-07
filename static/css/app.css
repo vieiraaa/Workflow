@@ -92,7 +92,7 @@ h2 { font-size: var(--text-h2); font-weight: 600; }
 /* Card e grupo */
 .card { background: var(--surface); border-radius: var(--r-l); box-shadow: var(--shadow-1); padding: var(--sp-6); display: flex; flex-direction: column; gap: var(--sp-3); }
 .card__titulo { font-size: var(--text-h2); font-weight: 600; }
-.card--semrecuo { padding: 0; overflow: hidden; }
+.card--semrecuo { padding: 0; overflow: hidden; position: relative; }
 .grupo { background: var(--surface); border-radius: var(--r-l); box-shadow: var(--shadow-1); overflow: hidden; }
 .grupo__titulo { padding: var(--sp-3) var(--sp-4) 0; font-size: var(--text-sm); color: var(--text-2); text-transform: uppercase; letter-spacing: .04em; }
 .grupo__linha { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-4); padding: var(--sp-3) var(--sp-4); min-height: 44px; }
@@ -131,7 +131,7 @@ h2 { font-size: var(--text-h2); font-weight: 600; }
 .toggle input:focus-visible + .toggle__trilho { box-shadow: var(--ring); }
 
 /* Tabela */
-.tabela-rolagem { overflow-x: auto; }
+.tabela-rolagem { overflow-x: auto; position: relative; }
 .tabela { width: 100%; border-collapse: collapse; }
 .tabela th { text-align: left; font-size: var(--text-sm); font-weight: 500; color: var(--text-2); padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--hairline); }
 .tabela td { padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--hairline); }

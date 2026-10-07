@@ -28,10 +28,10 @@ def test_login_erro_credenciais_mostra_alerta(client):
     assert b'data-estado="erro_credenciais"' in resposta.content
 
 
-def test_inicio_usa_shell(cliente_adm):
-    resposta = cliente_adm.get(reverse("inicio"))
+def test_inicio_redireciona_e_usa_shell(cliente_adm):
+    resposta = cliente_adm.get(reverse("inicio"), follow=True)
     nomes = [t.name for t in resposta.templates]
-    assert "inicio/inicio.html" in nomes and "base.html" in nomes
+    assert "base.html" in nomes
     assert b'action="' + reverse("logout").encode() in resposta.content
 
 
