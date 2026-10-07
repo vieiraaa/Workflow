@@ -53,3 +53,19 @@ def test_usuario_editar_erro_redefinir_senha_rerenderiza(cliente_adm, usuario_co
     assert resposta.status_code == 200
     assert "contas/usuario_editar.html" in nomes(resposta)
     assert b"campo__erro" in resposta.content
+
+
+def test_trocar_senha_usa_template_e_erro_por_campo(cliente_base):
+    url = reverse("contas:trocar_senha")
+    assert "contas/trocar_senha.html" in nomes(cliente_base.get(url))
+    resposta = cliente_base.post(url, {"senha_atual": "", "nova_senha": "", "confirmacao": ""})
+    assert resposta.status_code == 200
+    assert b"campo__erro" in resposta.content
+
+
+@pytest.mark.parametrize(
+    ("rota", "template"),
+    [("fluxos:lista", "fluxos/lista.html"), ("execucoes:lista", "execucoes/lista.html")],
+)
+def test_placeholders_m2_m3(cliente_coordenador, rota, template):
+    assert template in nomes(cliente_coordenador.get(reverse(rota)))
