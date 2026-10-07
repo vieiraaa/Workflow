@@ -12,6 +12,7 @@
 <body>
 <div class="shell" data-shell>
   <aside class="sidebar" id="sidebar" aria-label="Menu principal">
+  <div class="sidebar__interno">
     <div class="sidebar__marca">{% include "componentes/icone.html" with nome="workflow" %}<span>Construtor</span></div>
     <ul class="sidebar__menu">
       {% for item in menu %}
@@ -19,11 +20,19 @@
       {% endfor %}
     </ul>
     <div class="sidebar__rodape">
+      {% if sem_papel %}
       <div class="sidebar__usuario"><strong>{{ usuario_nome }}</strong><span class="texto-2 texto-sm">{{ usuario_papel }}</span></div>
+      {% else %}
+      <a class="sidebar__usuario sidebar__usuario--link" href="{% url 'contas:trocar_senha' %}" title="Trocar minha senha">
+        <span class="sidebar__usuario-textos"><strong>{{ usuario_nome }}</strong><span class="texto-2 texto-sm">{{ usuario_papel }}</span></span>
+        {% include "componentes/icone.html" with nome="key-round" tamanho=16 %}
+      </a>
+      {% endif %}
       <form method="post" action="{% url 'logout' %}">{% csrf_token %}
         <button class="botao botao--secundario botao--bloco" type="submit">{% include "componentes/icone.html" with nome="log-out" tamanho=16 %}<span>Sair</span></button>
       </form>
     </div>
+  </div>
   </aside>
   <div class="sidebar-fundo" data-menu-fechar></div>
   <div class="principal">

@@ -29,13 +29,13 @@
     </tr></thead>
     <tbody>
       {% for u in usuarios %}
-      <tr>
-        <td>{{ u.nome }}</td>
-        <td class="texto-2">{{ u.email }}</td>
-        <td>{% include "componentes/badge_status.html" with status="papel" rotulo=u.papel_rotulo %}</td>
-        <td>{% if u.ativo %}{% include "componentes/badge_status.html" with status="ativo" rotulo="Ativo" %}{% else %}{% include "componentes/badge_status.html" with status="rascunho" rotulo="Inativo" %}{% endif %}</td>
-        <td class="texto-2">{{ u.criado_em|date:"d/m/Y" }}</td>
-        <td class="tabela__acoes">{% if u.url_editar %}{% include "componentes/botao.html" with variante="icone" icone="pencil" href=u.url_editar rotulo_acessivel="Editar usuário" %}{% endif %}</td>
+      <tr class="tabela__linha">
+        <td class="tabela__principal">{% if u.url_editar %}<a class="tabela__link" href="{{ u.url_editar }}">{{ u.nome }}</a>{% else %}{{ u.nome }}{% endif %}</td>
+        <td class="tabela__secundario texto-2">{{ u.email }}</td>
+        <td class="tabela__papel">{% include "componentes/badge_status.html" with status="papel" rotulo=u.papel_rotulo %}</td>
+        <td class="tabela__status">{% if u.ativo %}{% include "componentes/badge_status.html" with status="ativo" rotulo="Ativo" %}{% else %}{% include "componentes/badge_status.html" with status="rascunho" rotulo="Inativo" %}{% endif %}</td>
+        <td class="tabela__extra texto-2">{{ u.criado_em|date:"d/m/Y" }}</td>
+        <td class="tabela__acoes">{% if u.url_editar %}<span class="tabela__editar">{% include "componentes/botao.html" with variante="icone" icone="pencil" href=u.url_editar rotulo_acessivel="Editar usuário" %}</span><span class="tabela__chevron">{% include "componentes/icone.html" with nome="chevron-right" %}</span>{% endif %}</td>
       </tr>
       {% endfor %}
     </tbody>

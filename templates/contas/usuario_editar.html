@@ -10,7 +10,7 @@
     {% include "componentes/campo.html" with campo=form.nome %}
     {% include "componentes/campo.html" with campo=form.email %}
     {% include "componentes/campo.html" with campo=form.papel %}
-    {% include "componentes/toggle.html" with nome="ativo" rotulo="Usuário ativo" marcado=form.ativo.value %}
+    {% include "componentes/toggle.html" with nome="ativo" rotulo="Usuário ativo" marcado=form.ativo.value erros=form.ativo.errors %}
     {% if eh_proprio %}<p class="campo__ajuda">Você não pode desativar a si mesmo nem remover o seu papel de administrador.</p>{% endif %}
     <div class="formulario__acoes">
       {% include "componentes/botao.html" with rotulo="Voltar" href=url_lista %}

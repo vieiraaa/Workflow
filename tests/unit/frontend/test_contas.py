@@ -69,3 +69,8 @@ def test_trocar_senha_usa_template_e_erro_por_campo(cliente_base):
 )
 def test_placeholders_m2_m3(cliente_coordenador, rota, template):
     assert template in nomes(cliente_coordenador.get(reverse(rota)))
+
+
+def test_shell_tem_link_trocar_senha(cliente_adm):
+    conteudo = cliente_adm.get(reverse("contas:usuarios")).content.decode()
+    assert f'href="{reverse("contas:trocar_senha")}"' in conteudo

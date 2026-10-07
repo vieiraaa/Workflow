@@ -33,11 +33,8 @@ h2 { font-size: var(--text-h2); font-weight: 600; }
 
 /* Shell */
 .shell { display: grid; grid-template-columns: var(--sidebar-w) minmax(0, 1fr); min-height: 100vh; }
-.sidebar {
-  background: var(--surface); border-right: 1px solid var(--hairline);
-  display: flex; flex-direction: column; padding: var(--sp-4) var(--sp-3);
-  position: sticky; top: 0; height: 100vh;
-}
+.sidebar { background: var(--surface); border-right: 1px solid var(--hairline); }
+.sidebar__interno { display: flex; flex-direction: column; padding: var(--sp-4) var(--sp-3); position: sticky; top: 0; height: 100vh; }
 .sidebar__marca { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3) var(--sp-4); font-weight: 600; color: var(--text); }
 .sidebar__marca .icone { color: var(--accent); }
 .sidebar__menu { display: flex; flex-direction: column; gap: var(--sp-1); list-style: none; margin: 0; padding: 0; flex: 1; }
@@ -49,6 +46,9 @@ h2 { font-size: var(--text-h2); font-weight: 600; }
 .sidebar__item[aria-current="page"] { background: var(--fill-accent); color: var(--accent); font-weight: 500; }
 .sidebar__rodape { border-top: 1px solid var(--hairline); padding-top: var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-2); }
 .sidebar__usuario { padding: 0 var(--sp-3); display: flex; flex-direction: column; }
+.sidebar__usuario--link { flex-direction: row; align-items: center; justify-content: space-between; gap: var(--sp-2); min-height: var(--ctl-h); border-radius: var(--r-m); color: var(--text); }
+.sidebar__usuario--link:hover { background: var(--fill); }
+.sidebar__usuario-textos { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
 .principal { min-width: 0; display: flex; flex-direction: column; }
 .topbar {
   display: flex; align-items: center; gap: var(--sp-3); min-height: var(--topbar-h);
@@ -63,6 +63,7 @@ h2 { font-size: var(--text-h2); font-weight: 600; }
 @media (max-width: 800px) {
   .shell { grid-template-columns: minmax(0, 1fr); }
   .sidebar { position: fixed; inset: 0 auto 0 0; width: var(--sidebar-w); z-index: 20; transform: translateX(-100%); transition: transform var(--dur) var(--ease); }
+  .sidebar__interno { height: 100%; }
   .shell.menu-aberto .sidebar { transform: none; box-shadow: var(--shadow-2); }
   .shell.menu-aberto .sidebar-fundo { display: block; position: fixed; inset: 0; z-index: 10; background: var(--fill-2); }
   .topbar { padding: var(--sp-3) var(--sp-4) var(--sp-2); }
@@ -119,7 +120,7 @@ h2 { font-size: var(--text-h2); font-weight: 600; }
 .alerta--sucesso { color: var(--success); }
 
 /* Segmentado e toggle */
-.segmentado { display: inline-flex; background: var(--fill); border-radius: var(--r-m); padding: 2px; gap: 2px; }
+.segmentado { display: inline-flex; max-width: 100%; overflow-x: auto; white-space: nowrap; background: var(--fill); border-radius: var(--r-m); padding: 2px; gap: 2px; }
 .segmentado__opcao { padding: var(--sp-1) var(--sp-3); border-radius: var(--r-s); color: var(--text); font-size: var(--text-sm); font-weight: 500; }
 .segmentado__opcao[aria-current="true"] { background: var(--surface); box-shadow: var(--shadow-1); }
 .toggle { display: inline-flex; align-items: center; justify-content: space-between; gap: var(--sp-3); cursor: pointer; }
@@ -199,3 +200,28 @@ h2 { font-size: var(--text-h2); font-weight: 600; }
 /* Formulários em página */
 .card--formulario { max-width: var(--form-w); width: 100%; }
 .formulario__acoes { display: flex; justify-content: flex-end; gap: var(--sp-2); margin-top: var(--sp-2); }
+
+/* Tabela: link do nome e versão em blocos no celular */
+.tabela__link { color: var(--text); font-weight: 500; }
+.tabela__chevron { display: none; color: var(--text-3); }
+@media (max-width: 800px) {
+  .tabela thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .tabela, .tabela tbody { display: block; }
+  .tabela__linha {
+    position: relative; display: grid; gap: var(--sp-1) var(--sp-2); align-items: center;
+    grid-template-columns: auto auto 1fr auto;
+    grid-template-areas: "nome nome nome seta" "email email email seta" "papel status . seta";
+    padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--hairline);
+  }
+  .tabela tbody .tabela__linha:last-child { border-bottom: 0; }
+  .tabela__linha td { display: block; padding: 0; border: 0; min-width: 0; overflow-wrap: anywhere; }
+  .tabela__principal { grid-area: nome; }
+  .tabela__secundario { grid-area: email; font-size: var(--text-sm); }
+  .tabela__papel { grid-area: papel; margin-top: var(--sp-1); }
+  .tabela__status { grid-area: status; margin-top: var(--sp-1); }
+  .tabela__extra { display: none !important; }
+  .tabela__acoes { grid-area: seta; }
+  .tabela__editar { display: none; }
+  .tabela__chevron { display: inline-flex; }
+  .tabela__link::after { content: ""; position: absolute; inset: 0; }
+}
