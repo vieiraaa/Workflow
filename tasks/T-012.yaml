@@ -1,0 +1,22 @@
+id: T-012
+titulo: Portais de visualização (iOS, Android, Windows) e teste visual exploratório
+dono: Lupa (qa)
+depende_de: [T-011]
+autorizacao: Usuário autorizou em 07/10/2026 a Lupa a criar portais no canvas (maestri portal) para testes visuais.
+objetivo: >
+  Deixar as telas abertas para o usuário visualizar no canvas e fazer teste visual exploratório caixa-preta.
+entregas:
+  - portais criados pela Lupa (ficam ligados a ela), apontando para http://127.0.0.1:8000:
+    · "iOS · iPhone (390x844)"      --size 390x844   logado como Usuário base
+    · "Android · Pixel (412x915)"   --size 412x915   logado como Coordenador
+    · "Windows · Desktop (1440x900)" --size 1440x900 logado como Adm
+    (sem simulador/emulador instalados na máquina: são portais de navegador com a viewport de cada plataforma;
+     quando o usuário instalar Xcode runtime ou Android SDK, trocar por `maestri portal create --simulator`)
+  - percorrer as telas prontas em cada portal (login, lista e formulários de usuários, trocar senha, 403/404, e as do
+    M2 conforme ficarem prontas), light e dark, e deixar cada portal parado numa tela representativa
+  - relatório de achados visuais/funcionais com print (maestri portal screenshot) — só caixa-preta
+regras:
+  - continua proibido ler código da aplicação; os portais são uso da app como usuário
+  - não crie dados reais; só as credenciais fictícias de demo
+  - não feche portais sem pedido do usuário
+arquivos: [tests/adversarial/ (se um achado virar teste)]

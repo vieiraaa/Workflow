@@ -1,0 +1,10 @@
+id: T-014
+titulo: M2 · Fatia 1 (back) · Lista, criar, editar, excluir e status de fluxos
+dono: Forja (back)
+depende_de: [T-013]
+skills: [backend]
+regras: [FLX-01..06, PRM-01..05, PRM-08, GRF-08 (d, e)]
+objetivo: Substituir o placeholder fluxos:lista; rotas FLX-06; avisar o Vitral com o contexto documentado. Preparadores do telas.py para TEL-04 e TEL-12; gancho de demo com fluxos de exemplo.
+aceite:
+  - tests/acceptance/m2/test_fluxos_lista.py e test_fluxos_crud.py verdes
+arquivos: [apps/fluxos/, config/urls.py, scripts/telas.py, apps/contas/management/, tests/unit/fluxos/]

@@ -1,0 +1,13 @@
+id: T-013
+titulo: M2 · Model Fluxo, migration, admin e validador do grafo
+dono: Forja (back)
+depende_de: []
+skills: [backend]
+regras: [FLX-01 (campos), GRF-02, GRF-03, GRF-04, GRF-08 (b)]
+objetivo: >
+  apps/fluxos/models.py (Fluxo: nome, descricao, dono, status, grafo, criado_em, atualizado_em) e
+  apps/fluxos/grafo.py: validar(grafo) -> (erros_de_formato, pendencias) sem tocar no banco, com mensagens em
+  português e o id do nó em cada pendência. Escopo do motor para fluxos (Base vê só ativos).
+aceite:
+  - testes de unidade cobrindo cada caso de formato x pendência; queries do escopo testadas
+arquivos: [apps/fluxos/, apps/contas/permissoes.py, tests/unit/fluxos/]

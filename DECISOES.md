@@ -12,3 +12,4 @@
 - D-010 · Fase 0 · Spec em YAML válido: todo `texto:` em bloco `>` (o motor e o telas.py fazem yaml.safe_load).
 - D-011 · M1 · Senha exige 5+ caracteres distintos (SenhaRepetitivaValidator, Forja), além dos validadores do Django; vinha de um teste de aceite além da spec → incorporado em USR-04.
 - D-012 · M1 · Rate limit/bloqueio de login fora do escopo do piloto (lacuna do T-008); registrar como pendente na ENTREGA.
+- D-013 · M2 · Lupa autorizada pelo usuário a criar portais de visualização (iOS/Android/Windows). Sem simulador/emulador na máquina → portais de navegador com viewport 390x844, 412x915, 1440x900 contra servidor demo local (config/settings/demo.py, nunca Supabase).
