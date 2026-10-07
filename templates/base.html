@@ -44,7 +44,7 @@
         {% include "componentes/botao_tema.html" %}
       </div>
     </header>
-    <main class="conteudo">{% block conteudo %}{% endblock %}</main>
+    <main class="conteudo {% block conteudo_classe %}{% endblock %}">{% block conteudo %}{% endblock %}</main>
   </div>
 </div>
 {% include "componentes/toasts.html" %}

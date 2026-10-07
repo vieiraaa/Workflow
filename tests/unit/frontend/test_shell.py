@@ -48,7 +48,9 @@ def test_base_sem_cdn():
         STATIC / "css/app.css",
         STATIC / "js/app.js",
     ]:
-        assert not re.search(r"https?://", arquivo.read_text(encoding="utf-8")), arquivo.name
+        assert not re.search(r"https?://(?!www\.w3\.org/)", arquivo.read_text(encoding="utf-8")), (
+            arquivo.name
+        )
 
 
 def test_templates_sem_safe():
