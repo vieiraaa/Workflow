@@ -1,7 +1,7 @@
 """Fixtures do aceite M3: servidor HTTP LOCAL em thread (nunca internet) e atalhos de execução.
 
 SUPOSIÇÕES (lacunas registradas no relatório): models `execucoes.Execucao` e `execucoes.ExecucaoNo` com os campos
-de estados.yaml; MOTOR_SSRF_LIBERAR = lista de "host:porta" (SEG-08), alterada só aqui via a fixture `settings`.
+de estados.yaml (SEG-16.1); MOTOR_SSRF_LIBERAR = lista de "host-literal:porta" (SEG-08/SEG-16.2), alterada só aqui via a fixture `settings`.
 """
 
 import copy
@@ -82,7 +82,7 @@ class _Handler(BaseHTTPRequestHandler):
         elif caminho == "/gzip":
             self._enviar(200, gzip.compress(b"0" * (6 * 1024 * 1024)), {"Content-Type": "text/plain", "Content-Encoding": "gzip"})
         elif caminho == "/lento":
-            time.sleep(12)
+            time.sleep(float(parse_qs(partes.query).get("s", ["3"])[0]))
             self._enviar(200, b"{}", json_h)
         elif caminho.startswith("/redir/"):
             restantes = int(caminho.rsplit("/", 1)[1])
@@ -102,6 +102,8 @@ class ServidorLocal:
         self.hits = []
         self.requisicoes = []
         self._httpd = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
+        self._httpd.daemon_threads = True
+        self._httpd.block_on_close = False
         self._httpd.estado = self
         self.porta = self._httpd.server_address[1]
         self._thread = threading.Thread(target=self._httpd.serve_forever, daemon=True)

@@ -128,6 +128,7 @@ def test_pendencias_nao_criam_execucao(cliente_coordenador, executar, modelos):
     r, e, f = executar(cliente_coordenador, g, status="rascunho", follow=True)
     assert e is None and modelos.Execucao.objects.count() == 0
     assert r.status_code == 200
+    assert "Este fluxo tem pendências. Corrija no editor antes de executar." in r.content.decode()
 
 
 @pytest.mark.modulo("m3")
@@ -196,12 +197,54 @@ def test_corpo_truncado_usado_em_placeholder_falha_o_no_seguinte(cliente_coorden
 
 
 @pytest.mark.modulo("m3")
-def test_timeout_de_leitura_10s(cliente_coordenador, liberado, executar, no, cadeia, cfg_http):
-    """SEG-07/EXE-13: resposta que demora > 10 s → categoria timeout, execução erro (leva ~10 s)."""
-    _, e, _ = executar(cliente_coordenador, cadeia(cfg_http(f"{liberado.base}/lento")))
+def test_timeout_de_leitura_por_setting(cliente_coordenador, liberado, settings, executar, cadeia, cfg_http, no):
+    """SEG-07/SEG-16.7: MOTOR_TIMEOUT_LEITURA (padrão 10 s; aqui 1 s) estourado → categoria timeout, execução erro."""
+    settings.MOTOR_TIMEOUT_LEITURA = 1
+    _, e, _ = executar(cliente_coordenador, cadeia(cfg_http(f"{liberado.base}/lento?s=4")))
     h1 = no(e, "h1")
     assert h1.status == "erro" and h1.erro_categoria == "timeout"
     assert e.status == "erro" and no(e, "s").status == "nao_executado"
+
+
+@pytest.mark.modulo("m3")
+def test_timeout_total_do_no_por_setting(cliente_coordenador, liberado, settings, executar, cadeia, cfg_http, no):
+    """SEG-07/SEG-16.7: MOTOR_TIMEOUT_NO (padrão 15 s; aqui 1 s) vale mesmo com leitura folgada."""
+    settings.MOTOR_TIMEOUT_LEITURA = 30
+    settings.MOTOR_TIMEOUT_NO = 1
+    _, e, _ = executar(cliente_coordenador, cadeia(cfg_http(f"{liberado.base}/lento?s=4")))
+    assert no(e, "h1").erro_categoria == "timeout"
+
+
+@pytest.mark.modulo("m3")
+def test_timeout_total_da_execucao_por_setting(cliente_coordenador, liberado, settings, executar, cadeia, cfg_http, no):
+    """EXE-13/SEG-16.7: MOTOR_TIMEOUT_EXECUCAO (padrão 60 s; aqui 2 s) estourou → nó atual timeout e execução erro."""
+    settings.MOTOR_TIMEOUT_EXECUCAO = 2
+    g = cadeia(cfg_http(f"{liberado.base}/lento?s=1.3"), cfg_http(f"{liberado.base}/lento?s=1.3"), cfg_http(f"{liberado.base}/ok"))
+    _, e, _ = executar(cliente_coordenador, g)
+    assert e.status == "erro"
+    assert no(e, "h1").status == "sucesso"
+    assert no(e, "h2").status == "erro" and no(e, "h2").erro_categoria == "timeout"
+    assert no(e, "h3").status == "nao_executado"
+    assert liberado.contagem("/ok") == 0
+
+
+@pytest.mark.modulo("m3")
+def test_limite_de_resposta_por_setting(cliente_coordenador, liberado, settings, executar, cadeia, cfg_http, no):
+    """SEG-07/SEG-16.7: MOTOR_LIMITE_RESPOSTA (padrão 1 MiB; aqui 2048) corta e marca truncado sem erro."""
+    settings.MOTOR_LIMITE_RESPOSTA = 2048
+    _, e, _ = executar(cliente_coordenador, cadeia(cfg_http(f"{liberado.base}/grande")))
+    s = no(e, "h1").saida
+    assert e.status == "sucesso" and s["truncado"] is True and len(s["corpo"]) <= 2048
+
+
+@pytest.mark.modulo("m3")
+def test_max_redirects_por_setting(cliente_coordenador, liberado, settings, executar, cadeia, cfg_http, no):
+    """SEG-05/SEG-16.7: MOTOR_MAX_REDIRECTS (padrão 5; aqui 2): 2 redirects ok, o 3º → redirect_excessivo."""
+    settings.MOTOR_MAX_REDIRECTS = 2
+    _, ok, _ = executar(cliente_coordenador, cadeia(cfg_http(f"{liberado.base}/redir/2")))
+    assert ok.status == "sucesso"
+    _, e, _ = executar(cliente_coordenador, cadeia(cfg_http(f"{liberado.base}/redir/3")))
+    assert no(e, "h1").erro_categoria == "redirect_excessivo"
 
 
 @pytest.mark.modulo("m3")

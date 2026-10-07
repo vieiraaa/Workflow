@@ -190,3 +190,34 @@ def test_resolucao_sem_resultado_e_erro_dns_nao_ssrf(cliente_coordenador, servid
     _, e, _ = executar(cliente_coordenador, cadeia(cfg_http(f"http://nao-existe.exemplo.test:{servidor.porta}/ok")))
     assert no(e, "h1").erro_categoria == "dns" and servidor.hits == []
     assert socket.gaierror is not None
+
+
+@pytest.mark.modulo("m3")
+def test_liberacao_casa_com_o_host_literal_sem_diferenciar_maiusculas(cliente_coordenador, servidor, settings, dns, executar, cadeia, cfg_http, no):
+    """SEG-16.2: liberação por NOME literal (sem diferenciar maiúsculas) + porta; conexão pinada no IP resolvido."""
+    settings.MOTOR_SSRF_LIBERAR = [f"App.Exemplo.Test:{servidor.porta}"]
+    dns({"app.exemplo.test": ["127.0.0.1"]})
+    _, e, _ = executar(cliente_coordenador, cadeia(cfg_http(f"http://APP.exemplo.TEST:{servidor.porta}/ok")))
+    assert e.status == "sucesso" and servidor.contagem("/ok") == 1
+
+
+@pytest.mark.modulo("m3")
+def test_liberar_o_ip_nao_libera_um_nome_que_resolve_para_ele(cliente_coordenador, liberado, dns, executar, cadeia, cfg_http, no):
+    """SEG-16.2: a liberação é pelo host LITERAL da URL; '127.0.0.1:porta' não libera 'outro.exemplo.test' que resolve para 127.0.0.1."""
+    dns({"outro.exemplo.test": ["127.0.0.1"]})
+    _bloqueia(cliente_coordenador, executar, cadeia, cfg_http, no, liberado, f"http://outro.exemplo.test:{liberado.porta}/ok")
+
+
+@pytest.mark.modulo("m3")
+def test_liberar_o_nome_nao_libera_o_ip_literal(cliente_coordenador, servidor, settings, executar, cadeia, cfg_http, no):
+    """SEG-16.2: liberar 'app.exemplo.test:porta' não libera a URL com o IP literal 127.0.0.1."""
+    settings.MOTOR_SSRF_LIBERAR = [f"app.exemplo.test:{servidor.porta}"]
+    _bloqueia(cliente_coordenador, executar, cadeia, cfg_http, no, servidor, f"http://127.0.0.1:{servidor.porta}/ok")
+
+
+@pytest.mark.modulo("m3")
+def test_liberado_mas_redirect_para_outro_host_continua_validado(cliente_coordenador, liberado, executar, cadeia, cfg_http, no):
+    """SEG-05/SEG-16.2: a liberação do host de origem não vale para o destino do redirect."""
+    alvo = quote(f"http://localhost:{liberado.porta}/secret", safe="")
+    _, e, _ = executar(cliente_coordenador, cadeia(cfg_http(f"{liberado.base}/redir-para?para={alvo}")))
+    assert no(e, "h1").erro_categoria == "bloqueado_ssrf" and liberado.contagem("/secret") == 0

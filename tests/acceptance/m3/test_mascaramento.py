@@ -138,3 +138,25 @@ def test_mensagem_de_ssrf_nao_vaza_ip_resolvido(cliente_coordenador, servidor, d
     assert h1.erro_categoria == "bloqueado_ssrf" and "10.20.30.40" not in h1.erro_mensagem
     h = _h(cliente_coordenador.get(reverse("execucoes:detalhe", kwargs={"pk": e.pk})))
     assert "10.20.30.40" not in h
+
+
+@pytest.mark.modulo("m3")
+def test_grafo_snapshot_tambem_e_mascarado(cliente_coordenador, liberado, executar, cadeia, cfg_http):
+    """SEG-16.5/SEG-09: segredo digitado no nó não fica no grafo_snapshot (headers e query sensíveis → '••••')."""
+    g = cadeia(cfg_http(f"{liberado.base}/eco", headers=[{"nome": "Authorization", "valor": "Bearer SEGREDO-SNAP"}, {"nome": "X-Publico", "valor": "visivel"}], query=[{"nome": "api-key", "valor": "SEGREDO-SNAP-Q"}, {"nome": "busca", "valor": "livre"}]))
+    _, e, f = executar(cliente_coordenador, g)
+    bruto = json.dumps(e.grafo_snapshot)
+    assert "SEGREDO-SNAP" not in bruto
+    cfg = next(n for n in e.grafo_snapshot["nos"] if n["id"] == "h1")["config"]
+    assert {h["nome"]: h["valor"] for h in cfg["headers"]} == {"Authorization": MASCARA, "X-Publico": "visivel"}
+    assert {q["nome"]: q["valor"] for q in cfg["query"]} == {"api-key": MASCARA, "busca": "livre"}
+    f.refresh_from_db()
+    assert "SEGREDO-SNAP" in json.dumps(f.grafo)  # o fluxo em si continua com o valor real; só o histórico é mascarado
+
+
+@pytest.mark.modulo("m3")
+def test_segredo_refletido_no_corpo_da_resposta_nao_e_mascarado(cliente_coordenador, liberado, executar, cadeia, cfg_http, no):
+    """SEG-16.6: limitação documentada — só headers e query são mascarados; o corpo remoto é gravado como veio."""
+    g = cadeia(cfg_http(f"{liberado.base}/eco", headers=[{"nome": "X-Publico", "valor": "ECO-NO-CORPO"}]))
+    _, e, _ = executar(cliente_coordenador, g)
+    assert no(e, "h1").saida["corpo"]["headers"]["x-publico"] == "ECO-NO-CORPO"

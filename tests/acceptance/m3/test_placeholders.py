@@ -103,9 +103,9 @@ def test_url_valor_e_percent_encoded_e_nao_injeta_caminho_nem_query(cliente_coor
 
 @pytest.mark.modulo("m3")
 def test_header_com_crlf_vindo_de_placeholder_e_recusado(cliente_coordenador, liberado, executar, cadeia, cfg_http, no):
-    """PLH-04: em headers/query CR/LF vindo de placeholder é recusado — nenhuma requisição sai."""
+    """PLH-04: em headers/query CR/LF vindo de placeholder é recusado (categoria placeholder, SEG-16.3) — nenhuma requisição sai."""
     e = _rodar(cliente_coordenador, executar, liberado, cadeia, cfg_http, url=f"{liberado.base}/eco", headers=[{"nome": "X-V", "valor": "{{ anterior.corpo.crlf }}"}])
-    assert no(e, "h2").status == "erro" and e.status == "erro"
+    assert no(e, "h2").status == "erro" and no(e, "h2").erro_categoria == "placeholder" and e.status == "erro"
     assert liberado.contagem("/eco") == 0
     assert not any("injetado" in str(r["headers"]).lower() for r in liberado.requisicoes)
 
@@ -114,7 +114,7 @@ def test_header_com_crlf_vindo_de_placeholder_e_recusado(cliente_coordenador, li
 def test_query_com_crlf_vindo_de_placeholder_e_recusado(cliente_coordenador, liberado, executar, cadeia, cfg_http, no):
     """PLH-04: CR/LF em valor de query vindo de placeholder é recusado."""
     e = _rodar(cliente_coordenador, executar, liberado, cadeia, cfg_http, url=f"{liberado.base}/eco", query=[{"nome": "q", "valor": "{{ anterior.corpo.crlf }}"}])
-    assert no(e, "h2").status == "erro"
+    assert no(e, "h2").status == "erro" and no(e, "h2").erro_categoria == "placeholder"
     assert liberado.contagem("/eco") == 0
 
 
