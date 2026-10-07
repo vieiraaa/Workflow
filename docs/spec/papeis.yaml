@@ -1,0 +1,21 @@
+# Papéis do sistema. Ids PAP-xx. Fonte para seeds, fixtures e o motor de permissão.
+papeis:
+  - id: adm
+    grupo: Adm            # nome EXATO do django.contrib.auth Group
+    nome: Administrador
+  - id: coordenador
+    grupo: Coordenador
+    nome: Coordenador
+  - id: base
+    grupo: Base
+    nome: Usuário base
+
+regras:
+  - id: PAP-01
+    texto: Os três Groups (Adm, Coordenador, Base) existem após `migrate` (migration de dados), sem seed manual.
+  - id: PAP-02
+    texto: Todo usuário ativo tem exatamente um papel. Usuário sem grupo é tratado como sem permissão nenhuma (só vê a tela "sem acesso").
+  - id: PAP-03
+    texto: Superuser do Django NÃO ganha bypass no motor; o papel efetivo vem só do grupo. O /admin/ do Django fica restrito a is_staff e não é rota do produto.
+  - id: PAP-04
+    texto: Usuário inativo (is_active=False) não consegue logar; sessão aberta de quem foi desativado é encerrada na próxima requisição.
