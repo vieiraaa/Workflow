@@ -92,3 +92,10 @@ X_FRAME_OPTIONS = "DENY"
 SPEC_DIR = BASE_DIR / "docs" / "spec"
 # Liberação de loopback para testes do executor (SEG-08): vazia em TODOS os ambientes.
 MOTOR_SSRF_LIBERAR = []
+# Limites do motor (SEG-07, SEG-16, EXE-13); os testes reduzem via fixture `settings`.
+MOTOR_TIMEOUT_CONEXAO = 5  # segundos
+MOTOR_TIMEOUT_LEITURA = 10
+MOTOR_TIMEOUT_NO = 15
+MOTOR_TIMEOUT_EXECUCAO = 60
+MOTOR_LIMITE_RESPOSTA = 1048576  # bytes, já descompactado
+MOTOR_MAX_REDIRECTS = 5
