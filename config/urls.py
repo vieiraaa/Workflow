@@ -7,4 +7,5 @@ handler404 = "apps.nucleo.views.erro_404"
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", include("apps.contas.urls")),
+    path("usuarios/", include("apps.contas.urls_usuarios")),
 ]

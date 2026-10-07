@@ -20,14 +20,16 @@ def test_shell_anonimo():
         "menu": [],
         "usuario_nome": "",
         "usuario_papel": "",
+        "sem_papel": False,
     }
 
 
-def test_shell_com_rotas_ainda_inexistentes_omite_itens(usuario_adm):
+def test_shell_omite_itens_de_rotas_inexistentes(usuario_adm):
     dados = contexto.shell(_request(usuario_adm))
     assert dados["usuario_nome"] == "Ana Admin"
     assert dados["usuario_papel"] == "Administrador"
-    assert dados["menu"] == []  # fluxos/execuções/usuários chegam nos módulos seguintes
+    # fluxos e execuções chegam no M2/M3; só Usuários existe por ora
+    assert [i["chave"] for i in dados["menu"]] == ["usuarios"]
 
 
 def test_menu_por_papel(monkeypatch, usuario_adm, usuario_coordenador, usuario_base):
