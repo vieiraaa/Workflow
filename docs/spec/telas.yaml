@@ -1,0 +1,45 @@
+# Fonte do scripts/telas.py (capturas light/dark × 1440/390) e da revisão visual.
+# O Lead completa esta lista na Fase 0. Cada tela: rota (nome do urls), papel para logar, estados.
+telas:
+  - id: TEL-01
+    modulo: m0
+    nome: Login
+    rota: login
+    papel: anonimo
+    estados: [padrao, erro_credenciais]
+  - id: TEL-02
+    modulo: m1
+    nome: Usuários (lista)
+    rota: contas:usuarios
+    papel: adm
+    estados: [vazio, com_dados, paginado]
+  - id: TEL-03
+    modulo: m1
+    nome: Usuário (formulário)
+    rota: contas:usuario_novo
+    papel: adm
+    estados: [padrao, erro_validacao]
+  - id: TEL-04
+    modulo: m2
+    nome: Fluxos (lista)
+    rota: fluxos:lista
+    papel: coordenador
+    estados: [vazio, com_dados]
+  - id: TEL-05
+    modulo: m2
+    nome: Editor de canvas
+    rota: fluxos:editor
+    papel: coordenador
+    estados: [vazio, com_3_nos, erro_validacao_no]
+  - id: TEL-06
+    modulo: m3
+    nome: Execuções (histórico)
+    rota: execucoes:lista
+    papel: base
+    estados: [vazio, com_dados]
+  - id: TEL-07
+    modulo: m3
+    nome: Execução (detalhe e saídas por nó)
+    rota: execucoes:detalhe
+    papel: coordenador
+    estados: [sucesso, erro_http, bloqueado_ssrf]

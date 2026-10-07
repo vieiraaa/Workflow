@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)", "Bash(py:*)", "Bash(pip install:*)", "Bash(pytest:*)", "Bash(ruff:*)",
+      "Bash(git status:*)", "Bash(git diff:*)", "Bash(git log:*)", "Bash(git add:*)",
+      "Bash(git commit:*)", "Bash(git checkout:*)", "Bash(git branch:*)", "Bash(git switch:*)",
+      "Bash(git show:*)", "Bash(git stash:*)", "Bash(ls:*)", "Bash(grep:*)", "Bash(mkdir:*)"
+    ],
+    "deny": [
+      "Read(./.env)", "Read(./.env.*)", "Bash(cat .env*)", "Bash(type .env*)",
+      "Bash(git push:*)", "Bash(git merge:*)", "Bash(git rebase:*)", "Bash(git reset --hard:*)"
+    ]
+  }
+}
