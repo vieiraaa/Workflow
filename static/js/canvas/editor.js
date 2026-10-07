@@ -26,7 +26,7 @@
   editor.key = function () {}; // Delete/Ctrl+S são tratados abaixo, com checagem de foco.
   editor.start();
 
-  var carregando = true, sujo = false, selecionado = null, pendencias = [], contagemPaleta = 0;
+  var carregando = true, sujo = false, selecionado = null, pendencias = [];
 
   /* ---------- utilidades de DOM ---------- */
   function criar(tag, classe, texto) {
@@ -99,12 +99,20 @@
     pintarNo(dfId);
     return dfId;
   }
-  function posicaoCentro(deslocamento) {
+  /* Centro visível do canvas; se já houver nó ali, desloca para a direita (e depois para baixo). */
+  function posicaoLivre() {
     var r = areaCanvas.getBoundingClientRect();
-    return {
-      x: Math.round((r.width / 2 - editor.canvas_x) / editor.zoom - 110 + deslocamento),
-      y: Math.round((r.height / 2 - editor.canvas_y) / editor.zoom - 30 + deslocamento)
-    };
+    var x = Math.round((r.width / 2 - editor.canvas_x) / editor.zoom - 110);
+    var y = Math.round((r.height / 2 - editor.canvas_y) / editor.zoom - 30);
+    var nos = nosDoGrafo();
+    function ocupado() {
+      return nos.some(function (n) { return Math.abs(n.posicao.x - x) < 240 && Math.abs(n.posicao.y - y) < 90; });
+    }
+    for (var i = 0; i < 40 && ocupado(); i += 1) {
+      x += 260;
+      if (i % 4 === 3) { x -= 1040; y += 110; }
+    }
+    return { x: x, y: y };
   }
   function novoNo(tipo, posicao) {
     var ids = nosDoGrafo().map(function (n) { return n.id; });
@@ -311,8 +319,7 @@
   raiz.querySelectorAll("[data-paleta-tipo]").forEach(function (item) {
     var tipo = item.dataset.paletaTipo;
     item.addEventListener("click", function () {
-      contagemPaleta += 1;
-      novoNo(tipo, posicaoCentro((contagemPaleta % 6) * 24));
+      novoNo(tipo, posicaoLivre());
       abrirPainel("paleta", false);
     });
     item.addEventListener("dragstart", function (ev) { ev.dataTransfer.setData("text/plain", tipo); });
@@ -381,10 +388,11 @@
         return false;
       }
       atualizadoEm = x.corpo.atualizado_em || atualizadoEm;
+      if (x.corpo.status && x.corpo.status !== status) { status = x.corpo.status; atualizarStatus(); }
       marcarLimpo();
       aplicarPendencias(x.corpo.pendencias);
       var n = (x.corpo.pendencias || []).length;
-      avisar(n ? "warning" : "success", n ? "Fluxo salvo com " + n + (n === 1 ? " pendência." : " pendências.") : "Fluxo salvo.");
+      avisar(n || x.corpo.voltou_para_rascunho ? "warning" : "success", x.corpo.voltou_para_rascunho ? "Fluxo salvo com pendências e voltou para rascunho." : n ? "Fluxo salvo com " + n + (n === 1 ? " pendência." : " pendências.") : "Fluxo salvo.");
       return true;
     }).catch(function () {
       btnSalvar.removeAttribute("aria-busy");

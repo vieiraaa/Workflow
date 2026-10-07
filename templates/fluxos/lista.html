@@ -1,6 +1,86 @@
 {% extends "base.html" %}
 {% block titulo %}Fluxos · Construtor de Workflows{% endblock %}
 {% block titulo_pagina %}Fluxos{% endblock %}
+{% block acoes %}{% if pode_criar %}<button class="botao botao--primario" type="button" data-modal-abrir="modal-fluxo" data-form-action="{{ url_novo }}" data-valor-nome="" data-valor-descricao="" data-texto-titulo="Novo fluxo" data-texto-confirmar="Criar fluxo">{% include "componentes/icone.html" with nome="plus" tamanho=16 %}<span>Novo fluxo</span></button>{% endif %}{% endblock %}
 {% block conteudo %}
-<section class="card">{% include "componentes/vazio.html" with icone="workflow" titulo="Em breve" texto="Esta área ainda está em construção." %}</section>
+<form class="filtros" method="get" role="search">
+  <div class="campo filtros__busca">
+    <label class="sr-only" for="busca">Buscar por nome</label>
+    <input id="busca" type="search" name="q" value="{{ q }}" placeholder="Buscar por nome" maxlength="200">
+  </div>
+  {% if status_atual %}<input type="hidden" name="status" value="{{ status_atual }}">{% endif %}
+  {% if ordem != "-atualizado_em" %}<input type="hidden" name="ordem" value="{{ ordem }}">{% endif %}
+  {% include "componentes/botao.html" with rotulo="Buscar" icone="search" tipo="submit" %}
+  {% include "componentes/segmentado.html" with opcoes=filtros_status %}
+</form>
+
+<div class="card card--semrecuo">
+  {% if fluxos %}
+  <div class="tabela-rolagem"><table class="tabela">
+    <thead><tr>
+      <th scope="col"{% if ordenacoes.nome.sentido %} aria-sort="{% if ordenacoes.nome.sentido == 'asc' %}ascending{% else %}descending{% endif %}"{% endif %}><a class="tabela__ordem" href="{{ ordenacoes.nome.url }}">Nome{% if ordenacoes.nome.sentido == "asc" %} ↑{% elif ordenacoes.nome.sentido == "desc" %} ↓{% endif %}</a></th>
+      <th scope="col">Dono</th>
+      <th scope="col">Status</th>
+      <th scope="col"{% if ordenacoes.atualizado_em.sentido %} aria-sort="{% if ordenacoes.atualizado_em.sentido == 'asc' %}ascending{% else %}descending{% endif %}"{% endif %}><a class="tabela__ordem" href="{{ ordenacoes.atualizado_em.url }}">Atualizado em{% if ordenacoes.atualizado_em.sentido == "asc" %} ↑{% elif ordenacoes.atualizado_em.sentido == "desc" %} ↓{% endif %}</a></th>
+      <th scope="col"><span class="sr-only">Ações</span></th>
+    </tr></thead>
+    <tbody>
+      {% for f in fluxos %}
+      <tr class="tabela__linha tabela__linha--acoes">
+        <td class="tabela__principal">{% if f.url_editor %}<a class="tabela__link" href="{{ f.url_editor }}">{{ f.nome }}</a>{% else %}<span class="tabela__link">{{ f.nome }}</span>{% endif %}</td>
+        <td class="tabela__secundario texto-2">{{ f.descricao|default:"Sem descrição" }}</td>
+        <td class="tabela__extra texto-2">{{ f.dono_nome }}</td>
+        <td class="tabela__status">{% include "componentes/badge_status.html" with status=f.status rotulo=f.status_rotulo %}</td>
+        <td class="tabela__extra texto-2">{{ f.atualizado_em|date:"d/m/Y H:i" }}</td>
+        <td class="tabela__acoes">
+          <div class="tabela__botoes">
+            {% if f.url_executar %}
+            <form method="post" action="{{ f.url_executar }}">{% csrf_token %}{% include "componentes/botao.html" with rotulo="Executar" icone="play" tipo="submit" %}</form>
+            {% endif %}
+            {% if f.url_status %}
+            <form method="post" action="{{ f.url_status }}">{% csrf_token %}<input type="hidden" name="voltar" value="lista"><input type="hidden" name="status" value="{% if f.status == 'ativo' %}rascunho{% else %}ativo{% endif %}">{% if f.status == 'ativo' %}{% include "componentes/botao.html" with rotulo="Voltar p/ rascunho" tipo="submit" %}{% else %}{% include "componentes/botao.html" with rotulo="Ativar" tipo="submit" %}{% endif %}</form>
+            {% endif %}
+            {% if f.url_editar %}<button class="botao botao--icone" type="button" aria-label="Editar nome e descrição" data-modal-abrir="modal-fluxo" data-form-action="{{ f.url_editar }}" data-valor-nome="{{ f.nome }}" data-valor-descricao="{{ f.descricao }}" data-texto-titulo="Editar fluxo" data-texto-confirmar="Salvar">{% include "componentes/icone.html" with nome="pencil" %}</button>{% endif %}
+            {% if f.url_excluir %}<button class="botao botao--icone" type="button" aria-label="Excluir fluxo" data-modal-abrir="modal-excluir" data-form-action="{{ f.url_excluir }}" data-texto-texto="Excluir o fluxo “{{ f.nome }}”? As execuções já feitas continuam no histórico.">{% include "componentes/icone.html" with nome="trash" %}</button>{% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% include "componentes/paginacao.html" %}
+  {% elif q or status_atual %}
+  {% include "componentes/vazio.html" with icone="search" titulo="Nenhum fluxo encontrado" texto="Nenhum resultado para esta busca ou filtro. Tente outros termos." acao_rotulo="Limpar filtros" acao_url="?" %}
+  {% elif pode_criar %}
+  <div class="vazio">
+    <div class="vazio__icone">{% include "componentes/icone.html" with nome="workflow" tamanho=24 %}</div>
+    <h2>Nenhum fluxo ainda</h2>
+    <p class="vazio__texto">Crie o primeiro fluxo para montar uma automação no editor visual.</p>
+    <button class="botao botao--primario" type="button" data-modal-abrir="modal-fluxo" data-form-action="{{ url_novo }}" data-valor-nome="" data-valor-descricao="" data-texto-titulo="Novo fluxo" data-texto-confirmar="Criar fluxo"><span>Novo fluxo</span></button>
+  </div>
+  {% else %}
+  {% include "componentes/vazio.html" with icone="workflow" titulo="Nenhum fluxo disponível" texto="Quando houver fluxos ativos para você, eles aparecem aqui." %}
+  {% endif %}
+</div>
+
+{% if pode_criar or pode_editar %}
+<dialog class="modal" id="modal-fluxo" aria-labelledby="modal-fluxo-titulo"{% if modal_aberto %} data-abrir{% endif %}>
+  <form class="modal__corpo formulario" method="post" action="{% if modal_aberto == 'editar' %}{{ fluxo_editando.url_editar }}{% else %}{{ url_novo }}{% endif %}" novalidate>
+    {% csrf_token %}
+    <h2 id="modal-fluxo-titulo" data-slot="titulo">{% if modal_aberto == "editar" %}Editar fluxo{% else %}Novo fluxo{% endif %}</h2>
+    {% if modal_aberto == "editar" %}
+    {% include "componentes/campo.html" with campo=form_editar.nome %}
+    {% include "componentes/campo.html" with campo=form_editar.descricao %}
+    {% else %}
+    {% include "componentes/campo.html" with campo=form_novo.nome %}
+    {% include "componentes/campo.html" with campo=form_novo.descricao %}
+    {% endif %}
+    <div class="modal__acoes">
+      <button class="botao botao--secundario" type="button" data-modal-fechar>Cancelar</button>
+      <button class="botao botao--primario" type="submit" data-slot="confirmar" data-carregando>{% if modal_aberto == "editar" %}Salvar{% else %}Criar fluxo{% endif %}</button>
+    </div>
+  </form>
+</dialog>
+{% endif %}
+{% if pode_excluir %}{% include "componentes/modal.html" with id="modal-excluir" titulo="Excluir fluxo" texto="" confirmar_rotulo="Excluir" destrutivo=True %}{% endif %}
 {% endblock %}

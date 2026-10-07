@@ -8,6 +8,27 @@
     try { localStorage.setItem("tema", tema); } catch (e) {}
   }
 
+  /* Prepara o modal a partir de data-* do botão: data-form-action, data-valor-<campo>,
+     data-texto-<slot>. Tudo por value/textContent. Erros do servidor somem ao reabrir. */
+  function prepararModal(modal, botao) {
+    var form = modal.querySelector("form");
+    modal.querySelectorAll(".campo__erro").forEach(function (e) { e.remove(); });
+    modal.querySelectorAll(".campo--erro").forEach(function (e) { e.classList.remove("campo--erro"); });
+    Object.keys(botao.dataset).forEach(function (chave) {
+      var valor = botao.dataset[chave], nome;
+      if (chave === "formAction" && form) form.setAttribute("action", valor);
+      else if (chave.indexOf("valor") === 0) {
+        nome = chave.slice(5).toLowerCase();
+        var campo = modal.querySelector("[name=" + nome + "]");
+        if (campo) campo.value = valor;
+      } else if (chave.indexOf("texto") === 0) {
+        nome = chave.slice(5).toLowerCase();
+        var slot = modal.querySelector("[data-slot=" + nome + "]");
+        if (slot) slot.textContent = valor;
+      }
+    });
+  }
+
   document.addEventListener("click", function (ev) {
     var alvo = ev.target.closest("[data-tema-alternar],[data-menu-alternar],[data-menu-fechar],[data-modal-abrir],[data-modal-fechar],[data-toast-fechar],[data-copiar]");
     if (!alvo) return;
@@ -22,7 +43,7 @@
       shell.classList.remove("menu-aberto");
     } else if (alvo.hasAttribute("data-modal-abrir")) {
       var modal = document.getElementById(alvo.getAttribute("data-modal-abrir"));
-      if (modal && modal.showModal) modal.showModal();
+      if (modal && modal.showModal) { prepararModal(modal, alvo); modal.showModal(); }
     } else if (alvo.hasAttribute("data-modal-fechar")) {
       var dlg = alvo.closest("dialog");
       if (dlg) dlg.close();
@@ -39,6 +60,9 @@
   document.addEventListener("click", function (ev) {
     if (ev.target.tagName === "DIALOG" && ev.target.open) ev.target.close();
   });
+
+  /* Modal aberto pelo servidor (erro de formulário). */
+  document.querySelectorAll("dialog[data-abrir]").forEach(function (m) { if (m.showModal) m.showModal(); });
 
   /* Toasts somem sozinhos (erros ficam até serem fechados). */
   document.querySelectorAll("[data-toast]:not(.toast--error)").forEach(function (t) {

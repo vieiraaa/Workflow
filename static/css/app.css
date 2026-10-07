@@ -205,6 +205,9 @@ h2 { font-size: var(--text-h2); font-weight: 600; }
 .tabela__link { color: var(--text); font-weight: 500; }
 .tabela__chevron { display: none; color: var(--text-3); }
 @media (max-width: 800px) {
+  .tabela__linha--acoes { grid-template-columns: auto 1fr; grid-template-areas: "nome nome" "email email" "status status" "acoes acoes"; }
+  .tabela__linha--acoes .tabela__acoes { grid-area: acoes; position: relative; z-index: 1; }
+  .tabela__linha--acoes .tabela__status { grid-area: status; }
   .tabela thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .tabela, .tabela tbody { display: block; }
   .tabela__linha {
@@ -225,3 +228,6 @@ h2 { font-size: var(--text-h2); font-weight: 600; }
   .tabela__chevron { display: inline-flex; }
   .tabela__link::after { content: ""; position: absolute; inset: 0; }
 }
+
+.tabela__botoes { display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-2); flex-wrap: wrap; }
+.tabela__botoes form { margin: 0; }
