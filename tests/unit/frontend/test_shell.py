@@ -1,4 +1,5 @@
 """Testes do front da Fase 0: render do login/início/erros e higiene dos templates."""
+
 import re
 from pathlib import Path
 
@@ -20,6 +21,7 @@ def test_login_renderiza_template_especifico(client):
     assert b'name="username"' in resposta.content and b'name="password"' in resposta.content
 
 
+@pytest.mark.django_db
 def test_login_erro_credenciais_mostra_alerta(client):
     resposta = client.post(reverse("login"), {"username": "x@y.com", "password": "errada"})
     assert resposta.status_code == 200
@@ -40,14 +42,21 @@ def test_nao_encontrado_usa_template_404(cliente_adm):
 
 
 def test_base_sem_cdn():
-    for arquivo in [TEMPLATES / "base.html", TEMPLATES / "base_publica.html", STATIC / "css/app.css", STATIC / "js/app.js"]:
+    for arquivo in [
+        TEMPLATES / "base.html",
+        TEMPLATES / "base_publica.html",
+        STATIC / "css/app.css",
+        STATIC / "js/app.js",
+    ]:
         assert not re.search(r"https?://", arquivo.read_text(encoding="utf-8")), arquivo.name
 
 
 def test_templates_sem_safe():
     for arquivo in TEMPLATES.rglob("*.html"):
         texto = arquivo.read_text(encoding="utf-8")
-        assert "|safe" not in texto and "mark_safe" not in texto and "autoescape off" not in texto, arquivo
+        assert (
+            "|safe" not in texto and "mark_safe" not in texto and "autoescape off" not in texto
+        ), arquivo
 
 
 def test_templates_sem_user_groups():

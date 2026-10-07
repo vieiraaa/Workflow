@@ -3,5 +3,5 @@
   <div class="vazio__icone">{% include "componentes/icone.html" with nome=icone|default:"inbox" tamanho=24 %}</div>
   <h2>{{ titulo|default:"Nada por aqui ainda" }}</h2>
   {% if texto %}<p class="vazio__texto">{{ texto }}</p>{% endif %}
-  {% if acao_url %}{% include "componentes/botao.html" with rotulo=acao_rotulo variante="primario" href=acao_url %}{% endif %}
+  {% if acao_url %}{% include "componentes/botao.html" with rotulo=acao_rotulo variante="primario" href=acao_url icone="" %}{% endif %}
 </div>
