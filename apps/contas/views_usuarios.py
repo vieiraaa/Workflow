@@ -217,7 +217,7 @@ class UsuarioEditarView(PermissaoMixin, View):
     `contas/usuario_editar.html`; pk inexistente → 404.
 
     Contexto (além do shell): `form` (UsuarioEditarForm: nome, email, papel, ativo;
-    erros de formulário em form.non_field_errors), `usuario_editado` (Usuario: nome, email,
+    USR-07/08 em form.ativo.errors ou form.papel.errors), `usuario_editado` (Usuario: nome, email,
     is_active), `eh_proprio` (bool), `form_senha` (RedefinirSenhaForm: nova_senha, confirmacao),
     `url_redefinir` (POST), `url_lista`. Sucesso → redirect para `contas:usuarios` + toast
     "Usuário <nome> atualizado.". Não há rota de exclusão (USR-09).

@@ -121,8 +121,11 @@ class UsuarioEditarForm(forms.Form):
         if "papel" not in dados:
             return dados
         papel, ativo = dados["papel"], dados.get("ativo", False)
+        # Erro junto do campo: desativação → `ativo`; mudança de papel → `papel`.
+        campo_do_erro = "ativo" if not ativo else "papel"
         if self.instance.pk == self.editor.pk and (not ativo or papel != "adm"):
-            raise ValidationError(MSG_AUTOPROTECAO)
+            self.add_error(campo_do_erro, MSG_AUTOPROTECAO)
+            return dados
         if not (ativo and papel == "adm"):
             restantes = (
                 Usuario.objects.select_for_update()
@@ -130,7 +133,7 @@ class UsuarioEditarForm(forms.Form):
                 .exclude(pk=self.instance.pk)
             )
             if not list(restantes.values_list("pk", flat=True)):
-                raise ValidationError(MSG_ULTIMO_ADM)
+                self.add_error(campo_do_erro, MSG_ULTIMO_ADM)
         return dados
 
     def salvar(self):

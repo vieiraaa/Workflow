@@ -89,17 +89,19 @@ def test_editar_email_duplicado_exclui_o_proprio(usuario_adm, usuario_base, usua
     assert form.errors["email"] == [MSG_EMAIL_DUPLICADO]
 
 
-@pytest.mark.parametrize("mudanca", [{"ativo": False}, {"papel": "base"}])
-def test_adm_nao_se_rebaixa_nem_se_desativa(usuario_adm, mudanca):
+@pytest.mark.parametrize(
+    ("mudanca", "campo"), [({"ativo": False}, "ativo"), ({"papel": "base"}, "papel")]
+)
+def test_adm_nao_se_rebaixa_nem_se_desativa(usuario_adm, mudanca, campo):
     form = _editar(usuario_adm, usuario_adm, **mudanca)
     assert not form.is_valid()
-    assert form.non_field_errors() == [MSG_AUTOPROTECAO]
+    assert form.errors[campo] == [MSG_AUTOPROTECAO]
 
 
 def test_nunca_zero_adm_ativo(usuario_adm, usuario_coordenador):
     criar_usuario("inativo@exemplo.test", "Inativo", "Adm", is_active=False)  # não conta
     form = _editar(usuario_adm, usuario_coordenador, ativo=False)
-    assert form.non_field_errors() == [MSG_ULTIMO_ADM]
+    assert form.errors["ativo"] == [MSG_ULTIMO_ADM]
 
 
 def test_dois_adms_permitem_desativar_o_outro(usuario_adm):
@@ -136,3 +138,8 @@ def test_grupos_existem():
 @pytest.mark.parametrize("senha", ["aaaaaaaaaaaa", "abababababab"])
 def test_senha_repetitiva_recusada(senha):
     assert not _novo(senha=senha, confirmacao=senha).is_valid()
+
+
+def test_ultimo_adm_ao_mudar_papel_erro_no_campo_papel(usuario_adm, usuario_coordenador):
+    form = _editar(usuario_adm, usuario_coordenador, papel="base")
+    assert form.errors["papel"] == [MSG_ULTIMO_ADM]
