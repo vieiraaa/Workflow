@@ -92,6 +92,13 @@ regras_grafo:
       valor fora de rascunho|ativo → 400 sem alteração. (e) descricao > 1000 → "Use no máximo 1000 caracteres.".
       (f) O editor expõe `atualizado_em` em data-atualizado-em no elemento raiz do editor, formato isoformat() do banco.
 
+  - id: GRF-09
+    texto: >
+      Fecha lacunas do T-020. O POST do grafo é recusado como FORMATO (400, nada gravado) quando: (a) contém chave
+      desconhecida em qualquer nível (raiz, nó, aresta, posicao, config de cada tipo) — o grafo canônico é fechado;
+      (b) a profundidade de aninhamento passa de 16; (c) há número não finito (NaN, Infinity, -Infinity ou overflow como
+      1e999); (d) há string que não codifica em UTF-8 (surrogate solto) ou contém NUL. Mensagem clara por caso; nunca 500.
+
 placeholders:
   - id: PLH-01
     texto: >

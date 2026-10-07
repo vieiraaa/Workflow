@@ -1,0 +1,21 @@
+id: T-021
+titulo: M2 · Correções do adversarial (T-020) — JSON hostil no salvar_grafo
+dono: Forja (back)
+depende_de: [T-020]
+skills: [backend]
+regras: [GRF-02, GRF-09, SEG-14]
+achados:
+  - testes: tests/adversarial/m2/test_ataques_fluxos.py::test_json_com_numeros_especiais[NaN|Infinity|-Infinity|1e999]
+    problema: json do Python aceita constantes não finitas; o jsonb recusa no UPDATE → 500
+  - teste: test_json_com_surrogate_solto
+    problema: título com \ud800 → 500 no Postgres
+  - teste: test_json_profundamente_aninhado[100000]
+    problema: chave desconhecida com 100 mil níveis cabe nos 256 KB e estoura max_stack_depth → 500
+correcao: >
+  Validar ANTES de tocar no banco, no parse/validador (apps/fluxos): parse_constant que recusa, checagem de floats finitos,
+  profundidade máxima 16 (iterativa, sem recursão do Python), strings UTF-8 sem surrogate nem NUL, schema fechado
+  (chave desconhecida = formato). Tudo vira 400 com mensagem (GRF-09). O mesmo vale para o campo grafo em qualquer outra
+  entrada (admin, semeadura).
+aceite:
+  - os 6 testes acima verdes sem alteração; aceite m2 verde; check --modulo 2 verde
+arquivos: [apps/fluxos/, tests/unit/fluxos/]
