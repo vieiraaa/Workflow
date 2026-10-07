@@ -195,3 +195,7 @@ h2 { font-size: var(--text-h2); font-weight: 600; }
 .filtros__busca { flex: 1 1 240px; }
 .tabela__ordem { color: inherit; }
 .tabela__ordem:hover { color: var(--text); }
+
+/* Formulários em página */
+.card--formulario { max-width: var(--form-w); width: 100%; }
+.formulario__acoes { display: flex; justify-content: flex-end; gap: var(--sp-2); margin-top: var(--sp-2); }

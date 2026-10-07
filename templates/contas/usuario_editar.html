@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block titulo %}Editar usuário · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}{{ usuario_editado.nome }}{% endblock %}
+{% block conteudo %}
+<section class="card card--formulario">
+  <h2 class="card__titulo">Dados do usuário</h2>
+  <form class="formulario" method="post" novalidate>
+    {% csrf_token %}
+    {% include "componentes/alerta.html" with erros=form.non_field_errors estado="erro_validacao" %}
+    {% include "componentes/campo.html" with campo=form.nome %}
+    {% include "componentes/campo.html" with campo=form.email %}
+    {% include "componentes/campo.html" with campo=form.papel %}
+    {% include "componentes/toggle.html" with nome="ativo" rotulo="Usuário ativo" marcado=form.ativo.value %}
+    {% if eh_proprio %}<p class="campo__ajuda">Você não pode desativar a si mesmo nem remover o seu papel de administrador.</p>{% endif %}
+    <div class="formulario__acoes">
+      {% include "componentes/botao.html" with rotulo="Voltar" href=url_lista %}
+      <button class="botao botao--primario" type="submit" data-carregando>Salvar</button>
+    </div>
+  </form>
+</section>
+
+<section class="card card--formulario">
+  <h2 class="card__titulo">Redefinir senha</h2>
+  <p class="texto-2">Defina uma nova senha para {{ usuario_editado.nome }}. Ela não é exibida depois de salva.</p>
+  <form class="formulario" method="post" action="{{ url_redefinir }}" novalidate>
+    {% csrf_token %}
+    {% include "componentes/alerta.html" with erros=form_senha.non_field_errors estado="erro_senha" %}
+    {% include "componentes/campo.html" with campo=form_senha.nova_senha %}
+    {% include "componentes/campo.html" with campo=form_senha.confirmacao %}
+    <div class="formulario__acoes">
+      <button class="botao botao--destrutivo" type="submit" data-carregando>Redefinir senha</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

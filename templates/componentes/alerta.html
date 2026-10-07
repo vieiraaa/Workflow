@@ -1,0 +1,7 @@
+{# erros: lista/iterável de textos; tipo: erro|sucesso (padrão erro); estado: valor de data-estado (opcional) #}
+{% if erros %}
+<div class="alerta alerta--{{ tipo|default:'erro' }}" role="alert"{% if estado %} data-estado="{{ estado }}"{% endif %}>
+  {% include "componentes/icone.html" with nome="circle-alert" tamanho=16 %}
+  <span>{% for erro in erros %}{{ erro }}{% if not forloop.last %} {% endif %}{% endfor %}</span>
+</div>
+{% endif %}

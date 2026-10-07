@@ -27,3 +27,29 @@ def test_lista_escapa_nome(cliente_adm, usuario_base):
 def test_lista_vazio_busca(cliente_adm):
     resposta = cliente_adm.get(reverse("contas:usuarios"), {"q": "zzz-inexistente"})
     assert "Nenhum usuário encontrado".encode() in resposta.content
+
+
+def test_usuario_novo_usa_template_e_erro_por_campo(cliente_adm):
+    url = reverse("contas:usuario_novo")
+    assert "contas/usuario_novo.html" in nomes(cliente_adm.get(url))
+    resposta = cliente_adm.post(url, {"nome": "", "email": ""})
+    assert resposta.status_code == 200
+    assert "contas/usuario_novo.html" in nomes(resposta)
+    assert b"campo__erro" in resposta.content
+
+
+def test_usuario_editar_usa_template_com_redefinir(cliente_adm, usuario_coordenador):
+    resposta = cliente_adm.get(
+        reverse("contas:usuario_editar", kwargs={"pk": usuario_coordenador.pk})
+    )
+    assert "contas/usuario_editar.html" in nomes(resposta)
+    redefinir = reverse("contas:usuario_redefinir_senha", kwargs={"pk": usuario_coordenador.pk})
+    assert redefinir.encode() in resposta.content
+
+
+def test_usuario_editar_erro_redefinir_senha_rerenderiza(cliente_adm, usuario_coordenador):
+    url = reverse("contas:usuario_redefinir_senha", kwargs={"pk": usuario_coordenador.pk})
+    resposta = cliente_adm.post(url, {"nova_senha": "curta", "confirmacao": "outra"})
+    assert resposta.status_code == 200
+    assert "contas/usuario_editar.html" in nomes(resposta)
+    assert b"campo__erro" in resposta.content

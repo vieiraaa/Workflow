@@ -9,12 +9,7 @@
 <section class="card">
   <form class="formulario" method="post" novalidate>
     {% csrf_token %}
-    {% if form.non_field_errors %}
-    <div class="alerta alerta--erro" role="alert" data-estado="erro_credenciais">
-      {% include "componentes/icone.html" with nome="circle-alert" tamanho=16 %}
-      <span>{% for erro in form.non_field_errors %}{{ erro }}{% if not forloop.last %} {% endif %}{% endfor %}</span>
-    </div>
-    {% endif %}
+    {% include "componentes/alerta.html" with erros=form.non_field_errors estado="erro_credenciais" %}
     {% include "componentes/campo.html" with campo=form.username rotulo="E-mail" %}
     {% include "componentes/campo.html" with campo=form.password rotulo="Senha" %}
     {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
