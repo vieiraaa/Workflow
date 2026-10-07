@@ -64,7 +64,7 @@ def main():
     for rotulo, email in CREDENCIAIS:
         print(f"  {rotulo:<22} {email}   senha: {SENHA_DEMO}")
     print(f"\nSubindo em http://127.0.0.1:{args.porta}/  (Ctrl+C para parar)\n")
-    call_command("runserver", f"127.0.0.1:{args.porta}", use_reloader=False)
+    call_command("runserver", f"127.0.0.1:{args.porta}", use_reloader=False, insecure_serving=True)
     return 0
 
 

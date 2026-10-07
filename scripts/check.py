@@ -139,9 +139,14 @@ def main():
         tocados = arquivos_tocados()
         print(f"[rápido] {len(tocados)} arquivo(s) .py tocado(s).")
         if tocados:
-            resultados.append(passo("ruff lint", _py("-m", "ruff", "check", *tocados)))
             resultados.append(
-                passo("ruff format", _py("-m", "ruff", "format", "--check", *tocados))
+                passo("ruff lint", _py("-m", "ruff", "check", "--force-exclude", *tocados))
+            )
+            resultados.append(
+                passo(
+                    "ruff format",
+                    _py("-m", "ruff", "format", "--check", "--force-exclude", *tocados),
+                )
             )
         testes = testes_ligados(tocados) or ["tests/unit"]
         resultados.append(passo("pytest", _py("-m", "pytest", "-q", *limite, *testes)))

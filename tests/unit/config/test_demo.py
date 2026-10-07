@@ -15,7 +15,7 @@ def test_demo_usa_banco_local_e_ignora_database_url(monkeypatch):
     banco = demo.DATABASES["default"]
     assert banco["NAME"] == "construtor_demo"
     assert banco["HOST"] == "localhost"
-    assert demo.DEBUG is True
+    assert demo.DEBUG is False  # mostra as telas de erro do produto, não a página de debug
 
 
 def test_demo_recusa_host_supabase(monkeypatch):
@@ -39,3 +39,9 @@ def test_ssrf_liberar_vazio_no_demo():
     from config.settings import demo
 
     assert demo.MOTOR_SSRF_LIBERAR == []
+
+
+def test_demo_serve_estaticos_sem_debug():
+    from pathlib import Path
+
+    assert "insecure_serving=True" in Path("scripts/demo.py").read_text(encoding="utf-8")
