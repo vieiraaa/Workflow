@@ -1,10 +1,10 @@
 Escrito para: o terminal Claude Code que vai atuar como Lead no canvas do Maestri. Cole o bloco
 markdown abaixo nele. O Lead monta o time sozinho pelo CLI do Maestri.
 
-**Antes de colar (Windows):**
+**Antes de colar (macOS):**
 
-1. Git for Windows, Python 3.12/3.13 (`py`), Postgres local e o `.env` do Supabase de testes
-   (no `.gitignore`), como no `PROMPT_LEAD.md`.
+1. Python 3.12+, Postgres local para os testes (Postgres.app) e o `.env` do Supabase preenchido,
+   como no `PROMPT_LEAD.md`.
 2. No Maestri: crie um workspace apontando para a pasta do projeto e abra **um** terminal
    Claude Code nela, com `claude --model opus`. Esse é o Lead.
 3. Cole o bloco abaixo. Os outros terminais aparecem no canvas sozinhos.

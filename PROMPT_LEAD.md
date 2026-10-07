@@ -1,12 +1,13 @@
 Escrito para: a sessão principal do Claude Code (Lead-Construtor). Cole o bloco markdown abaixo nela.
 
-**Antes de colar, prepare o projeto (Windows):**
+**Antes de colar, prepare o projeto (macOS agora; Windows depois):**
 
-1. **Pré-requisitos:** Python 3.12+ (confira wheels; 3.14 só se todas as deps tiverem wheel), Git for
-   Windows (o Claude Code usa o Git Bash por baixo), Postgres local para testes.
-2. **Copie este kit para a raiz do repositório:** a pasta `.claude/` (agents, skills, settings) e
+1. **Pré-requisitos:** Python 3.12+ e Postgres local SÓ para os testes (no Mac, o jeito mais
+   simples é o Postgres.app: postgresapp.com).
+2. **O kit já está na raiz deste repositório:** `.claude/` (agents, skills, settings) e
    `docs/spec/telas.yaml`.
-3. **`.env`:** conexão do Supabase de testes, listado no `.gitignore`.
+3. **`.env`:** preencha a senha e o host do pooler do Supabase (veja o `.env.example`). Ele já está
+   no `.gitignore`.
 4. **Abra a sessão:** `claude --model sonnet` (padrão, cabe no Pro). Use `/model opus` só para
    o planejamento inicial, se a sua conta Pro permitir, e volte para Sonnet ao começar a codar.
 5. **Uma sessão por módulo.** Ao terminar um módulo (ou bater o limite do Pro), feche a sessão.
@@ -64,9 +65,11 @@ Aplicação web com três papéis e um construtor visual de workflows parecido c
 
 # Stack (decidida)
 
-Python + Django · Postgres do Supabase em produção, Postgres local nos testes (nunca o Supabase) ·
+Python + Django · Postgres do Supabase como banco da aplicação (via `DATABASE_URL`, session
+pooler, SSL), Postgres local nos testes (nunca o Supabase) ·
 Django auth com Groups · httpx síncrono com timeout · Canvas com Drawflow vendorizado ·
-sem build de frontend · Windows/PowerShell · Playwright (Python) para testes e capturas de tela.
+sem build de frontend · desenvolvimento no macOS, código portável para Windows (pathlib, nada
+de comando específico de shell no código ou no check) · Playwright (Python) para testes e capturas de tela.
 
 # Qualidade é o requisito principal
 
