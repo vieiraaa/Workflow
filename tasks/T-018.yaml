@@ -1,0 +1,27 @@
+id: T-018
+titulo: Correções dos portais de visualização (T-012)
+dono: Vitral (front)
+depende_de: [T-012]
+skills: [design-base, frontend]
+achados:
+  - id: A1
+    severidade: alta
+    problema: >
+      Menu hambúrguer não abre em 390 e 412 px (portais iOS e Android). aria-expanded vira true, mas o <aside> continua
+      em left:-240px e não recebe classe/estado; reproduz também por click() em JS. No celular só se navega por URL.
+    correcao: >
+      Abrir/fechar a sidebar no mobile (classe/atributo no shell, overlay escurecido, fecha com Esc, clique fora e ao
+      navegar; foco vai para o primeiro item ao abrir e volta ao botão ao fechar; respeita prefers-reduced-motion).
+      Vale em todas as telas com shell, inclusive 403/404.
+  - id: A2
+    severidade: media (o usuário pediu acabamento visual)
+    problema: <select> de Papel usa o estilo nativo do SO (gradiente e setas), destoando dos campos.
+    correcao: estilizar select no componente campo (appearance:none, fundo --fill, raio --r-m, ícone chevron do Lucide, foco --ring), light e dark.
+  - id: A3
+    severidade: baixa
+    problema: botão do menu sem rótulo acessível de estado.
+    correcao: aria-label "Abrir menu"/"Fechar menu" alternando com aria-expanded.
+aceite:
+  - teste e2e (tests/e2e/) que abre o menu a 390px e verifica que o aside fica visível e navegável
+  - check --rapido verde; capturas m1 e m2 sem regressão
+arquivos: [templates/base.html, templates/componentes/, static/, tests/unit/frontend/, tests/e2e/]
