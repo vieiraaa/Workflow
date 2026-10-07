@@ -78,7 +78,8 @@ def test_base_nao_ve_rascunho_nem_por_busca_filtro_ou_paginacao(cliente_base, fa
     fabrica_fluxo(nome="Visivel 00", status="ativo")
     url = reverse("fluxos:lista")
     for params in ({"q": "Oculto"}, {"status": "rascunho"}, {"pagina": 2}, {"q": "Oculto", "pagina": 2}):
-        assert "Oculto" not in _h(cliente_base.get(url, params)), params
+        # a busca ecoa o termo no campo (escapado); o que não pode aparecer é o NOME de um fluxo oculto
+        assert _presentes(_h(cliente_base.get(url, params)), "Oculto") == 0, params
     assert "Visivel 00" in _h(cliente_base.get(url))
 
 
