@@ -5,8 +5,8 @@ workflows estilo n8n: Gatilho manual → Requisição HTTP → Saída. Piloto fe
 agentes no Maestri (Lead "Orquestrador", Back "Forja", Front "Vitral", QA "Lupa").
 
 ## Fontes da verdade (leia só o trecho que a tarefa cita, pelo id)
-- `docs/spec/papeis.yaml` (PAP-xx), `permissoes.yaml` (PRM-xx), `grafo.yaml` (GRF-xx),
-  `estados.yaml` (EST-xx), `seguranca.yaml` (SEG-xx), `telas.yaml` (TEL-xx), `usuarios.yaml` (USR-xx).
+- `docs/spec/papeis.yaml` (PAP-xx), `permissoes.yaml` (PRM-xx), `grafo.yaml` (FLX/GRF/PLH-xx),
+  `estados.yaml` (EST/EXE-xx), `seguranca.yaml` (SEG-xx), `telas.yaml` (TEL-xx), `usuarios.yaml` (USR-xx).
 - `DECISOES.md`: decisões de uma linha. `PROGRESSO.md`: onde o time está.
 - `tasks/T-0xx.yaml`: objetivo, aceite, `arquivos:` (fronteira dura), dono, depende_de.
 - Skills em `.claude/skills/`: `backend`, `integracao`, `frontend`, `design-base`.
@@ -55,8 +55,9 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
   (contrato Back↔Front). Mutação só por POST + CSRF → redirect + `messages`.
 - Listagens: paginação 25, `?q=` busca, `?ordem=` ordenação, queries constantes.
 - Nomes de rota fixos (spec `telas.yaml`): `login`, `logout`, `inicio`, `contas:usuarios`,
-  `contas:usuario_novo`, `contas:usuario_editar`, `fluxos:lista`, `fluxos:editor`,
-  `execucoes:lista`, `execucoes:detalhe`.
+  `contas:usuario_novo`, `contas:usuario_editar`, `contas:trocar_senha`, `fluxos:lista`,
+  `fluxos:editor`, `fluxos:salvar_grafo`, `fluxos:executar`, `execucoes:lista`, `execucoes:detalhe`.
+- 403/404 usam templates do produto (`erros/403.html`, `erros/404.html`, com shell). TEL-10/11.
 - Testes: pytest + pytest-django. Marcador `@pytest.mark.modulo("mN")`. Fixtures de papel em
   `tests/conftest.py`: `usuario_adm`, `usuario_coordenador`, `usuario_base`, e clientes logados
   `cliente_adm`, `cliente_coordenador`, `cliente_base`, `cliente_anonimo`.
