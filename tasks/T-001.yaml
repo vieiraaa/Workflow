@@ -1,0 +1,45 @@
+id: T-001
+titulo: Fase 0 · Esqueleto Django, settings, banco, login/logout, check e telas
+dono: Forja (back)
+depende_de: []
+skills: [integracao, backend]
+objetivo: >
+  Projeto Django rodando com settings por ambiente, usuário custom, papéis, login/logout,
+  motor de permissão (esqueleto que lê docs/spec/permissoes.yaml), scripts/check.py e
+  scripts/telas.py. Base para todos os módulos.
+entregas:
+  - requirements.txt + requirements-dev.txt (versões fixadas; wheels macOS+Windows para Py 3.14),
+    pyproject.toml (ruff lint+format, pytest, cobertura; ruff banned-api para eval/exec), manage.py
+  - config/settings/{base,dev,teste}.py; DJANGO_SETTINGS_MODULE padrão dev; pytest usa teste
+  - dev lê DATABASE_URL do ambiente (dj-database-url), sslmode=require, CONN_MAX_AGE=60,
+    CONN_HEALTH_CHECKS=True. Carregue o .env em runtime (python-dotenv ou similar) SEM ler o
+    arquivo com ferramenta. teste usa TEST_DATABASE_URL com padrão postgres://localhost:5432/construtor_teste
+  - config/travas.py: aborta (mensagem clara, sem imprimir a URL) se o banco de teste for supabase
+  - settings de segurança: SECURE_* coerentes por ambiente, SESSION_COOKIE_HTTPONLY, CSRF,
+    X_FRAME_OPTIONS=DENY, LOGIN_URL='login', LOGIN_REDIRECT_URL='inicio'
+  - apps/nucleo, apps/contas (Usuario custom com email único como USERNAME_FIELD + nome;
+    migration de dados que cria os Groups Adm/Coordenador/Base), apps/fluxos, apps/execucoes,
+    apps/motor (apps vazios registrados, só o necessário)
+  - apps/contas/permissoes.py: pode(usuario, acao, objeto=None), escopo(usuario, qs),
+    PermissaoMixin; lê docs/spec/permissoes.yaml (o Lead escreve a spec em paralelo; use os
+    ids de ação de lá quando o arquivo existir)
+  - rotas: login, logout (POST), inicio (redireciona para a primeira tela permitida; por ora
+    uma view simples com template inicio/inicio.html). Templates são do Vitral: entregue a view
+    com contexto na docstring e combine com ele pela conexão.
+  - comando semear_demo: 3 usuários fictícios (adm@exemplo.test, coord@exemplo.test,
+    base@exemplo.test) com senha impressa só se gerada aleatoriamente para dev
+  - tests/conftest.py com fixtures de papel e clientes (ver CLAUDE.md, Convenções)
+  - scripts/check.py conforme skill integracao + PROMPT_LEAD ("O check precisa conter"):
+    ruff lint+format, makemigrations --check --dry-run, pytest com cobertura, pip-audit,
+    --rapido por git diff, classificação CÓDIGO/AMBIENTE/EXTERNO. Os itens que dependem de
+    telas (console error, overflow 390px) chamam scripts/telas.py --verificar.
+  - scripts/telas.py: lê docs/spec/telas.yaml; --modulo N captura cada tela do módulo em
+    light/dark × 1440/390 em docs/telas/mN/<TEL-id>_<estado>_<tema>_<largura>.png (Playwright,
+    sobe servidor local com banco de teste e dados fictícios); --verificar falha em console
+    error ou overflow horizontal em 390px
+aceite:
+  - .venv/bin/python scripts/check.py verde (completo) com os testes da fase
+  - login/logout testados com os 3 papéis + anônimo; inicio exige login
+  - trava de supabase testada
+  - python scripts/telas.py --modulo 0 gera as 4 capturas do TEL-01 (depende do template do Vitral)
+arquivos: [apps/, config/, scripts/, requirements.txt, requirements-dev.txt, pyproject.toml, manage.py, tests/unit/ (menos frontend/), tests/conftest.py]

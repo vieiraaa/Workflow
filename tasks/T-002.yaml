@@ -1,0 +1,27 @@
+id: T-002
+titulo: Fase 0 · Shell visual, tokens, componentes, tema light/dark, Inter e Lucide
+dono: Vitral (front)
+depende_de: []
+skills: [design-base, frontend]
+objetivo: >
+  Base visual completa no padrão da skill design-base, pronta para todas as telas: shell,
+  componentes, tema e tela de login (TEL-01).
+entregas:
+  - static/css/tokens.css (cópia de .claude/skills/design-base/tokens.css), static/css/app.css
+    (só tokens), static/js/app.js (tema, toasts, modal, menu mobile)
+  - static/vendor/inter/<versao>/ e static/vendor/lucide/<versao>/ (sprite SVG) com LICENSE;
+    registre versão e licença em uma linha no DECISOES.md (peça ao Lead ou envie a linha a ele)
+  - templates/base.html (shell: sidebar 240px, topbar com título e ações, botão de tema,
+    toasts a partir de messages, script inline de tema antes da pintura, menu recolhível no
+    mobile); templates/base_publica.html para telas sem shell (login)
+  - templates/componentes/: icone, card, grupo (inset), botao, campo, tabela, vazio,
+    badge_status, paginacao, modal, toast, bloco_codigo, segmentado, toggle, carregando
+  - templates/registration/login.html (TEL-01) com estados padrao e erro_credenciais;
+    templates/inicio/inicio.html
+  - Itens de menu da sidebar recebidos prontos do contexto (o Back fornece flags; nada de
+    user.groups no template). Combine com o Forja o nome do context processor do menu.
+  - tests/unit/frontend/: render do login (assertTemplateUsed), base.html sem CDN, sem |safe
+aceite:
+  - checklist de severidade alta da design-base sem pendência no TEL-01 (light/dark × 1440/390)
+  - check --rapido verde nos seus arquivos
+arquivos: [templates/, static/, tests/unit/frontend/, tests/e2e/]

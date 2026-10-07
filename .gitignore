@@ -12,3 +12,4 @@ venv/
 htmlcov/
 staticfiles/
 .claude/settings.local.json
+.maestri/
