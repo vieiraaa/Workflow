@@ -11,3 +11,4 @@
 - D-009 · Fase 0 · Lucide 1.52.0 (lucide-static), ISC, sprite SVG em static/vendor/lucide/1.52.0/.
 - D-010 · Fase 0 · Spec em YAML válido: todo `texto:` em bloco `>` (o motor e o telas.py fazem yaml.safe_load).
 - D-011 · M1 · Senha exige 5+ caracteres distintos (SenhaRepetitivaValidator, Forja), além dos validadores do Django; vinha de um teste de aceite além da spec → incorporado em USR-04.
+- D-012 · M1 · Rate limit/bloqueio de login fora do escopo do piloto (lacuna do T-008); registrar como pendente na ENTREGA.
