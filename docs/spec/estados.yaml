@@ -1,0 +1,39 @@
+# Estados e execução. Ids EST-xx (M3: EXE-xx).
+fluxo:
+  estados: [rascunho, ativo]
+  transicoes:
+    - {de: rascunho, para: ativo, condicao: grafo sem pendências (FLX-04)}
+    - {de: ativo, para: rascunho, condicao: sempre}
+  regras:
+    - id: EST-01
+      texto: Editar o grafo de um fluxo ativo é permitido; se o salvamento gerar pendências, o fluxo volta automaticamente para rascunho e o editor avisa.
+
+execucao:
+  modelo:
+    Execucao: {fluxo: FK nulo, fluxo_nome: texto, grafo_snapshot: json, executado_por: Usuario,
+               status: enum, iniciada_em: datahora, finalizada_em: datahora nula, erro_resumo: texto}
+    ExecucaoNo: {execucao: FK, no_id, no_tipo, no_titulo, ordem: int, status: enum,
+                 entrada: json, saida: json, erro_categoria: texto nulo, erro_mensagem: texto, duracao_ms: int}
+  estados: [executando, sucesso, erro]
+  estados_no: [sucesso, erro, nao_executado]
+  regras:
+    - id: EXE-01
+      texto: Executar = POST `fluxos:executar` (CSRF). Execução síncrona na própria requisição; ao fim, redirect para `execucoes:detalhe` com toast. O botão mostra estado carregando e fica desabilitado durante o POST.
+    - id: EXE-02
+      texto: Antes de rodar, valida o grafo (GRF-03); com pendências, não cria execução e volta com erro claro.
+    - id: EXE-03
+      texto: A execução grava um snapshot do grafo; editar ou excluir o fluxo depois não altera o histórico.
+    - id: EXE-04
+      texto: Percorre a cadeia a partir do gatilho, em ordem; grava um ExecucaoNo por nó com entrada (config resolvida, headers sensíveis mascarados), saída, erro e duração em ms.
+    - id: EXE-05
+      texto: Falha num nó → status do nó `erro` com categoria (SEG-10), execução `erro`, nós seguintes `nao_executado`; o que já rodou é mantido.
+    - id: EXE-06
+      texto: Resposta HTTP 4xx/5xx é ERRO do nó (categorias http_4xx/http_5xx), mas status, headers e corpo da resposta são gravados na saída para diagnóstico.
+    - id: EXE-07
+      texto: O nó saída grava como saída a saída completa do nó anterior; o detalhe (TEL-07) destaca o resultado da saída em bloco JSON com botão copiar.
+    - id: EXE-08
+      texto: Histórico (TEL-06) com fluxo, executado por, status (badge), início, duração; escopo pelo motor (Base: só as próprias); filtro ?status=, busca ?q= por nome do fluxo, ordenação padrão -iniciada_em, paginação 25, queries constantes.
+    - id: EXE-09
+      texto: Detalhe (TEL-07) mostra cabeçalho (fluxo, status, quem, início, fim, duração) e a lista de nós em ordem, cada um expansível com entrada, saída (status HTTP, headers, corpo) e erro.
+    - id: EXE-10
+      texto: Uma execução que ficar em `executando` por mais de 5 minutos (ex.: processo morto) é exibida como `erro` com resumo "Execução interrompida".
