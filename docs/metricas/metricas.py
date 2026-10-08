@@ -38,6 +38,7 @@ SESSOES = {
     "Atalaia": [f"{PROJ}/11e0bba2-6e50-49fa-aeaa-b5c8f8ae05b0.jsonl"],
 }
 AGENTE_TRAILER = {
+    "git": "Git & Gitea",
     "back": "Forja",
     "front": "Vitral",
     "qa": "Lupa",
@@ -147,6 +148,33 @@ def rotulo(agente, t, montagem, cms, abertas):
     return prox["tarefa"] if prox else abertas.get(agente, "após último commit")
 
 
+def descobrir_sessoes():
+    """Acrescenta sessões novas (após /clear ou reinício) pelo trailer `Agent:` dos commits feitos.
+
+    Sessões sem nenhum commit não são atribuídas (ficam fora das métricas).
+    """
+    conhecidas = {Path(a).name for arqs in SESSOES.values() for a in arqs}
+    mapa = {
+        "back": "Forja",
+        "front": "Vitral",
+        "qa": "Lupa",
+        "git": "Git & Gitea",
+        "seguranca": "Atalaia",
+        "lead": "Orquestrador",
+    }
+    sessoes = {k: list(v) for k, v in SESSOES.items()}
+    for arq in sorted((BASE / PROJ).glob("*.jsonl")):
+        if arq.name in conhecidas:
+            continue
+        texto = arq.read_text(errors="ignore")
+        votos = {nome: texto.count(f"Agent: {trailer}") for trailer, nome in mapa.items()}
+        nome, n = max(votos.items(), key=lambda kv: kv[1])
+        if n == 0:
+            continue
+        sessoes.setdefault(nome, []).append(f"{PROJ}/{arq.name}")
+    return sessoes
+
+
 def coletar(abertas):
     cms = commits()
     linhas = defaultdict(
@@ -161,7 +189,7 @@ def coletar(abertas):
             "tempos": [],
         }
     )
-    for agente, arqs in SESSOES.items():
+    for agente, arqs in descobrir_sessoes().items():
         for arq in arqs:
             if not (BASE / arq).exists():
                 continue
