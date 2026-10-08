@@ -61,6 +61,12 @@ execucao:
       texto: >
         Executar é síncrono com limite total de 60 s por execução (além dos limites por nó de SEG-07); estourou → nó atual
         com categoria timeout e execução erro. O botão Executar (lista e editor) mostra carregando e bloqueia duplo envio.
+    - id: EXE-14
+      texto: >
+        Concorrência (fecha lacunas do T-033). (a) O bloqueio de duplo envio é do cliente (EXE-13); o servidor aceita
+        execuções simultâneas do mesmo fluxo (no piloto não há idempotência no servidor: um duplo POST pode criar até 2
+        execuções, todas íntegras e finalizadas). (b) Salvar e executar ao mesmo tempo: o snapshot da execução é o grafo
+        antigo OU o novo, nunca uma mistura (leitura do grafo numa única consulta).
     - id: EXE-10
       texto: >
         Uma execução que ficar em `executando` por mais de 5 minutos (ex.: processo morto) é exibida como `erro` com resumo "Execução interrompida".
