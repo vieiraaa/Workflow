@@ -122,3 +122,15 @@ def test_nos_novos_ficam_alinhados_na_mesma_linha(pagina_coordenador, live_serve
         "[...document.querySelectorAll('.drawflow-node')].map(n => Math.round(n.getBoundingClientRect().y))"
     )
     assert len(ys) == 3 and len(set(ys)) == 1
+
+
+def test_icone_do_no_centralizado_na_caixa(pagina_coordenador, live_server, usuario_coordenador):
+    fluxo = Fluxo.objects.create(nome="Icone", dono=usuario_coordenador, grafo=grafo_inicial())
+    pagina = pagina_coordenador
+    pagina.goto(live_server.url + reverse("fluxos:editor", kwargs={"pk": fluxo.pk}))
+    pagina.wait_for_selector(".drawflow-node")
+    # O CSS do Drawflow põe position:absolute em todo svg; o ícone do nó precisa seguir o fluxo.
+    pos = pagina.evaluate(
+        "getComputedStyle(document.querySelector('.drawflow .no__icone svg')).position"
+    )
+    assert pos == "static"

@@ -15,7 +15,8 @@
 .paleta__item:hover { background: var(--fill-2); }
 
 /* Ícone por tipo */
-.no__icone { width: 32px; height: 32px; border-radius: var(--r-s); display: grid; place-items: center; flex: none; color: var(--cor); background: color-mix(in srgb, var(--cor) 16%, transparent); }
+.no__icone { width: 32px; height: 32px; border-radius: var(--r-s); display: flex; align-items: center; justify-content: center; flex: none; color: var(--cor); background: color-mix(in srgb, var(--cor) 16%, transparent); }
+.drawflow .no__icone .icone { position: static; display: block; }
 .no__icone--gatilho { --cor: var(--cor-gatilho); }
 .no__icone--http { --cor: var(--cor-http); }
 .no__icone--saida { --cor: var(--cor-saida); }
