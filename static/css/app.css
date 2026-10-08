@@ -209,6 +209,11 @@ h2 { font-size: var(--text-h2); font-weight: 600; }
 /* Tabela: link do nome e versão em blocos no celular */
 .tabela__link { color: var(--text); font-weight: 500; }
 .tabela__chevron { display: none; color: var(--text-3); }
+/* Linha inteira clicável: o link do nome estica sobre a linha (foco visível na linha). */
+.tabela__linha--clicavel { position: relative; cursor: pointer; }
+.tabela__linha--clicavel .tabela__link::after { content: ""; position: absolute; inset: 0; }
+.tabela__linha--clicavel:focus-within { box-shadow: inset 0 0 0 2px var(--accent); }
+.tabela__link:focus-visible { box-shadow: none; }
 @media (max-width: 800px) {
   .tabela__linha.tabela__linha--acoes { grid-template-columns: minmax(0, 1fr); grid-template-areas: "nome" "email" "status" "acoes"; }
   .tabela__linha--acoes .tabela__acoes { grid-area: acoes; position: relative; z-index: 1; }

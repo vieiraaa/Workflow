@@ -69,3 +69,25 @@ def test_detalhe_usa_template_e_escapa_corpo(cliente_coordenador, execucao):
 def test_historico_lista_execucao(cliente_coordenador, execucao):
     resposta = cliente_coordenador.get(reverse("execucoes:lista"))
     assert reverse("execucoes:detalhe", kwargs={"pk": execucao.pk}).encode() in resposta.content
+
+
+def test_detalhe_tem_resumo_card_do_fluxo_e_blocos_com_id(cliente_coordenador, execucao):
+    resposta = cliente_coordenador.get(reverse("execucoes:detalhe", kwargs={"pk": execucao.pk}))
+    conteudo = resposta.content.decode()
+    assert "data-resumo-execucao" in conteudo
+    assert 'id="fluxo-executado"' in conteudo and 'id="grafo-execucao"' in conteudo
+    assert 'data-no-exec="n2"' in conteudo
+    assert "Abrir fluxo no editor" in conteudo
+
+
+def test_titulo_do_no_no_desenho_e_escapado(cliente_coordenador, execucao):
+    execucao.grafo_snapshot["nos"][0]["titulo"] = "</script><b>x</b>"
+    execucao.save()
+    resposta = cliente_coordenador.get(reverse("execucoes:detalhe", kwargs={"pk": execucao.pk}))
+    conteudo = resposta.content.decode()
+    assert "</script><b>x</b>" not in conteudo
+
+
+def test_linha_do_historico_e_clicavel(cliente_coordenador, execucao):
+    resposta = cliente_coordenador.get(reverse("execucoes:lista"))
+    assert b"tabela__linha--clicavel" in resposta.content
