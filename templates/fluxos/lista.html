@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block titulo %}Fluxos · Construtor de Workflows{% endblock %}
 {% block titulo_pagina %}Fluxos{% endblock %}
-{% block acoes %}{% if pode_criar %}<button class="botao botao--primario" type="button" data-modal-abrir="modal-fluxo" data-form-action="{{ url_novo }}" data-valor-nome="" data-valor-descricao="" data-texto-titulo="Novo fluxo" data-texto-confirmar="Criar fluxo">{% include "componentes/icone.html" with nome="plus" tamanho=16 %}<span>Novo fluxo</span></button>{% endif %}{% endblock %}
+{% block acoes %}{% if pode_criar %}<button class="botao botao--primario" type="button" data-modal-abrir="modal-fluxo" data-form-action="{{ url_novo }}" data-valor-nome="" data-valor-descricao=""{% if pode_mover_setor %} data-valor-setor=""{% endif %} data-modo="novo" data-texto-titulo="Novo fluxo" data-texto-confirmar="Criar fluxo">{% include "componentes/icone.html" with nome="plus" tamanho=16 %}<span>Novo fluxo</span></button>{% endif %}{% endblock %}
 {% block conteudo %}
 <form class="filtros" method="get" role="search">
   <div class="campo filtros__busca">
@@ -41,7 +41,7 @@
             {% if f.url_status %}
             <form method="post" action="{{ f.url_status }}">{% csrf_token %}<input type="hidden" name="voltar" value="lista"><input type="hidden" name="status" value="{% if f.status == 'ativo' %}rascunho{% else %}ativo{% endif %}">{% if f.status == 'ativo' %}{% include "componentes/botao.html" with rotulo="Desativar" rotulo_acessivel="Voltar para rascunho" tipo="submit" %}{% else %}{% include "componentes/botao.html" with rotulo="Ativar" tipo="submit" %}{% endif %}</form>
             {% endif %}
-            {% if f.url_editar %}<button class="botao botao--icone" type="button" aria-label="Editar nome e descrição" data-modal-abrir="modal-fluxo" data-form-action="{{ f.url_editar }}" data-valor-nome="{{ f.nome }}" data-valor-descricao="{{ f.descricao }}" data-texto-titulo="Editar fluxo" data-texto-confirmar="Salvar">{% include "componentes/icone.html" with nome="pencil" %}</button>{% endif %}
+            {% if f.url_editar %}<button class="botao botao--icone" type="button" aria-label="Editar nome e descrição" data-modal-abrir="modal-fluxo" data-form-action="{{ f.url_editar }}" data-valor-nome="{{ f.nome }}" data-valor-descricao="{{ f.descricao }}"{% if pode_mover_setor %} data-valor-setor="{{ f.setor_id }}"{% endif %} data-modo="editar" data-texto-titulo="Editar fluxo" data-texto-confirmar="Salvar">{% include "componentes/icone.html" with nome="pencil" %}</button>{% endif %}
             {% if f.url_excluir %}<button class="botao botao--icone" type="button" aria-label="Excluir fluxo" data-modal-abrir="modal-excluir" data-form-action="{{ f.url_excluir }}" data-texto-texto="Excluir o fluxo “{{ f.nome }}”? As execuções já feitas continuam no histórico.">{% include "componentes/icone.html" with nome="trash" %}</button>{% endif %}
           </div>
         </td>
@@ -57,7 +57,7 @@
     <div class="vazio__icone">{% include "componentes/icone.html" with nome="workflow" tamanho=24 %}</div>
     <h2>Nenhum fluxo ainda</h2>
     <p class="vazio__texto">Crie o primeiro fluxo para montar uma automação no editor visual.</p>
-    <button class="botao botao--primario" type="button" data-modal-abrir="modal-fluxo" data-form-action="{{ url_novo }}" data-valor-nome="" data-valor-descricao="" data-texto-titulo="Novo fluxo" data-texto-confirmar="Criar fluxo"><span>Novo fluxo</span></button>
+    <button class="botao botao--primario" type="button" data-modal-abrir="modal-fluxo" data-form-action="{{ url_novo }}" data-valor-nome="" data-valor-descricao=""{% if pode_mover_setor %} data-valor-setor=""{% endif %} data-modo="novo" data-texto-titulo="Novo fluxo" data-texto-confirmar="Criar fluxo"><span>Novo fluxo</span></button>
   </div>
   {% else %}
   {% include "componentes/vazio.html" with icone="workflow" titulo="Nenhum fluxo disponível" texto="Quando houver fluxos ativos para você, eles aparecem aqui." %}
@@ -75,6 +75,13 @@
     {% else %}
     {% include "componentes/campo.html" with campo=form_novo.nome %}
     {% include "componentes/campo.html" with campo=form_novo.descricao %}
+    {% endif %}
+    {% if pode_mover_setor %}
+    <div data-somente-editar{% if modal_aberto != "editar" %} hidden{% endif %} class="campo{% if form_editar.setor.errors %} campo--erro{% endif %}">
+      <label class="campo__rotulo" for="modal-fluxo-setor">Setor</label>
+      <div class="campo__select"><select id="modal-fluxo-setor" name="setor"><option value="">Manter o setor atual</option>{% for o in opcoes_setor %}<option value="{{ o.id }}"{% if form_editar.setor.value == o.id|stringformat:"s" %} selected{% endif %}>{{ o.nome }}</option>{% endfor %}</select>{% include "componentes/icone.html" with nome="chevron-down" tamanho=16 %}</div>
+      {% for erro in form_editar.setor.errors %}<p class="campo__erro" role="alert">{{ erro }}</p>{% endfor %}
+    </div>
     {% endif %}
     <div class="modal__acoes">
       <button class="botao botao--secundario" type="button" data-modal-fechar>Cancelar</button>

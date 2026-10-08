@@ -1,14 +1,64 @@
 {% extends "base.html" %}
+{% load static %}
 {% block titulo %}Início · Construtor de Workflows{% endblock %}
-{% block titulo_pagina %}{% if saudacao %}{{ saudacao }}{% else %}Início{% endif %}{% endblock %}
+{% block titulo_pagina %}Início{% endblock %}
+{% block acoes %}{% if pode_criar_fluxo and url_novo_fluxo %}{% include "componentes/botao.html" with rotulo="Novo fluxo" icone="plus" variante="primario" href=url_novo_fluxo %}{% endif %}{% endblock %}
+{% block estilos %}<link rel="stylesheet" href="{% static 'css/home.css' %}">{% endblock %}
 {% block conteudo %}
-{% if atalhos %}
-<nav class="atalhos" aria-label="Atalhos">
-  {% for item in atalhos %}
-  <a class="atalho" href="{{ item.url }}"><span class="atalho__icone">{% include "componentes/icone.html" with nome=item.icone %}</span><span>{{ item.rotulo }}</span></a>
-  {% endfor %}
-</nav>
+{% if erro_carregar %}
+<section class="card" data-estado="erro">{% include "componentes/vazio.html" with icone="triangle-alert" titulo="Não foi possível carregar o início" texto="Tente novamente em instantes." acao_rotulo="Tentar de novo" acao_url="?" %}</section>
+{% elif sem_dados %}
+<section class="card" data-estado="vazio">{% include "componentes/vazio.html" with icone="workflow" titulo="Nada para mostrar ainda" texto="Quando houver fluxos e execuções, os indicadores aparecem aqui." acao_rotulo="Novo fluxo" acao_url=url_novo_fluxo|default:"" %}</section>
 {% else %}
-<section class="card">{% include "componentes/vazio.html" with icone="inbox" titulo="Nenhum atalho disponível" texto="Seu perfil ainda não tem áreas liberadas." %}</section>
+<div class="home" data-home>
+  <div class="home__filtro">
+    {% include "componentes/segmentado.html" with opcoes=periodos rotulo_acessivel="Período" %}
+    <span class="home__carregando texto-2 texto-sm" data-home-carregando hidden role="status">{% include "componentes/icone.html" with nome="loader-circle" tamanho=16 gira=True %}<span>Atualizando…</span></span>
+  </div>
+
+  {% if sem_dados_periodo %}<div class="alerta" data-estado="sem_dados_periodo">{% include "componentes/icone.html" with nome="circle-alert" tamanho=16 %}<span>Nenhuma execução em {{ periodo_rotulo|lower }}. Os indicadores de operação ficam em zero.</span></div>{% endif %}
+
+  <section class="indicadores" aria-label="Indicadores">
+    {% for item in indicadores %}{% include "componentes/indicador.html" %}{% endfor %}
+  </section>
+
+  {% include "componentes/grafico.html" with id="grafico-execucoes" id_dados="home-serie" titulo="Execuções no período" tipo="empilhado" dados=serie vazio_texto="Sem execuções no período." %}
+
+  <div class="home__duplo">
+    {% include "componentes/grafico.html" with id="grafico-erros" id_dados="home-erros" titulo="Erros por categoria" tipo="barras" unidade="Erros" dados=erros vazio_texto="Nenhum erro no período." %}
+    {% if por_setor is not None %}{% include "componentes/grafico.html" with id="grafico-setores" id_dados="home-setores" titulo="Execuções por setor" tipo="barras" unidade="Execuções" dados=por_setor vazio_texto="Sem execuções no período." %}{% endif %}
+  </div>
+
+  <section class="card card--semrecuo" aria-labelledby="top-titulo">
+    <h2 class="card__titulo home__titulo" id="top-titulo">Fluxos mais executados</h2>
+    {% if top_fluxos %}
+    <div class="tabela-rolagem"><table class="tabela tabela--compacta">
+      <thead><tr><th scope="col">Fluxo</th><th scope="col" class="tabela__num">Execuções</th><th scope="col" class="tabela__num">Taxa de sucesso</th></tr></thead>
+      <tbody>{% for f in top_fluxos %}<tr data-fluxo="{{ f.pk }}"><td class="tabela__principal"><a class="tabela__link" href="{{ f.url }}">{{ f.nome }}</a></td><td class="tabela__num">{{ f.execucoes }}</td><td class="tabela__num">{{ f.taxa_sucesso }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="home__vazio texto-2">Nenhum fluxo executado no período.</p>{% endif %}
+  </section>
+
+  <section class="card card--semrecuo" aria-labelledby="ultimas-titulo">
+    <div class="home__cabecalho"><h2 class="card__titulo" id="ultimas-titulo">Últimas execuções</h2>{% if url_execucoes %}{% include "componentes/botao.html" with rotulo="Ver todas as execuções" href=url_execucoes %}{% endif %}</div>
+    {% if ultimas %}
+    <div class="tabela-rolagem"><table class="tabela">
+      <thead><tr><th scope="col">Fluxo</th><th scope="col">Executado por</th><th scope="col">Status</th><th scope="col">Início</th><th scope="col"><span class="sr-only">Detalhe</span></th></tr></thead>
+      <tbody>
+        {% for e in ultimas %}
+        <tr class="tabela__linha tabela__linha--clicavel" data-execucao="{{ e.pk }}" data-href="{{ e.url_detalhe }}">
+          <td class="tabela__principal"><a class="tabela__link" href="{{ e.url_detalhe }}">{{ e.fluxo_nome }}</a></td>
+          <td class="tabela__secundario texto-2">{{ e.executado_por_nome }}<span class="so-celular"> · {{ e.iniciada_em|date:"d/m/Y H:i" }}</span></td>
+          <td class="tabela__papel">{% include "componentes/badge_status.html" with status=e.status rotulo=e.status_rotulo %}</td>
+          <td class="tabela__extra texto-2">{{ e.iniciada_em|date:"d/m/Y H:i:s" }}</td>
+          <td class="tabela__acoes"><span class="tabela__chevron-fixo">{% include "componentes/icone.html" with nome="chevron-right" %}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}<p class="home__vazio texto-2">Nenhuma execução recente.</p>{% endif %}
+  </section>
+</div>
 {% endif %}
 {% endblock %}
+{% block scripts %}<script src="{% static 'js/graficos.js' %}" defer></script>{% endblock %}
