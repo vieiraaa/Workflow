@@ -70,6 +70,8 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 - Vitral (Front): `templates/`, `static/`, `tests/unit/frontend/`, `tests/e2e/`.
 - Lupa (QA): `tests/acceptance/`, `tests/adversarial/`. Não lê código da aplicação.
 - Orquestrador (Lead): `docs/`, `tasks/`, `CLAUDE.md`, `DECISOES.md`, `PROGRESSO.md`, `.gitignore`.
+- Git & Gitea: merges na main, tags e push para o Gitea — SÓ a pedido do usuário; permissões próprias
+  (maestri/git-gitea.settings.json). Os demais agentes continuam sem push/merge.
 Fora da sua fronteira: peça ao dono. Não edite arquivo que outro agente está mexendo.
 
 ## Git

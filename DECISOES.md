@@ -16,3 +16,4 @@
 - D-014 · M2 · Menu móvel 'não abre' nos portais: artefato do portal (visibilityState=hidden pausa transições CSS no WebKit), não bug da app; Playwright WebKit instalado para testar o motor do iOS/Safari.
 - D-015 · M2 · Drawflow 0.0.60 (npm drawflow), MIT, vendorizado em static/vendor/drawflow/0.0.60/.
 - D-016 · M3 · Usuário ligou a Lupa a um terminal 'OpenCode - Test Terminal' no canvas (confirmado); mantido. Revisor de Segurança = Atalaia (opus), entra na T-030 e sai depois.
+- D-017 · 08/10 · Agente 'Git & Gitea' (sonnet) é o único autorizado a merge na main, tag e push, só a pedido do usuário; roda com --setting-sources user,local + maestri/git-gitea.settings.json (push/merge/tag pedem aprovação; force/reset --hard/rebase/.env bloqueados). Regra 'NUNCA push/merge' segue valendo para os demais.
