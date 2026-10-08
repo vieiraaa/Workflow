@@ -49,7 +49,8 @@ regras:
       Menu da sidebar por papel — Adm: Fluxos, Execuções, Usuários · Coordenador: Fluxos, Execuções · Base: Fluxos, Execuções.
   - id: PRM-07
     texto: >
-      Rota `inicio` redireciona para `fluxos:lista` (todos os papéis com acesso); usuário sem papel vê a tela "sem acesso" (403).
+      (Revisado no M4, HOM-01) Rota `inicio` é a Home para todos os papéis, no escopo SET-06; usuário sem papel vê a tela
+      "sem acesso" (403).
   - id: PRM-08
     texto: >
       Toda mutação é POST com CSRF válido; GET em rota de mutação retorna 405 ou não altera nada.

@@ -39,3 +39,21 @@ regras:
       queries constante (independe do volume), índices em (setor, iniciada_em) e (status, iniciada_em); dados dos
       gráficos via json_script (sem endpoint extra); tempo de resposta da Home < 300 ms com 10 mil execuções no teste.
       Biblioteca de gráfico vendorizada com licença (ou SVG próprio), sem CDN.
+  - id: HOM-09
+    texto: >
+      Contrato da Home (fecha lacunas do T-040). CARTÕES: cada um é um elemento com data-indicador="<chave>" e
+      data-valor="<número cru>"; chaves: fluxos_ativos, fluxos_rascunho, execucoes, taxa_sucesso, execucoes_erro,
+      duracao_media, usuarios_ativos, setores_ativos. Base não vê fluxos_rascunho, usuarios_ativos nem setores_ativos
+      (o cartão não existe no HTML); Coordenador não vê setores_ativos. FORMATOS: taxa inteira arredondada "75%";
+      duração média com 1 casa e vírgula "1,2 s"; variação inteira com sinal "+12%"/"−8%" e data-variacao="<int>";
+      sem base no período anterior (0) → "novo" e data-variacao="". TAXA = sucesso/(sucesso+erro); execução em
+      andamento conta no total de execuções mas não em sucesso/erro nem na taxa. GRÁFICOS via json_script:
+      id "home-serie" = [{"rotulo","inicio" (ISO com fuso), "sucesso", "erro"}]; id "home-erros" =
+      [{"categoria" (id SEG-10), "rotulo" (texto pt), "total"}]; id "home-setores" (só Adm) = [{"setor","total"}].
+      INTERVALOS (fuso America/Sao_Paulo, terminando no intervalo atual, inclusive): 24h = 24 horas (rótulo "HH:00");
+      7d = 7 dias e 30d = 30 dias (rótulo "dd/mm"); 6m = 26 semanas iniciando na segunda (rótulo "dd/mm");
+      1a = 12 meses (rótulo "jan/26"). Ranking e últimas execuções em elementos com data-execucao="<pk>" /
+      data-fluxo="<pk>". Base no editor = 403 (ação negada, FLX-05). Campo setor enviado por Coordenador ao criar/editar
+      fluxo é IGNORADO (o setor vem do dono; só Adm move). Mudar o setor de um usuário com fluxos é permitido (SET-04).
+      Model Setor em contas (contas.Setor); campo `setor` em Usuario, Fluxo e Execucao.
+
