@@ -109,3 +109,16 @@ def test_executar_a_partir_do_editor_e_ver_detalhe(
     pagina.wait_for_url("**/execucoes/*/")
     assert pagina.locator(".no-exec").count() == 2
     assert "Execução concluída" in pagina.inner_text("[data-toasts]")
+
+
+def test_nos_novos_ficam_alinhados_na_mesma_linha(pagina_coordenador, live_server, usuario_coordenador):
+    fluxo = Fluxo.objects.create(nome="Linha", dono=usuario_coordenador, grafo=grafo_inicial())
+    pagina = pagina_coordenador
+    pagina.goto(live_server.url + reverse("fluxos:editor", kwargs={"pk": fluxo.pk}))
+    pagina.wait_for_selector(".drawflow-node")
+    pagina.click("[data-paleta-tipo=http]")
+    pagina.click("[data-paleta-tipo=saida]")
+    ys = pagina.evaluate(
+        "[...document.querySelectorAll('.drawflow-node')].map(n => Math.round(n.getBoundingClientRect().y))"
+    )
+    assert len(ys) == 3 and len(set(ys)) == 1

@@ -99,12 +99,18 @@
     pintarNo(dfId);
     return dfId;
   }
-  /* Centro visível do canvas; se já houver nó ali, desloca para a direita (e depois para baixo). */
+  /* Nós novos seguem a linha do último nó (mesmo y, à direita); sem nós, vai ao centro visível. */
   function posicaoLivre() {
-    var r = areaCanvas.getBoundingClientRect();
-    var x = Math.round((r.width / 2 - editor.canvas_x) / editor.zoom - 110);
-    var y = Math.round((r.height / 2 - editor.canvas_y) / editor.zoom - 30);
     var nos = nosDoGrafo();
+    var x, y;
+    if (nos.length) {
+      var ultimo = nos.reduce(function (a, b) { return b.posicao.x > a.posicao.x ? b : a; });
+      x = ultimo.posicao.x + 260; y = ultimo.posicao.y;
+    } else {
+      var r = areaCanvas.getBoundingClientRect();
+      x = Math.round((r.width / 2 - editor.canvas_x) / editor.zoom - 110);
+      y = Math.round((r.height / 2 - editor.canvas_y) / editor.zoom - 30);
+    }
     function ocupado() {
       return nos.some(function (n) { return Math.abs(n.posicao.x - x) < 240 && Math.abs(n.posicao.y - y) < 90; });
     }
@@ -113,6 +119,13 @@
       if (i % 4 === 3) { x -= 1040; y += 110; }
     }
     return { x: x, y: y };
+  }
+  /* Ao soltar perto da linha de outro nó (até 40px), alinha o y com ele. */
+  function alinharY(y) {
+    var alvo = nosDoGrafo().reduce(function (melhor, n) {
+      return Math.abs(n.posicao.y - y) < Math.abs(melhor - y) ? n.posicao.y : melhor;
+    }, Infinity);
+    return Math.abs(alvo - y) <= 40 ? alvo : y;
   }
   function novoNo(tipo, posicao) {
     var ids = nosDoGrafo().map(function (n) { return n.id; });
@@ -336,7 +349,7 @@
     var r = areaCanvas.getBoundingClientRect();
     novoNo(tipo, {
       x: Math.round((ev.clientX - r.left - editor.canvas_x) / editor.zoom - 110),
-      y: Math.round((ev.clientY - r.top - editor.canvas_y) / editor.zoom - 30)
+      y: alinharY(Math.round((ev.clientY - r.top - editor.canvas_y) / editor.zoom - 30))
     });
   });
 
