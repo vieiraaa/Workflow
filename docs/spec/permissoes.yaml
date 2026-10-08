@@ -1,10 +1,14 @@
 # Matriz de permissões. Ids PRM-xx. O motor apps/contas/permissoes.py LÊ este arquivo
 # (pode(usuario, acao, objeto=None) e escopo(usuario, qs)); nenhuma view repete a regra.
 #
+# M4 (SET-06): para o Coordenador, 'todos' em fluxos/execuções passa a significar 'setor' (só o setor dele);
+# para o Base, fluxos 'ativos' = ativos do setor dele. A Home (HOM-01) segue o mesmo escopo.
+#
 # Escopos:
 #   todos    -> qualquer objeto
 #   ativos   -> só fluxos com status=ativo
 #   proprias -> só execuções com executado_por = usuario
+#   setor    -> só objetos do setor do usuário (M4)
 #   nenhum   -> negado
 # Anônimo: toda rota exceto `login` redireciona para login (302 com ?next=).
 

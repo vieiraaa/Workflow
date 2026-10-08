@@ -1,0 +1,12 @@
+id: T-044
+titulo: M4 · Front da Home, Setores e campo setor
+dono: Vitral (front)
+skills: [design-base, frontend, dataviz]
+objetivo: >
+  Home (TEL-13/16/17): cartões de indicadores com variação, seletor de período segmentado, gráfico de barras
+  empilhadas sucesso/erro, erros por categoria, execuções por setor (Adm), top 5 fluxos, últimas execuções (linha
+  clicável), atalhos, estados vazio/sem dados/carregando/erro, 390 px e light/dark. Gráficos: carregue a skill
+  dataviz ANTES; biblioteca vendorizada com licença (linha para o DECISOES) ou SVG próprio; tabela de dados acessível.
+  Item "Início" na sidebar. Telas de Setores (TEL-14/15) e campo setor nos formulários.
+aceite: render tests; e2e (trocar período atualiza números e gráfico; clicar na última execução abre o detalhe); capturas m4 sem pendência alta
+arquivos: [templates/, static/, tests/unit/frontend/, tests/e2e/]

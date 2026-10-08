@@ -1,0 +1,7 @@
+id: T-042
+titulo: M4 · Fatia (back) Setores CRUD e setor nos formulários de usuário/fluxo
+dono: Forja (back)
+depende_de: [T-041]
+regras: [SET-02, SET-03, SET-04]
+objetivo: Views contas:setores/setor_novo/setor_editar; campo setor nos forms de usuário e (só Adm) de fluxo; coluna e filtro de setor na lista de usuários; avisar o Vitral; preparadores TEL-14/15.
+arquivos: [apps/, config/urls.py, scripts/telas.py, tests/unit/]

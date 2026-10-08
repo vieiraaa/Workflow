@@ -1,0 +1,13 @@
+id: T-043
+titulo: M4 · Fatia (back) Home com agregações
+dono: Forja (back)
+depende_de: [T-041]
+skills: [backend]
+regras: [HOM-01..08, SET-06]
+objetivo: >
+  `inicio` vira a Home (InicioView): contexto documentado com indicadores, variação vs período anterior, séries do
+  gráfico por intervalo (hora/dia/semana/mês, zeros preenchidos, fuso America/Sao_Paulo), erros por categoria, top 5
+  fluxos, execuções por setor (Adm), últimas 10 — tudo por agregação no banco, queries constantes, < 300 ms com 10 mil
+  execuções (teste). Dados dos gráficos prontos para json_script. Semeadura de demo com execuções espalhadas por 1 ano
+  em 3 setores. Preparadores TEL-13/16/17. Avisar o Vitral com o contrato.
+arquivos: [apps/, scripts/telas.py, tests/unit/]

@@ -1,0 +1,41 @@
+# M4 · Home (visão geral do sistema). TEL-13. Rota `inicio` (/) deixa de redirecionar e passa a ser a Home.
+regras:
+  - id: HOM-01
+    texto: >
+      Home para todos os papéis, sempre no escopo SET-06 (nunca mostra número fora do escopo). Item "Início" no topo
+      da sidebar. Título "Início". Usuário sem papel continua no 403.
+  - id: HOM-02
+    texto: >
+      Seletor de período (controle segmentado) ?periodo=24h|7d|30d|6m|1a, padrão 7d; valor inválido → padrão.
+      Janela relativa ao agora, fuso America/Sao_Paulo. O período vale para os indicadores de operação, gráficos e rankings.
+  - id: HOM-03
+    texto: >
+      Cartões de indicadores (rótulo, número grande, variação vs. período anterior equivalente em % com seta e cor
+      semântica): Fluxos ativos · Fluxos em rascunho (estado atual, não dependem do período) · Execuções no período ·
+      Taxa de sucesso no período (%) · Execuções com erro no período · Duração média (s) · Usuários ativos (Adm: total;
+      Coordenador: do setor; Base: não exibe) · Setores ativos (só Adm).
+  - id: HOM-04
+    texto: >
+      Gráfico "Execuções no período": barras empilhadas sucesso x erro por intervalo — 24h: por hora (24 barras);
+      7d e 30d: por dia; 6m: por semana; 1a: por mês. Intervalos sem dados aparecem com zero. Acessível: título,
+      eixos rotulados, cores dos tokens (sucesso/erro), tooltip, e tabela de dados equivalente (visível para leitor de
+      tela / "Ver dados").
+  - id: HOM-05
+    texto: >
+      Gráfico "Erros por categoria" (barras horizontais, categorias SEG-10) e ranking "Fluxos mais executados" (top 5:
+      nome, execuções, taxa de sucesso, link para o fluxo/lista). Adm vê também "Execuções por setor" (barras).
+  - id: HOM-06
+    texto: >
+      Lista "Últimas execuções" (10, mais recentes, no escopo) com fluxo, quem, status, quando; linha clicável para o
+      detalhe (EXE-15 a). Atalhos: "Novo fluxo" (quem pode criar), "Ver todas as execuções".
+  - id: HOM-07
+    texto: >
+      Estados: vazio (sem fluxos/execuções: mensagem e botão Novo fluxo se pode criar), sem dados no período (gráfico
+      com zeros + aviso), carregando ao trocar período, erro. Funciona a 390 px (cartões em 2 colunas, gráficos com
+      rolagem própria ou simplificados) e em light/dark.
+  - id: HOM-08
+    texto: >
+      Técnico: todas as contagens e séries por AGREGAÇÃO no banco (COUNT/GROUP BY com truncamento de data), número de
+      queries constante (independe do volume), índices em (setor, iniciada_em) e (status, iniciada_em); dados dos
+      gráficos via json_script (sem endpoint extra); tempo de resposta da Home < 300 ms com 10 mil execuções no teste.
+      Biblioteca de gráfico vendorizada com licença (ou SVG próprio), sem CDN.

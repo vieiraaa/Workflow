@@ -1,0 +1,11 @@
+id: T-040
+titulo: M4 · Aceite (setores, escopo por setor no sistema inteiro, Home)
+dono: Lupa (qa)
+fontes: [docs/spec/setores.yaml, docs/spec/home.yaml, docs/spec/permissoes.yaml, docs/spec/telas.yaml (m4)]
+regras: >
+  Só pela spec. Cubra SET-01..06 em TODAS as rotas existentes (fluxos, editor, salvar, executar, execuções, detalhe)
+  com Coordenador de outro setor (404) e Base de outro setor; HOM-01..08 por papel e por período (datas de execução
+  controladas no teste; fuso America/Sao_Paulo; intervalos vazios com zero; variação vs período anterior);
+  números da Home batem com as listas do mesmo usuário; queries constantes (1 vs 200 execuções).
+  @pytest.mark.modulo("m4"). Lacunas: me reporte.
+arquivos: [tests/acceptance/]
