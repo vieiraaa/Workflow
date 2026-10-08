@@ -8,18 +8,22 @@
 #   todos    -> qualquer objeto
 #   ativos   -> só fluxos com status=ativo
 #   proprias -> só execuções com executado_por = usuario
-#   setor    -> só objetos do setor do usuário (M4)
+#   setor    -> só objetos do setor do usuário (M4); usuário sem setor → nada
+#   ativos_do_setor -> fluxos ativos do setor do usuário (M4)
+#   Adm (todos) vê tudo COM OU SEM setor.
 #   nenhum   -> negado
 # Anônimo: toda rota exceto `login` redireciona para login (302 com ?next=).
 
 acoes:
   usuarios.gerenciar:   {adm: todos,  coordenador: nenhum, base: nenhum}   # listar, criar, editar, desativar, redefinir senha
-  fluxos.ver:           {adm: todos,  coordenador: todos,  base: ativos}   # lista de fluxos
-  fluxos.criar:         {adm: todos,  coordenador: todos,  base: nenhum}
-  fluxos.editar:        {adm: todos,  coordenador: todos,  base: nenhum}   # inclui abrir o editor, salvar grafo, ativar/desativar
-  fluxos.excluir:       {adm: todos,  coordenador: todos,  base: nenhum}
-  fluxos.executar:      {adm: todos,  coordenador: todos,  base: ativos}
-  execucoes.ver:        {adm: todos,  coordenador: todos,  base: proprias} # lista e detalhe, inclusive saídas por nó
+  fluxos.ver:           {adm: todos,  coordenador: setor,  base: ativos_do_setor}   # lista de fluxos
+  fluxos.criar:         {adm: todos,  coordenador: setor,  base: nenhum}
+  fluxos.editar:        {adm: todos,  coordenador: setor,  base: nenhum}   # inclui abrir o editor, salvar grafo, ativar/desativar
+  fluxos.excluir:       {adm: todos,  coordenador: setor,  base: nenhum}
+  fluxos.executar:      {adm: todos,  coordenador: setor,  base: ativos_do_setor}
+  execucoes.ver:        {adm: todos,  coordenador: setor,  base: proprias} # lista e detalhe, inclusive saídas por nó
+  inicio.ver:           {adm: todos,  coordenador: setor,  base: proprias}   # Home (HOM-01), mesmo escopo
+  setores.gerenciar:    {adm: todos,  coordenador: nenhum, base: nenhum}     # SET-02
   conta.trocar_senha:   {adm: todos,  coordenador: todos,  base: todos}    # a própria senha (sem papel: 403, USR-15)
 
 regras:
