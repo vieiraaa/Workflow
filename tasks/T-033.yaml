@@ -1,0 +1,10 @@
+id: T-033
+titulo: M3 · Fechar o adversarial (T-029) e testes de concorrência real
+dono: Lupa (qa)
+entregas:
+  - commit de tests/adversarial/m3/ (escritos na T-029, ainda não commitados) e o relatório da T-029
+  - tests/adversarial/m3/test_concorrencia.py (threads reais, live_server, banco transacional):
+    · 2 salvamentos simultâneos do mesmo grafo com o mesmo atualizado_em → exatamente um 200 e um 409; grafo final íntegro
+    · 2 POSTs simultâneos de fluxos:executar (duplo clique) → no máximo as execuções enviadas, nenhuma presa em executando
+    · 10 execuções simultâneas de fluxos diferentes contra o servidor local → todas terminam (sucesso/erro), sem 500
+regras: caixa-preta; servidor local; nunca internet; marque modulo("m3")
