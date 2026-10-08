@@ -1,0 +1,12 @@
+id: T-037
+titulo: Demo serve estáticos sem cache vencido (navegador do usuário com CSS/JS antigo)
+dono: Forja (back)
+problema: >
+  08/10: o usuário clicava na linha do histórico (localhost:8000/execucoes/) e nada acontecia. A linha clicável é CSS novo
+  (app.css 09:49); o demo serve /static/ sem Cache-Control e o navegador reutilizou o app.css antigo por heurística.
+correcao: >
+  No demo (e no dev), respostas de /static/ com "Cache-Control: no-cache" (o navegador revalida a cada carga; com
+  Last-Modified volta 304 barato). Alternativa aceitável: query de versão (?v=<mtime>) nos <link>/<script> via template tag.
+  Não mudar produção (lá o collectstatic com hash resolve).
+aceite: depois de alterar um CSS com o demo no ar, um navegador que já tinha a página carrega o CSS novo num F5 normal; check --rapido verde
+arquivos: [config/settings/demo.py, config/settings/dev.py, apps/nucleo/, scripts/demo.py, tests/unit/]
