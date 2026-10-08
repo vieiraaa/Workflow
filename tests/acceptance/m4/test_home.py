@@ -79,6 +79,13 @@ def _home(c, **params):
 
 
 @pytest.fixture
+def vazio(mundo, M):
+    """Isola o cenário: remove as execuções que a fixture `mundo` cria (a regra testada não muda)."""
+    M.Execucao.objects.all().delete()
+    return mundo
+
+
+@pytest.fixture
 def cenario(mundo, mk_fluxo, mk_exec, mk_setor, mk_usuario, M):
     """Setor Alfa: 15 sucesso + 5 erro nos últimos 7d (2 s cada); 10 no período anterior (7–14 d); 2 a 100 d; outros setores: 40 erros."""
     agora = timezone.now()
@@ -277,12 +284,12 @@ def test_hom03_taxa_sem_execucoes_nao_quebra(mundo):
     assert r.status_code == 200 and _existe(_h(r), "taxa_sucesso")
 
 
-def test_hom03_execucoes_executando_nao_contam_como_sucesso_nem_erro(mundo, mk_exec):
+def test_hom03_execucoes_executando_nao_contam_como_sucesso_nem_erro(vazio, mk_exec):
     """HOM-03: execução em andamento não entra como erro."""
-    mk_exec(mundo.fA, mundo.bA, "executando")
-    mk_exec(mundo.fA, mundo.bA, "sucesso")
-    mk_exec(mundo.fA, mundo.bA, "erro")
-    h = _h(_home(mundo.c["gA"]))
+    mk_exec(vazio.fA, vazio.bA, "executando")
+    mk_exec(vazio.fA, vazio.bA, "sucesso")
+    mk_exec(vazio.fA, vazio.bA, "erro")
+    h = _h(_home(vazio.c["gA"]))
     assert _tem_valor(h, "Execuções no período", 3) and _tem_valor(h, "Execuções com erro", 1)
     assert _tem_valor(h, "Taxa de sucesso", 50)  # HOM-09: sucesso/(sucesso+erro), em andamento fora
 
@@ -297,10 +304,10 @@ def test_hom04_numero_de_intervalos(cenario, p, lo, hi):
     assert all({"rotulo", "inicio", "sucesso", "erro"} <= set(x) for x in s)
 
 
-def test_hom04_intervalos_sem_dados_com_zero(mundo, mk_exec):
+def test_hom04_intervalos_sem_dados_com_zero(vazio, mk_exec):
     """HOM-04: uma única execução → quase todos os 24 intervalos com zero (nenhum omitido)."""
-    mk_exec(mundo.fA, mundo.bA, quando=timezone.now() - timedelta(hours=5))
-    s = _serie(_h(_home(mundo.c["gA"], periodo="24h")))
+    mk_exec(vazio.fA, vazio.bA, quando=timezone.now() - timedelta(hours=5))
+    s = _serie(_h(_home(vazio.c["gA"], periodo="24h")))
     assert s is not None and len(s) == 24
     assert sum(1 for x in s if x["sucesso"] + x["erro"] == 0) == 23
 
@@ -520,14 +527,14 @@ def test_hom08_indices(db):
 
 # ---------- HOM-09 contrato: fuso e rótulos ----------
 
-def test_hom09_fuso_sao_paulo_na_serie_diaria(mundo, mk_exec):
+def test_hom09_fuso_sao_paulo_na_serie_diaria(vazio, mk_exec):
     """HOM-02/04/09: dia do intervalo em America/Sao_Paulo: 02:30 UTC de ontem(UTC) = 23:30 do dia anterior em SP."""
     from zoneinfo import ZoneInfo
 
     sp = ZoneInfo("America/Sao_Paulo")
     ref = (timezone.now().astimezone(sp) - timedelta(days=3)).replace(hour=23, minute=30, second=0, microsecond=0)
-    mk_exec(mundo.fA, mundo.bA, quando=ref)  # instante 23:30 SP = 02:30 UTC do dia seguinte
-    s = _serie(_h(_home(mundo.c["gA"], periodo="7d")))
+    mk_exec(vazio.fA, vazio.bA, quando=ref)  # instante 23:30 SP = 02:30 UTC do dia seguinte
+    s = _serie(_h(_home(vazio.c["gA"], periodo="7d")))
     com_dado = [x for x in s if x["sucesso"] + x["erro"] > 0]
     assert [x["rotulo"] for x in com_dado] == [ref.strftime("%d/%m")]
 
@@ -551,11 +558,11 @@ def test_hom09_serie_inicio_iso_com_fuso_e_semana_na_segunda(mundo):
         assert d.tzinfo is not None and d.utcoffset() == timedelta(hours=-3) and d.weekday() == 0
 
 
-def test_hom09_intervalo_atual_e_o_ultimo(mundo, mk_exec):
+def test_hom09_intervalo_atual_e_o_ultimo(vazio, mk_exec):
     """HOM-09: a série termina no intervalo atual (inclusive): execução agora cai na última barra."""
-    mk_exec(mundo.fA, mundo.bA, quando=timezone.now() - timedelta(seconds=5))
+    mk_exec(vazio.fA, vazio.bA, quando=timezone.now() - timedelta(seconds=5))
     for p in ("24h", "7d", "30d", "6m", "1a"):
-        s = _serie(_h(_home(mundo.c["gA"], periodo=p)))
+        s = _serie(_h(_home(vazio.c["gA"], periodo=p)))
         assert s[-1]["sucesso"] == 1, p
 
 

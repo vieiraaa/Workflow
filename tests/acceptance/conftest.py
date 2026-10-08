@@ -55,12 +55,20 @@ def cliente_sem_papel(client, usuario_sem_papel):
 
 
 @pytest.fixture
-def dados_usuario():
-    """Monta o POST do formulário de usuário (criar/editar)."""
+def dados_usuario(db):
+    """Monta o POST do formulário de usuário (criar/editar).
+
+    SET-03 (M4): papel ≠ adm exige `setor`; por padrão usa o setor "Geral" (SET-01). Passe setor=None para omitir.
+    """
+    from django.apps import apps
 
     def _dados(nome="Maria Ficticia", email="maria@exemplo.test", papel="base",
-               senha=SENHA, confirmacao=None, ativo=True, com_senha=True):
+               senha=SENHA, confirmacao=None, ativo=True, com_senha=True, setor="padrao"):
         d = {"nome": nome, "email": email, "papel": papel}
+        if setor == "padrao":
+            setor = apps.get_model("contas", "Setor").objects.get(nome="Geral").pk if papel != "adm" else None
+        if setor is not None:
+            d["setor"] = setor
         if ativo:
             d["ativo"] = "on"
         if com_senha:
