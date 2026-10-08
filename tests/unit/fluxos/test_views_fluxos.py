@@ -136,3 +136,15 @@ def test_modelo_valida_o_grafo_em_qualquer_entrada(usuario_adm):
     assert "grafo" in erro.value.message_dict
     with pytest.raises(ValidationError):
         demo.criar_fluxo(usuario_adm, "G", grafo={"versao": 2, "nos": [], "arestas": []})
+
+
+def test_demo_historico_respeita_o_setor_de_cada_pessoa():
+    """SET-06: na demo, cada Base/Coordenador só executa fluxos ativos do próprio setor."""
+    call_command("semear_demo", senha="SenhaForte#12345")
+    from apps.execucoes.models import Execucao
+
+    execucoes = Execucao.objects.select_related("executado_por", "fluxo")
+    assert execucoes.count() > 600
+    for e in execucoes:
+        assert e.executado_por.setor_id == e.setor_id == e.fluxo.setor_id
+        assert e.fluxo.status == "ativo"

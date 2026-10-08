@@ -59,6 +59,9 @@ class Command(BaseCommand):
         except ImportError:
             demo = None
         if demo is not None:
+            for nome in ("Financeiro", "Atendimento"):
+                setor = Setor.objects.get_or_create(nome=nome)[0]
+                demo.pessoas_do_setor(setor, senha)
             demo.semear()
         if gerada and criados:
             self.stdout.write(f"Senha gerada (só para dev): {senha}")

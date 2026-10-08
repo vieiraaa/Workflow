@@ -121,29 +121,23 @@ def _semear_historico():
 
     from django.utils import timezone
 
-    from apps.contas.models import Setor, Usuario
+    from apps.contas.models import Setor
     from apps.execucoes.models import Execucao, ExecucaoNo
 
     if Execucao.objects.count() >= 100:
         return
-    dono = Usuario.objects.filter(email="coord@exemplo.test").first()
-    pessoas = list(Usuario.objects.filter(email__in=["coord@exemplo.test", "base@exemplo.test"]))
-    if dono is None or not pessoas:
-        return
     sorteio = random.Random(2026)
     agora = timezone.now()
     categorias = ["http_5xx", "timeout", "http_4xx", "dns", "bloqueado_ssrf", "conexao"]
-    setores = [
-        Setor.objects.get_or_create(nome=nome)[0] for nome in ("Geral", "Financeiro", "Atendimento")
-    ]
-    for setor in setores:
+    for nome in ("Geral", "Financeiro", "Atendimento"):
+        setor = Setor.objects.get_or_create(nome=nome)[0]
+        coordenador, base = pessoas_do_setor(setor)
+        pessoas = [coordenador, base]
         fluxo = Fluxo.objects.filter(nome=f"Consulta de pedidos · {setor.nome}").first()
         if fluxo is None:
             fluxo = criar_fluxo(
-                dono, f"Consulta de pedidos · {setor.nome}", "ativo", grafo_exemplo()
+                coordenador, f"Consulta de pedidos · {setor.nome}", "ativo", grafo_exemplo()
             )
-            Fluxo.objects.filter(pk=fluxo.pk).update(setor=setor)
-            fluxo.refresh_from_db()
         execucoes, erros = [], []
         for _ in range(230):
             atras = timedelta(days=sorteio.random() ** 2 * 360, minutes=sorteio.randint(0, 600))
@@ -179,3 +173,31 @@ def _semear_historico():
                     )
                 )
         ExecucaoNo.objects.bulk_create(erros)
+
+
+def pessoas_do_setor(setor, senha=None):
+    """(coordenador, base) de demo do setor, criados se faltarem (SET-06: cada um só atua no seu).
+
+    O Geral usa os usuários de demo de sempre; os demais ganham `coord.<setor>@` e `base.<setor>@`.
+    """
+    from django.contrib.auth.models import Group
+
+    from apps.contas.models import Usuario
+
+    if setor.nome == "Geral":
+        emails = ("coord@exemplo.test", "base@exemplo.test")
+    else:
+        chave = setor.nome.lower()
+        emails = (f"coord.{chave}@exemplo.test", f"base.{chave}@exemplo.test")
+    pessoas = []
+    for email, grupo, rotulo in zip(
+        emails, ("Coordenador", "Base"), ("Coord.", "Base"), strict=True
+    ):
+        usuario = Usuario.objects.filter(email=email).first()
+        if usuario is None:
+            usuario = Usuario.objects.create_user(
+                email=email, password=senha, nome=f"{rotulo} {setor.nome}", setor=setor
+            )
+            usuario.groups.set([Group.objects.get(name=grupo)])
+        pessoas.append(usuario)
+    return pessoas
