@@ -129,3 +129,14 @@ def mascarar_grafo(grafo):
         if no.get("tipo") == "http" and isinstance(no.get("config"), dict):
             no["config"] = mascarar_entrada_http(no["config"], estatico=True)
     return copia
+
+
+class FiltroMascararQuery:
+    """Filtro de logging: mascara query sensível (`?token=…`) na mensagem e nos argumentos."""
+
+    def filter(self, registro):
+        registro.msg = (
+            mascarar_url(registro.getMessage()) if registro.args else mascarar_url(registro.msg)
+        )
+        registro.args = None
+        return True

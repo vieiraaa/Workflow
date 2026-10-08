@@ -259,10 +259,29 @@ def _decodificar_corpo(bruto, content_type):
     parece_json = "json" in (content_type or "").lower() or texto.lstrip()[:1] in ("{", "[")
     if parece_json:
         try:
-            return json.loads(sanear_json_bruto(texto), parse_constant=_recusar_constante)
+            valor = json.loads(sanear_json_bruto(texto), parse_constant=_recusar_constante)
         except ValueError, RecursionError:
-            pass
+            valor = None
+        else:
+            if _profundidade_ok(valor):
+                return valor
     return sanear_texto(texto)
+
+
+MAX_PROFUNDIDADE_RESPOSTA = 64
+
+
+def _profundidade_ok(valor):
+    """Varredura iterativa (como a GRF-09): False se o JSON passa do limite de aninhamento."""
+    pilha = [(valor, 1)]
+    while pilha:
+        atual, nivel = pilha.pop()
+        if isinstance(atual, dict | list):
+            if nivel > MAX_PROFUNDIDADE_RESPOSTA:
+                return False
+            filhos = atual.values() if isinstance(atual, dict) else atual
+            pilha.extend((f, nivel + 1) for f in filhos)
+    return True
 
 
 def _recusar_constante(nome):

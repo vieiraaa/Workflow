@@ -99,3 +99,15 @@ MOTOR_TIMEOUT_NO = 15
 MOTOR_TIMEOUT_EXECUCAO = 60
 MOTOR_LIMITE_RESPOSTA = 1048576  # bytes, já descompactado
 MOTOR_MAX_REDIRECTS = 5
+
+# Logs (SEG-11): httpx/httpcore imprimem a URL com a query; só WARNING+ e com query mascarada.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {"mascarar_query": {"()": "apps.motor.mascarar.FiltroMascararQuery"}},
+    "handlers": {"console": {"class": "logging.StreamHandler", "filters": ["mascarar_query"]}},
+    "loggers": {
+        nome: {"handlers": ["console"], "level": "WARNING", "propagate": False}
+        for nome in ("httpx", "httpcore")
+    },
+}
