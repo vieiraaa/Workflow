@@ -27,7 +27,7 @@
     </tr></thead>
     <tbody>
       {% for f in fluxos %}
-      <tr class="tabela__linha tabela__linha--acoes">
+      <tr class="tabela__linha tabela__linha--acoes"{% if f.url_editor %} data-href="{{ f.url_editor }}"{% endif %}>
         <td class="tabela__principal">{% if f.url_editor %}<a class="tabela__link" href="{{ f.url_editor }}">{{ f.nome }}</a>{% else %}<span class="tabela__link">{{ f.nome }}</span>{% endif %}</td>
         <td class="tabela__secundario texto-2">{{ f.descricao|default:"Sem descrição" }}</td>
         <td class="tabela__extra texto-2">{{ f.dono_nome }}</td>

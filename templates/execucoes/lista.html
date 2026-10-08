@@ -26,7 +26,7 @@
     </tr></thead>
     <tbody>
       {% for e in execucoes %}
-      <tr class="tabela__linha tabela__linha--clicavel">
+      <tr class="tabela__linha tabela__linha--clicavel" data-href="{{ e.url_detalhe }}">
         <td class="tabela__principal"><a class="tabela__link" href="{{ e.url_detalhe }}">{{ e.fluxo_nome }}</a></td>
         <td class="tabela__secundario texto-2">{{ e.executado_por_nome }}<span class="so-celular"> · {{ e.iniciada_em|date:"d/m/Y H:i" }}</span></td>
         <td class="tabela__papel">{% include "componentes/badge_status.html" with status=e.status rotulo=e.status_rotulo %}</td>

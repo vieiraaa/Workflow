@@ -29,7 +29,7 @@
     </tr></thead>
     <tbody>
       {% for u in usuarios %}
-      <tr class="tabela__linha">
+      <tr class="tabela__linha"{% if u.url_editar %} data-href="{{ u.url_editar }}"{% endif %}>
         <td class="tabela__principal">{% if u.url_editar %}<a class="tabela__link" href="{{ u.url_editar }}">{{ u.nome }}</a>{% else %}{{ u.nome }}{% endif %}</td>
         <td class="tabela__secundario texto-2">{{ u.email }}</td>
         <td class="tabela__papel">{% include "componentes/badge_status.html" with status="papel" rotulo=u.papel_rotulo %}</td>

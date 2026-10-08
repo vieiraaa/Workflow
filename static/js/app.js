@@ -121,4 +121,17 @@
       f.querySelectorAll("[aria-busy]").forEach(function (b) { b.removeAttribute("aria-busy"); });
     });
   });
+  /* Linha de tabela clicável: <tr data-href>. O nome continua sendo um <a> (teclado, Cmd/Ctrl+clique).
+     Ignora links/botões/campos internos, clique que não é o principal e seleção de texto. */
+  document.addEventListener("click", function (ev) {
+    var linha = ev.target.closest && ev.target.closest("tr[data-href]");
+    if (!linha || ev.defaultPrevented || ev.button !== 0) return;
+    if (ev.target.closest("a, button, input, select, textarea, label, summary, [role=button]")) return;
+    var sel = window.getSelection && window.getSelection();
+    if (sel && String(sel).length > 0) return;
+    var href = linha.getAttribute("data-href");
+    if (!href || href.charAt(0) !== "/") return;
+    if (ev.metaKey || ev.ctrlKey) window.open(href, "_blank", "noopener");
+    else window.location.assign(href);
+  });
 })();

@@ -209,9 +209,8 @@ h2 { font-size: var(--text-h2); font-weight: 600; }
 /* Tabela: link do nome e versão em blocos no celular */
 .tabela__link { color: var(--text); font-weight: 500; }
 .tabela__chevron { display: none; color: var(--text-3); }
-/* Linha inteira clicável: o link do nome estica sobre a linha (foco visível na linha). */
-.tabela__linha--clicavel { position: relative; cursor: pointer; }
-.tabela__linha--clicavel .tabela__link::after { content: ""; position: absolute; inset: 0; }
+/* Linha inteira clicável: tr[data-href] + listener delegado em app.js (sem link esticado). */
+.tabela__linha--clicavel, .tabela tbody tr[data-href] { cursor: pointer; }
 .tabela__linha--clicavel:focus-within { box-shadow: inset 0 0 0 2px var(--accent); }
 .tabela__link:focus-visible { box-shadow: none; }
 @media (max-width: 800px) {
@@ -237,7 +236,6 @@ h2 { font-size: var(--text-h2); font-weight: 600; }
   .tabela__acoes { grid-area: seta; }
   .tabela__editar { display: none; }
   .tabela__chevron { display: inline-flex; }
-  .tabela__link::after { content: ""; position: absolute; inset: 0; }
 }
 
 .tabela__botoes { flex-wrap: nowrap; display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-2); }

@@ -76,3 +76,18 @@ def test_clicar_no_no_do_desenho_abre_o_bloco_do_no(
     palco = pagina.locator("[data-palco]").bounding_box()
     mundo = pagina.locator(".fluxo-exec__mundo").bounding_box()
     assert mundo["width"] <= palco["width"] + 1
+
+
+def test_linha_nao_usa_link_esticado(pagina_coordenador, live_server, execucao):
+    pagina = pagina_coordenador
+    pagina.goto(live_server.url + reverse("execucoes:lista"))
+    assert pagina.locator("tr[data-href]").first.get_attribute("data-href") == reverse(
+        "execucoes:detalhe", kwargs={"pk": execucao.pk}
+    )
+    pos = pagina.evaluate(
+        "getComputedStyle(document.querySelector('.tabela__link'), '::after').position"
+    )
+    assert pos != "absolute"
+    # clique direto numa célula (sem force): nada cobre a linha
+    pagina.locator(".tabela__papel").first.click()
+    pagina.wait_for_url(live_server.url + reverse("execucoes:detalhe", kwargs={"pk": execucao.pk}))
