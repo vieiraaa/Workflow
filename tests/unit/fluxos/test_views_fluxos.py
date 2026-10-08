@@ -93,10 +93,12 @@ def test_executar_placeholder_e_escopo(cliente_base, cliente_coordenador, usuari
 def test_semear_demo_cria_fluxos_e_e_idempotente(capsys):
     call_command("semear_demo", senha="SenhaForte#12345")
     total = Fluxo.objects.count()
-    assert total == len(demo.EXEMPLOS)
+    exemplos = Fluxo.objects.filter(nome__in=[e[0] for e in demo.EXEMPLOS])
+    assert exemplos.count() == len(demo.EXEMPLOS)
+    assert total == len(demo.EXEMPLOS) + 3  # + 1 fluxo por setor do histórico de demo (HOM-08)
     call_command("semear_demo", senha="SenhaForte#12345")
     assert Fluxo.objects.count() == total
-    assert Fluxo.objects.filter(status="ativo").count() == 2
+    assert exemplos.filter(status="ativo").count() == 2
 
 
 @pytest.mark.parametrize(

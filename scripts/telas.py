@@ -126,6 +126,12 @@ def _setores_demo(usuarios):
         Setor.objects.create(nome=nome, ativo=ativo)
 
 
+def _historico(usuarios):
+    from apps.fluxos.demo import _semear_historico
+
+    _semear_historico()
+
+
 def _erro_setor(page, base):
     _enviar(page, "", {"nome": "Geral"})  # nome já existente (sem diferenciar maiúsculas)
 
@@ -272,6 +278,13 @@ PREPARADORES = {
     ("TEL-07", "sucesso"): (_execucao_demo("sucesso"), None),
     ("TEL-07", "erro_http"): (_execucao_demo("erro_http"), None),
     ("TEL-07", "bloqueado_ssrf"): (_execucao_demo("bloqueado_ssrf"), None),
+    ("TEL-13", "vazio"): (None, None),
+    ("TEL-13", "com_dados_7d"): (_historico, None, "?periodo=7d"),
+    ("TEL-13", "com_dados_24h"): (_historico, None, "?periodo=24h"),
+    ("TEL-13", "com_dados_1a"): (_historico, None, "?periodo=1a"),
+    ("TEL-16", "com_dados_7d"): (_historico, None, "?periodo=7d"),
+    ("TEL-17", "vazio"): (None, None),
+    ("TEL-17", "com_dados_7d"): (_historico, None, "?periodo=7d"),
     ("TEL-14", "com_dados"): (_setores_demo, None),
     ("TEL-15", "padrao"): (None, None),
     ("TEL-15", "erro_validacao"): (None, _erro_setor),

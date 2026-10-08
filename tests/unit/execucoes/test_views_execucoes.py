@@ -187,7 +187,8 @@ def test_semear_demo_cria_execucoes_uma_vez():
 
     call_command("semear_demo", senha="SenhaForte#12345")
     total = Execucao.objects.count()
-    assert total == 4
+    assert Execucao.objects.filter(fluxo_nome="Consulta de pedidos").count() == 4
+    assert total > 600  # histórico de 1 ano em 3 setores para a Home (HOM-08)
     call_command("semear_demo", senha="SenhaForte#12345")
     assert Execucao.objects.count() == total
 

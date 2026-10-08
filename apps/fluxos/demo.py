@@ -90,6 +90,7 @@ def semear():
             criar_fluxo(dono, nome, status, fabrica_grafo(), descricao)
             criados += 1
     _semear_execucoes()
+    _semear_historico()
     return criados
 
 
@@ -111,3 +112,70 @@ def _semear_execucoes():
         usuario = Usuario.objects.filter(email=email).first()
         if usuario:
             demo_execucoes.criar_execucao(usuario, cenario, fluxo=fluxo, minutos_atras=minutos)
+
+
+def _semear_historico():
+    """HOM-08: ~700 execuções espalhadas por 1 ano em 3 setores (idempotente; sem rede)."""
+    import random
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.contas.models import Setor, Usuario
+    from apps.execucoes.models import Execucao, ExecucaoNo
+
+    if Execucao.objects.count() >= 100:
+        return
+    dono = Usuario.objects.filter(email="coord@exemplo.test").first()
+    pessoas = list(Usuario.objects.filter(email__in=["coord@exemplo.test", "base@exemplo.test"]))
+    if dono is None or not pessoas:
+        return
+    sorteio = random.Random(2026)
+    agora = timezone.now()
+    categorias = ["http_5xx", "timeout", "http_4xx", "dns", "bloqueado_ssrf", "conexao"]
+    setores = [
+        Setor.objects.get_or_create(nome=nome)[0] for nome in ("Geral", "Financeiro", "Atendimento")
+    ]
+    for setor in setores:
+        fluxo = Fluxo.objects.filter(nome=f"Consulta de pedidos · {setor.nome}").first()
+        if fluxo is None:
+            fluxo = criar_fluxo(
+                dono, f"Consulta de pedidos · {setor.nome}", "ativo", grafo_exemplo()
+            )
+            Fluxo.objects.filter(pk=fluxo.pk).update(setor=setor)
+            fluxo.refresh_from_db()
+        execucoes, erros = [], []
+        for _ in range(230):
+            atras = timedelta(days=sorteio.random() ** 2 * 360, minutes=sorteio.randint(0, 600))
+            inicio = agora - atras
+            erro = sorteio.random() < 0.22
+            duracao = timedelta(milliseconds=sorteio.randint(120, 2400))
+            execucoes.append(
+                Execucao(
+                    fluxo=fluxo,
+                    fluxo_nome=fluxo.nome,
+                    grafo_snapshot=copy.deepcopy(fluxo.grafo),
+                    executado_por=sorteio.choice(pessoas),
+                    setor=setor,
+                    status=Execucao.ERRO if erro else Execucao.SUCESSO,
+                    iniciada_em=inicio,
+                    finalizada_em=inicio + duracao,
+                    erro_resumo="Buscar pedido: falha de exemplo" if erro else "",
+                )
+            )
+        criadas = Execucao.objects.bulk_create(execucoes)
+        for execucao in criadas:
+            if execucao.status == Execucao.ERRO:
+                erros.append(
+                    ExecucaoNo(
+                        execucao=execucao,
+                        no_id="n2",
+                        no_tipo="http",
+                        no_titulo="Buscar pedido",
+                        ordem=2,
+                        status=ExecucaoNo.ERRO,
+                        erro_categoria=sorteio.choice(categorias),
+                        erro_mensagem="Falha de exemplo.",
+                    )
+                )
+        ExecucaoNo.objects.bulk_create(erros)

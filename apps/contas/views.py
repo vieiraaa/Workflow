@@ -1,11 +1,9 @@
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
-from django.shortcuts import redirect
-from django.urls import NoReverseMatch, reverse
 from django.views.generic import TemplateView
 
-from apps.nucleo.contexto import atalhos_do_usuario
+from apps.execucoes.painel import painel_ou_erro
 
 from .forms import LoginForm
 from .permissoes import papel_de
@@ -30,13 +28,20 @@ class LogoutView(auth_views.LogoutView):
 
 
 class InicioView(LoginRequiredMixin, TemplateView):
-    """Rota `inicio` (PRM-07). Template `inicio/inicio.html`.
+    """Home (TEL-13/16/17, HOM-01..09; PRM-07). Template `inicio/inicio.html`.
 
-    Sem papel → 403 do produto. Com papel → redireciona para `fluxos:lista`; enquanto essa rota
-    não existe (antes do M2), renderiza o início.
+    Sem papel → 403 do produto. `?periodo=24h|7d|30d|6m|1a` (padrão 7d; inválido → padrão).
+    Tudo no escopo do papel (SET-06); contexto montado por `apps.execucoes.painel`.
 
-    Contexto: shell (menu, usuario_nome, usuario_papel), `atalhos` (itens do menu),
-    `saudacao` (str).
+    Contexto (além do shell): `periodo_rotulo`; `periodos` [{rotulo, url, ativo}]; `sem_dados`
+    (nada no escopo → estado vazio); `sem_dados_periodo`; `erro_carregar`; `indicadores`
+    [{chave, rotulo, valor (texto), valor_cru (data-valor), variacao: None | {texto, valor,
+    sentido 'alta'|'queda'|'igual', bom True|False|None}, dependente_periodo}] já sem os cartões
+    que o papel não vê; `serie` [{rotulo, inicio, sucesso, erro}] (json_script home-serie);
+    `erros` [{categoria, rotulo, total}] (home-erros); `por_setor` [{setor, total}] só Adm, None
+    nos demais (home-setores); `top_fluxos` [{pk, nome, execucoes, taxa_sucesso, url}];
+    `ultimas` [{pk, fluxo_nome, executado_por_nome, status, status_rotulo, iniciada_em,
+    url_detalhe}]; `pode_criar_fluxo`, `url_novo_fluxo`, `url_execucoes`; `saudacao`.
     """
 
     template_name = "inicio/inicio.html"
@@ -44,13 +49,10 @@ class InicioView(LoginRequiredMixin, TemplateView):
     def get(self, request, *args, **kwargs):
         if papel_de(request.user) is None:
             raise PermissionDenied
-        try:
-            return redirect(reverse("fluxos:lista"))
-        except NoReverseMatch:
-            return super().get(request, *args, **kwargs)
+        return super().get(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         contexto = super().get_context_data(**kwargs)
-        contexto["atalhos"] = atalhos_do_usuario(self.request)
+        contexto.update(painel_ou_erro(self.request.user, self.request.GET.get("periodo", "")))
         contexto["saudacao"] = f"Olá, {self.request.user.nome}"
         return contexto
