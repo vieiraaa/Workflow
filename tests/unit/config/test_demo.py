@@ -45,3 +45,11 @@ def test_demo_serve_estaticos_sem_debug():
     from pathlib import Path
 
     assert "insecure_serving=True" in Path("scripts/demo.py").read_text(encoding="utf-8")
+
+
+def test_demo_liga_o_reloader_e_so_prepara_banco_no_processo_pai():
+    from pathlib import Path
+
+    fonte = Path("scripts/demo.py").read_text(encoding="utf-8")
+    assert "use_reloader=True" in fonte and "use_reloader=False" not in fonte
+    assert 'RUN_MAIN") == "true"' in fonte

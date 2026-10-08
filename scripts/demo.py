@@ -28,6 +28,18 @@ CREDENCIAIS = [
 ]
 
 
+def _migrar_se_pendente(call_command):
+    """No reload: aplica migration nova (banco de demo é descartável) e avisa no log."""
+    from django.db import connection
+    from django.db.migrations.executor import MigrationExecutor
+
+    if MigrationExecutor(connection).migration_plan(
+        MigrationExecutor(connection).loader.graph.leaf_nodes()
+    ):
+        print("Migration nova detectada: aplicando no banco de demo.")
+        call_command("migrate", verbosity=0, interactive=False)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawTextHelpFormatter
@@ -45,26 +57,33 @@ def main():
     import psycopg
     from django.core.management import call_command
 
-    config = settings.DATABASES["default"]
-    try:
-        if args.resetar:
-            _banco.apagar(config)
-        if _banco.criar_se_faltar(config) or args.resetar:
-            print("Banco de demo criado.")
-    except psycopg.OperationalError:
-        print("AMBIENTE: não consegui falar com o Postgres local (localhost:5432). Ele está no ar?")
-        return 2
+    # O autoreloader do Django reexecuta este script num processo filho (RUN_MAIN=true) a cada
+    # alteração de código: banco, migrate, semeadura e credenciais só no processo pai.
+    filho_do_reloader = os.environ.get("RUN_MAIN") == "true"
+    if filho_do_reloader:
+        _migrar_se_pendente(call_command)
+    else:
+        config = settings.DATABASES["default"]
+        try:
+            if args.resetar:
+                _banco.apagar(config)
+            if _banco.criar_se_faltar(config) or args.resetar:
+                print("Banco de demo criado.")
+        except psycopg.OperationalError:
+            print("AMBIENTE: não consegui falar com o Postgres local (localhost:5432).")
+            return 2
 
-    call_command("migrate", verbosity=0, interactive=False)
-    call_command(
-        "semear_demo", senha=SENHA_DEMO, extras=30, com_sem_papel=True, stdout=io.StringIO()
-    )
+        call_command("migrate", verbosity=0, interactive=False)
+        call_command(
+            "semear_demo", senha=SENHA_DEMO, extras=30, com_sem_papel=True, stdout=io.StringIO()
+        )
 
-    print("\nCredenciais FICTÍCIAS de demo (só valem neste banco local):")
-    for rotulo, email in CREDENCIAIS:
-        print(f"  {rotulo:<22} {email}   senha: {SENHA_DEMO}")
-    print(f"\nSubindo em http://127.0.0.1:{args.porta}/  (Ctrl+C para parar)\n")
-    call_command("runserver", f"127.0.0.1:{args.porta}", use_reloader=False, insecure_serving=True)
+        print("\nCredenciais FICTÍCIAS de demo (só valem neste banco local):")
+        for rotulo, email in CREDENCIAIS:
+            print(f"  {rotulo:<22} {email}   senha: {SENHA_DEMO}")
+        print(f"\nSubindo em http://127.0.0.1:{args.porta}/  (Ctrl+C para parar)")
+        print("O código recarrega sozinho ao salvar; migration nova é aplicada no reload.\n")
+    call_command("runserver", f"127.0.0.1:{args.porta}", use_reloader=True, insecure_serving=True)
     return 0
 
 
