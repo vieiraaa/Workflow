@@ -6,3 +6,13 @@ hipotese_do_lead: >
   linha clicável por "stretched link" (.tabela__link::after position:absolute; inset:0) com o <tr> como referência
   (position:relative em tr). Se o motor não usa o tr como bloco de contenção, o ::after de um link cobre a tabela toda.
 fluxo: Lupa reproduz e escreve teste vermelho (caixa-preta) → Vitral corrige → teste verde nos motores
+diagnostico_qa: >
+  Lupa (40c645b): não reproduzido em chromium/webkit/firefox atuais (1440/390); elementFromPoint no centro = link da
+  própria linha; tr relative e ::after absolute contido no tr. Teste test_cada_linha_abre_a_sua_execucao verde (guarda).
+analise_do_lead: >
+  O relato bate com o ::after NÃO contido no tr no navegador do usuário: cada overlay cobre a tabela inteira e o de cima
+  é o da última linha do DOM = execução nº 1 (lista da mais recente para a mais antiga). Técnica dependente do motor.
+correcao_vitral: >
+  tr com data-href + listener delegado no tbody (ignora links/botões internos e seleção de texto; Cmd/Ctrl+clique pelo
+  link do nome); nome continua <a href>; sem ::after esticado na tabela do desktop; hover só na linha sob o mouse.
+dono_correcao: Vitral
