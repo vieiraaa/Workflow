@@ -1,8 +1,7 @@
 """Aceite M4: Home por papel e período. Fontes: HOM-01..08, SET-06, PRM-01/02, TEL-13/16/17.
 
-SUPOSIÇÕES (lacunas no relatório): a spec não define DOM/contexto da Home; os testes leem o HTML renderizado:
-cartão = rótulo (texto da spec) seguido do valor em até ~80 caracteres de texto; séries dos gráficos = blocos
-<script type="application/json"> (json_script, HOM-08) com listas cujo tamanho = nº de intervalos.
+Contrato de DOM/dados: HOM-09 (data-indicador/data-valor/data-variacao, json_script home-serie/home-erros/home-setores,
+data-execucao/data-fluxo).
 """
 import json
 import re
@@ -27,56 +26,52 @@ def _texto(html):
     return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html))
 
 
+CHAVES = {
+    "Fluxos ativos": "fluxos_ativos", "Fluxos em rascunho": "fluxos_rascunho", "Execuções no período": "execucoes",
+    "Taxa de sucesso": "taxa_sucesso", "Execuções com erro": "execucoes_erro", "Duração média": "duracao_media",
+    "Usuários ativos": "usuarios_ativos", "Setores ativos": "setores_ativos",
+}
+
+
+def _tag(html, chave):
+    m = re.search(rf'<[^>]*data-indicador="{chave}"[^>]*>', html)
+    return m.group(0) if m else None
+
+
+def _attr(tag, nome):
+    m = re.search(rf'{nome}="([^"]*)"', tag or "")
+    return m.group(1) if m else None
+
+
+def _valor(html, chave):
+    v = _attr(_tag(html, chave), "data-valor")
+    return None if v in (None, "") else float(v.replace(",", "."))
+
+
+def _existe(html, chave):
+    return _tag(html, chave) is not None
+
+
 def _cartao(html, rotulo, janela=80):
-    """Valores (texto) que seguem cada ocorrência do rótulo."""
-    t = _texto(html)
-    return [t[m.end():m.end() + janela] for m in re.finditer(re.escape(rotulo), t)]
+    return [_attr(_tag(html, CHAVES[rotulo]), "data-valor")]
 
 
 def _tem_valor(html, rotulo, valor):
-    return any(re.search(rf"(?<![\d,.]){re.escape(str(valor))}(?![\d])", seg) for seg in _cartao(html, rotulo))
+    v = _valor(html, CHAVES[rotulo])
+    return v is not None and abs(v - float(valor)) < 1e-9
+
+
+def _json_id(html, ident):
+    m = re.search(rf'<script[^>]*id="{ident}"[^>]*>(.*?)</script>', html, flags=re.S)
+    return json.loads(m.group(1)) if m else None
 
 
 def _blocos_json(html):
-    out = []
-    for m in re.finditer(r'<script[^>]*type="application/json"[^>]*>(.*?)</script>', html, flags=re.S):
-        try:
-            out.append(json.loads(m.group(1)))
-        except ValueError:
-            pass
-    return out
+    return [x for x in (_json_id(html, i) for i in ("home-serie", "home-erros", "home-setores")) if x is not None]
 
 
-def _listas(o):
-    if isinstance(o, list):
-        yield o
-        for x in o:
-            yield from _listas(x)
-    elif isinstance(o, dict):
-        for x in o.values():
-            yield from _listas(x)
-
-
-def _numeros(o):
-    if isinstance(o, bool):
-        return
-    if isinstance(o, (int, float)):
-        yield o
-    elif isinstance(o, list):
-        for x in o:
-            yield from _numeros(x)
-    elif isinstance(o, dict):
-        for x in o.values():
-            yield from _numeros(x)
-
-
-def _serie(html, lo, hi):
-    """Primeira lista de dados com tamanho em [lo, hi] e algum número; devolve a lista."""
-    for b in _blocos_json(html):
-        for lst in _listas(b):
-            if lo <= len(lst) <= hi and all(isinstance(x, (dict, list)) for x in lst) and any(list(_numeros(x)) for x in lst):
-                return lst
-    return None
+def _serie(html, lo=None, hi=None):
+    return _json_id(html, "home-serie")
 
 
 def _home(c, **params):
@@ -192,7 +187,8 @@ def test_hom03_cartoes_gestor_batem(cenario):
     assert _tem_valor(h, "Execuções no período", 20)
     assert _tem_valor(h, "Taxa de sucesso", 75)
     assert _tem_valor(h, "Execuções com erro", 5)
-    assert any(re.search(r"(?<![\d,.])2([.,]0+)?\s*s", seg) for seg in _cartao(h, "Duração média"))
+    assert _tem_valor(h, "Duração média", 2)
+    assert "2,0 s" in _texto(h)
     assert _tem_valor(h, "Fluxos ativos", 1)
     assert _tem_valor(h, "Fluxos em rascunho", 1)
 
@@ -225,8 +221,7 @@ def test_hom03_base_ve_fluxos_ativos_do_setor_sem_rascunho(cenario):
     """HOM-03/SET-06: Base conta só fluxos ATIVOS do setor (1); rascunho não é visível a ele."""
     h = _h(_home(cenario.c["bA"]))
     assert _tem_valor(h, "Fluxos ativos", 1)
-    if "Fluxos em rascunho" in _texto(h):
-        assert _tem_valor(h, "Fluxos em rascunho", 0)
+    assert not _existe(h, "fluxos_rascunho")
 
 
 def test_hom03_usuarios_ativos_por_papel(cenario, M):
@@ -236,7 +231,7 @@ def test_hom03_usuarios_ativos_por_papel(cenario, M):
     do_setor = M.Usuario.objects.filter(is_active=True, setor=w.A).count()
     assert _tem_valor(_h(_home(w.c["adm"])), "Usuários ativos", total)
     assert _tem_valor(_h(_home(w.c["gA"])), "Usuários ativos", do_setor)
-    assert "Usuários ativos" not in _texto(_h(_home(w.c["bA"])))
+    assert not _existe(_h(_home(w.c["bA"])), "usuarios_ativos")
 
 
 def test_hom03_usuarios_ativos_ignora_inativos(cenario, mk_usuario, M):
@@ -254,60 +249,66 @@ def test_hom03_setores_ativos_so_adm(cenario, M):
     w = cenario
     n = M.Setor.objects.filter(ativo=True).count()
     assert _tem_valor(_h(_home(w.c["adm"])), "Setores ativos", n)
+    setores = _json_id(_h(_home(w.c["adm"])), "home-setores")
+    assert {x["total"] for x in setores if x["setor"] == "Setor Beta"} == {40}
     for k in ("gA", "bA"):
-        assert "Setores ativos" not in _texto(_h(_home(w.c[k])))
+        assert not _existe(_h(_home(w.c[k])), "setores_ativos")
 
 
 def test_hom03_variacao_vs_periodo_anterior(cenario):
     """HOM-03: variação vs período anterior equivalente: 20 vs 10 execuções = +100%."""
-    h = _texto(_h(_home(cenario.c["gA"])))
-    assert re.search(r"100\s*%", h)
+    h = _h(_home(cenario.c["gA"]))
+    assert _attr(_tag(h, "execucoes"), "data-variacao") == "100"
+    assert "+100%" in _texto(h)
 
 
-def test_hom03_periodo_anterior_vazio_nao_quebra(mundo, mk_exec):
-    """HOM-03: sem dados no período anterior (divisão por zero) → 200, sem NaN/inf/None."""
+def test_hom03_periodo_anterior_vazio_mostra_novo(mundo, mk_exec):
+    """HOM-03/09: sem base no período anterior → "novo" e data-variacao vazio; sem NaN/inf/None."""
     mk_exec(mundo.fA, mundo.bA)
     r = _home(mundo.c["gA"])
-    t = _texto(_h(r))
-    assert r.status_code == 200 and not re.search(r"\b(nan|inf|None|Infinity)\b", t, re.I)
+    h = _h(r)
+    assert r.status_code == 200 and _attr(_tag(h, "execucoes"), "data-variacao") == ""
+    assert "novo" in _texto(h) and not re.search(r"\b(nan|inf|None|Infinity)\b", _texto(h), re.I)
 
 
 def test_hom03_taxa_sem_execucoes_nao_quebra(mundo):
     """HOM-03: zero execuções → taxa sem divisão por zero (200)."""
     r = _home(mundo.c["gB"])
-    assert r.status_code == 200 and "Taxa de sucesso" in _texto(_h(r))
+    assert r.status_code == 200 and _existe(_h(r), "taxa_sucesso")
 
 
 def test_hom03_execucoes_executando_nao_contam_como_sucesso_nem_erro(mundo, mk_exec):
     """HOM-03: execução em andamento não entra como erro."""
     mk_exec(mundo.fA, mundo.bA, "executando")
     mk_exec(mundo.fA, mundo.bA, "sucesso")
+    mk_exec(mundo.fA, mundo.bA, "erro")
     h = _h(_home(mundo.c["gA"]))
-    assert _tem_valor(h, "Execuções com erro", 0)
+    assert _tem_valor(h, "Execuções no período", 3) and _tem_valor(h, "Execuções com erro", 1)
+    assert _tem_valor(h, "Taxa de sucesso", 50)  # HOM-09: sucesso/(sucesso+erro), em andamento fora
 
 
 # ---------- HOM-04 gráfico ----------
 
-@pytest.mark.parametrize("p,lo,hi", [("24h", 24, 24), ("7d", 7, 8), ("30d", 30, 31), ("6m", 26, 28), ("1a", 12, 13)])
+@pytest.mark.parametrize("p,lo,hi", [("24h", 24, 24), ("7d", 7, 7), ("30d", 30, 30), ("6m", 26, 26), ("1a", 12, 12)])
 def test_hom04_numero_de_intervalos(cenario, p, lo, hi):
     """HOM-04: 24h por hora (24); 7d/30d por dia; 6m por semana; 1a por mês — via json_script."""
-    assert _serie(_h(_home(cenario.c["gA"], periodo=p)), lo, hi) is not None
+    s = _serie(_h(_home(cenario.c["gA"], periodo=p)))
+    assert s is not None and len(s) == lo
+    assert all({"rotulo", "inicio", "sucesso", "erro"} <= set(x) for x in s)
 
 
 def test_hom04_intervalos_sem_dados_com_zero(mundo, mk_exec):
     """HOM-04: uma única execução → quase todos os 24 intervalos com zero (nenhum omitido)."""
     mk_exec(mundo.fA, mundo.bA, quando=timezone.now() - timedelta(hours=5))
-    s = _serie(_h(_home(mundo.c["gA"], periodo="24h")), 24, 24)
-    assert s is not None
-    zeros = sum(1 for x in s if sum(_numeros(x)) == 0)
-    assert zeros >= 22
+    s = _serie(_h(_home(mundo.c["gA"], periodo="24h")))
+    assert s is not None and len(s) == 24
+    assert sum(1 for x in s if x["sucesso"] + x["erro"] == 0) == 23
 
 
 def test_hom04_soma_da_serie_bate_com_cartao(cenario):
     """HOM-04/HOM-03: soma das barras (sucesso+erro) = Execuções no período."""
-    s = _serie(_h(_home(cenario.c["gA"])), 7, 8)
-    assert s is not None
-    assert sum(sum(_numeros(x)) for x in s) >= 20
+    s = _serie(_h(_home(cenario.c["gA"])))
+    assert sum(x["sucesso"] + x["erro"] for x in s) == 20
 
 
 def test_hom04_acessibilidade(cenario):
@@ -319,7 +320,7 @@ def test_hom04_acessibilidade(cenario):
 def test_hom04_sem_dados_no_periodo_mostra_aviso_e_zeros(mundo):
     """HOM-04/07: sem dados no período → gráfico com zeros + aviso, 200."""
     r = _home(mundo.c["gB"], periodo="24h")
-    assert r.status_code == 200 and _serie(_h(r), 24, 24) is not None
+    assert r.status_code == 200 and len(_serie(_h(r)) or []) == 24
 
 
 # ---------- HOM-05 ----------
@@ -345,9 +346,9 @@ def test_hom05_ranking_top5(mundo, mk_fluxo, mk_exec):
             quando = agora - timedelta(days=5, hours=j) if i >= 5 else agora - timedelta(minutes=5 + j)
             mk_exec(f, mundo.bA, quando=quando)
     h = _h(_home(mundo.c["gA"]))
-    for i in range(1, 6):
-        assert f"Ranking Fluxo {i}" in h
-    assert "Ranking Fluxo 6" not in h and "Ranking Fluxo 7" not in h
+    ids = set(re.findall(r'data-fluxo="(\d+)"', h))
+    assert {str(f.pk) for f in fl[:5]} <= ids
+    assert str(fl[5].pk) not in ids and str(fl[6].pk) not in ids
 
 
 def test_hom05_ranking_nao_inclui_outro_setor(mundo, mk_fluxo, mk_exec):
@@ -356,7 +357,7 @@ def test_hom05_ranking_nao_inclui_outro_setor(mundo, mk_fluxo, mk_exec):
     for _ in range(9):
         mk_exec(f, mundo.bB)
     assert "Campeao Do Setor Beta" not in _h(_home(mundo.c["gA"]))
-    assert "Campeao Do Setor Beta" in _h(_home(mundo.c["adm"]))
+    assert f'data-fluxo="{f.pk}"' in _h(_home(mundo.c["adm"]))
 
 
 def test_hom05_erros_por_categoria_escopo(mundo, mk_exec, M):
@@ -366,8 +367,9 @@ def test_hom05_erros_por_categoria_escopo(mundo, mk_exec, M):
         e = mk_exec(setor_fluxo, por, "erro")
         No.objects.create(execucao=e, no_id="n2", no_tipo="http", no_titulo="Buscar", ordem=2, status="erro", entrada={},
                           saida={}, erro_categoria=cat, erro_mensagem="m", duracao_ms=5)
-    blocos = json.dumps(_blocos_json(_h(_home(mundo.c["gA"]))))
-    assert "bloqueado_ssrf" not in blocos and "timeout" in blocos
+    cats = _json_id(_h(_home(mundo.c["gA"])), "home-erros")
+    assert {c["categoria"] for c in cats} == {"timeout"}
+    assert all(c["rotulo"] and c["total"] == 1 for c in cats)
 
 
 # ---------- HOM-06 ----------
@@ -377,10 +379,8 @@ def test_hom06_ultimas_10_mais_recentes(mundo, mk_exec):
     agora = timezone.now()
     es = [mk_exec(mundo.fA, mundo.bA, quando=agora - timedelta(minutes=i)) for i in range(12)]
     h = _h(_home(mundo.c["gA"]))
-    for e in es[:10]:
-        assert reverse("execucoes:detalhe", kwargs={"pk": e.pk}) in h
-    for e in es[10:]:
-        assert reverse("execucoes:detalhe", kwargs={"pk": e.pk}) not in h
+    pks = re.findall(r'data-execucao="(\d+)"', h)
+    assert pks == [str(e.pk) for e in es[:10]]
 
 
 def test_hom06_ultimas_independe_do_periodo(mundo, mk_exec):
@@ -516,3 +516,82 @@ def test_hom08_indices(db):
         defs = " ".join(r[0] for r in c.fetchall())
     assert re.search(r"\(setor_id, iniciada_em", defs), defs
     assert re.search(r"\(status, iniciada_em", defs), defs
+
+
+# ---------- HOM-09 contrato: fuso e rótulos ----------
+
+def test_hom09_fuso_sao_paulo_na_serie_diaria(mundo, mk_exec):
+    """HOM-02/04/09: dia do intervalo em America/Sao_Paulo: 02:30 UTC de ontem(UTC) = 23:30 do dia anterior em SP."""
+    from zoneinfo import ZoneInfo
+
+    sp = ZoneInfo("America/Sao_Paulo")
+    ref = (timezone.now().astimezone(sp) - timedelta(days=3)).replace(hour=23, minute=30, second=0, microsecond=0)
+    mk_exec(mundo.fA, mundo.bA, quando=ref)  # instante 23:30 SP = 02:30 UTC do dia seguinte
+    s = _serie(_h(_home(mundo.c["gA"], periodo="7d")))
+    com_dado = [x for x in s if x["sucesso"] + x["erro"] > 0]
+    assert [x["rotulo"] for x in com_dado] == [ref.strftime("%d/%m")]
+
+
+def test_hom09_rotulos_dos_intervalos(mundo):
+    """HOM-09: 24h "HH:00"; 7d/30d "dd/mm"; 6m semanas iniciando na segunda ("dd/mm"); 1a meses "jan/26"."""
+    h24 = _serie(_h(_home(mundo.c["adm"], periodo="24h")))
+    assert all(re.fullmatch(r"\d\d:00", x["rotulo"]) for x in h24)
+    for p in ("7d", "30d", "6m"):
+        assert all(re.fullmatch(r"\d\d/\d\d", x["rotulo"]) for x in _serie(_h(_home(mundo.c["adm"], periodo=p))))
+    assert all(re.fullmatch(r"[a-zç]{3}/\d\d", x["rotulo"]) for x in _serie(_h(_home(mundo.c["adm"], periodo="1a"))))
+
+
+def test_hom09_serie_inicio_iso_com_fuso_e_semana_na_segunda(mundo):
+    """HOM-09: "inicio" ISO com fuso (-03:00); semanas (6m) começam na segunda."""
+    from datetime import datetime
+
+    s = _serie(_h(_home(mundo.c["adm"], periodo="6m")))
+    for x in s:
+        d = datetime.fromisoformat(x["inicio"])
+        assert d.tzinfo is not None and d.utcoffset() == timedelta(hours=-3) and d.weekday() == 0
+
+
+def test_hom09_intervalo_atual_e_o_ultimo(mundo, mk_exec):
+    """HOM-09: a série termina no intervalo atual (inclusive): execução agora cai na última barra."""
+    mk_exec(mundo.fA, mundo.bA, quando=timezone.now() - timedelta(seconds=5))
+    for p in ("24h", "7d", "30d", "6m", "1a"):
+        s = _serie(_h(_home(mundo.c["gA"], periodo=p)))
+        assert s[-1]["sucesso"] == 1, p
+
+
+def test_hom09_formato_taxa_duracao_e_cartao_data_valor(cenario):
+    """HOM-09: taxa "75%", duração "2,0 s", data-valor numérico cru em todos os cartões presentes."""
+    h = _h(_home(cenario.c["gA"]))
+    assert "75%" in _texto(h)
+    for chave in ("fluxos_ativos", "fluxos_rascunho", "execucoes", "taxa_sucesso", "execucoes_erro", "duracao_media", "usuarios_ativos"):
+        assert _valor(h, chave) is not None, chave
+
+
+@pytest.mark.parametrize("quem,ausentes", [
+    ("bA", ["fluxos_rascunho", "usuarios_ativos", "setores_ativos"]),
+    ("gA", ["setores_ativos"]),
+    ("adm", []),
+])
+def test_hom09_cartoes_inexistentes_por_papel(cenario, quem, ausentes):
+    """HOM-09: cartões que o papel não vê não existem no HTML."""
+    h = _h(_home(cenario.c[quem]))
+    for c in ausentes:
+        assert not _existe(h, c), c
+    for c in ("fluxos_ativos", "execucoes", "taxa_sucesso", "execucoes_erro", "duracao_media"):
+        assert _existe(h, c)
+
+
+def test_hom09_json_setores_so_adm(cenario):
+    """HOM-09: home-setores só para Adm; home-erros e home-serie para todos."""
+    assert _json_id(_h(_home(cenario.c["adm"])), "home-setores") is not None
+    for k in ("gA", "bA"):
+        h = _h(_home(cenario.c[k]))
+        assert _json_id(h, "home-setores") is None
+        assert _json_id(h, "home-serie") is not None and _json_id(h, "home-erros") is not None
+
+
+def test_hom09_ranking_com_data_fluxo_e_ultimas_com_data_execucao(mundo, mk_exec):
+    """HOM-09: elementos data-fluxo (ranking) e data-execucao (últimas)."""
+    e = mk_exec(mundo.fA, mundo.bA)
+    h = _h(_home(mundo.c["gA"]))
+    assert f'data-fluxo="{mundo.fA.pk}"' in h and f'data-execucao="{e.pk}"' in h
