@@ -37,3 +37,10 @@ regras:
       Adm = tudo; Coordenador (gestor) = só o setor dele (fluxos do setor; execuções do setor); Base = fluxos ATIVOS
       do setor dele (para executar) e só as execuções que ELE executou. Fora do escopo = 404 (PRM-03), inclusive para
       Coordenador acessando fluxo/execução de outro setor.
+  - id: SET-07
+    texto: >
+      Lacunas do T-045. (b) Coordenador ou Base SEM setor (estado inválido que só um Adm pode produzir): acessam as telas
+      com 200 e listas/Home vazias, nunca 500 (comportamento atual, coberto por teste). (a) Gestor de setor DESATIVADO
+      criando fluxo: DECISÃO PENDENTE DO USUÁRIO (hoje o fluxo é criado no setor desativado; alternativa: recusar com
+      "Seu setor está desativado. Fale com o administrador."). Registrado no PR do M4.
+
