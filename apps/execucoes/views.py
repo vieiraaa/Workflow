@@ -1,3 +1,5 @@
+from urllib.parse import urlsplit
+
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
@@ -135,6 +137,12 @@ class ExecucaoDetalheView(PermissaoMixin, TemplateView):
       entrada_json (indentado, mascarado), saida_json, http_status (int|None),
       headers_saida [{nome, valor}], corpo_texto (JSON indentado ou texto), truncado (bool)}
     - `resultado_json`: saída do nó saída (EXE-07); '' se ele não rodou
+    - `grafo_execucao` (EXE-15; para `json_script`; vem do snapshot já mascarado, sem `config`):
+      {nos: [{id, tipo, titulo, posicao: {x, y}, status ('sucesso'|'erro'|'nao_executado'),
+      ordem (1-based; None se não executado), duracao_texto, metodo, host (só nó http, senão ''),
+      http_status (int|None)}], arestas: [{de, para}]}
+    - `resumo_texto` (EXE-15 d): ex. "3 de 3 nós executados com sucesso em 0,1 s · GET host → 200"
+      ou "Parou no nó 2 (Título): mensagem do erro"
     - `url_lista`; `url_fluxo` (editor do fluxo; '' se o fluxo foi excluído ou sem permissão)
     """
 
@@ -165,6 +173,79 @@ class ExecucaoDetalheView(PermissaoMixin, TemplateView):
             "truncado": bool(saida.get("truncado")),
         }
 
+    @staticmethod
+    def _alvo_http(no):
+        """(metodo, host) do nó http, da entrada já resolvida e mascarada; sem query nem login."""
+        entrada = no.entrada if isinstance(no.entrada, dict) else {}
+        try:
+            host = urlsplit(str(entrada.get("url", ""))).hostname or ""
+        except ValueError:
+            host = ""
+        return (str(entrada.get("metodo", "")) if host else "", host)
+
+    def _grafo_execucao(self, execucao, registros):
+        por_id = {no.no_id: no for no in registros}
+        grafo = execucao.grafo_snapshot if isinstance(execucao.grafo_snapshot, dict) else {}
+        nos = []
+        for no_grafo in grafo.get("nos") or []:
+            if not isinstance(no_grafo, dict):
+                continue
+            registro = por_id.get(no_grafo.get("id"))
+            executado = registro is not None and registro.status != "nao_executado"
+            saida = (
+                registro.saida if registro is not None and isinstance(registro.saida, dict) else {}
+            )
+            metodo, host = (
+                self._alvo_http(registro) if registro and registro.no_tipo == "http" else ("", "")
+            )
+            nos.append(
+                {
+                    "id": no_grafo.get("id"),
+                    "tipo": no_grafo.get("tipo"),
+                    "titulo": no_grafo.get("titulo", ""),
+                    "posicao": no_grafo.get("posicao") or {"x": 0, "y": 0},
+                    "status": registro.status if registro is not None else "nao_executado",
+                    "ordem": registro.ordem + 1 if executado else None,
+                    "duracao_texto": apresentacao.duracao_texto(registro.duracao_ms)
+                    if executado
+                    else "",
+                    "metodo": metodo,
+                    "host": host,
+                    "http_status": saida.get("status")
+                    if isinstance(saida.get("status"), int)
+                    else None,
+                }
+            )
+        arestas = [
+            {"de": a.get("de"), "para": a.get("para")}
+            for a in grafo.get("arestas") or []
+            if isinstance(a, dict)
+        ]
+        return {"nos": nos, "arestas": arestas}
+
+    def _resumo_texto(self, execucao, registros):
+        executados = [n for n in registros if n.status != "nao_executado"]
+        total = len(registros)
+        falha = next((n for n in registros if n.status == "erro"), None)
+        if falha is not None:
+            titulo = f" ({falha.no_titulo})" if falha.no_titulo else ""
+            return f"Parou no nó {falha.ordem + 1}{titulo}: {falha.erro_mensagem}".strip()
+        if execucao.status_efetivo != "sucesso" or len(executados) < total:
+            return execucao.erro_resumo_efetivo or execucao.status_rotulo
+        texto = (
+            f"{total} de {total} nós executados com sucesso em "
+            f"{apresentacao.duracao_texto(execucao.duracao_ms)}"
+        )
+        for no in registros:
+            if no.no_tipo == "http":
+                metodo, host = self._alvo_http(no)
+                saida = no.saida if isinstance(no.saida, dict) else {}
+                if host:
+                    texto += f" · {metodo} {host}"
+                    if isinstance(saida.get("status"), int):
+                        texto += f" → {saida['status']}"
+        return texto
+
     def get_context_data(self, **kwargs):
         contexto = super().get_context_data(**kwargs)
         usuario = self.request.user
@@ -172,7 +253,8 @@ class ExecucaoDetalheView(PermissaoMixin, TemplateView):
             escopo(usuario, Execucao.objects, "execucoes.ver").select_related("executado_por"),
             pk=self.kwargs["pk"],
         )
-        nos = [self._no(no) for no in execucao.nos.all()]
+        registros = list(execucao.nos.all())
+        nos = [self._no(no) for no in registros]
         resultado = next(
             (n for n in nos if n["tipo"] == "saida" and n["status"] == "sucesso"), None
         )
@@ -190,6 +272,8 @@ class ExecucaoDetalheView(PermissaoMixin, TemplateView):
                 "erro_resumo": execucao.erro_resumo_efetivo,
             },
             nos=nos,
+            grafo_execucao=self._grafo_execucao(execucao, registros),
+            resumo_texto=self._resumo_texto(execucao, registros),
             resultado_json=resultado["saida_json"] if resultado else "",
             url_lista=reverse("execucoes:lista"),
             url_fluxo=reverse("fluxos:editor", kwargs={"pk": execucao.fluxo_id})

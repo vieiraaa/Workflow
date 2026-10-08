@@ -196,3 +196,37 @@ def test_outras_pessoas_nao_veem_execucao_de_base_diferente(usuario_base):
     outra = criar_usuario("outra@exemplo.test", "Outra", "Base")
     demo.criar_execucao(outra, nome="Da outra")
     assert _lista(usuario_base)["execucoes"] == []
+
+
+def test_detalhe_grafo_execucao_e_resumo_sucesso(
+    usuario_coordenador, django_assert_max_num_queries
+):
+    execucao = demo.criar_execucao(usuario_coordenador, "sucesso")
+    contexto = _detalhe(usuario_coordenador, execucao.pk)
+    grafo = contexto["grafo_execucao"]
+    assert [n["ordem"] for n in grafo["nos"]] == [1, 2, 3]
+    http = grafo["nos"][1]
+    assert http["status"] == "sucesso" and http["metodo"] == "GET" and http["http_status"] == 200
+    assert http["host"] == "api.exemplo.test" and http["posicao"] == {"x": 360, "y": 120}
+    assert "config" not in http and grafo["arestas"][0] == {"de": "n1", "para": "n2"}
+    assert contexto["resumo_texto"].startswith("3 de 3 nós executados com sucesso em ")
+    assert contexto["resumo_texto"].endswith("· GET api.exemplo.test → 200")
+
+
+def test_detalhe_grafo_execucao_erro_e_bloqueio(usuario_coordenador):
+    execucao = demo.criar_execucao(usuario_coordenador, "erro_http")
+    contexto = _detalhe(usuario_coordenador, execucao.pk)
+    nos = contexto["grafo_execucao"]["nos"]
+    assert [n["status"] for n in nos] == ["sucesso", "erro", "nao_executado"]
+    assert (
+        nos[2]["ordem"] is None and nos[2]["duracao_texto"] == "" and nos[1]["http_status"] == 500
+    )
+    assert contexto["resumo_texto"].startswith("Parou no nó 2 (Buscar pedido): ")
+    bloqueada = demo.criar_execucao(usuario_coordenador, "bloqueado_ssrf")
+    resumo = _detalhe(usuario_coordenador, bloqueada.pk)["resumo_texto"]
+    assert "Destino bloqueado por segurança" in resumo
+
+
+def test_detalhe_grafo_execucao_nunca_traz_segredo(usuario_coordenador):
+    execucao = demo.criar_execucao(usuario_coordenador, "sucesso")
+    assert "Bearer" not in str(_detalhe(usuario_coordenador, execucao.pk)["grafo_execucao"])
