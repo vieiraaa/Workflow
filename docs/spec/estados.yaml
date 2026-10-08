@@ -67,6 +67,18 @@ execucao:
         execuções simultâneas do mesmo fluxo (no piloto não há idempotência no servidor: um duplo POST pode criar até 2
         execuções, todas íntegras e finalizadas). (b) Salvar e executar ao mesmo tempo: o snapshot da execução é o grafo
         antigo OU o novo, nunca uma mistura (leitura do grafo numa única consulta).
+    - id: EXE-15
+      texto: >
+        Pedido do usuário (08/10): ver "o fluxo que aconteceu". (a) No histórico (TEL-06) a LINHA inteira da execução é
+        clicável e abre o detalhe (desktop e celular), não só o nome. (b) O detalhe (TEL-07) mostra, abaixo do resumo, o
+        DESENHO do fluxo como foi executado (o grafo_snapshot, já mascarado, em canvas só leitura, sem arrastar nem editar):
+        cada nó com a cor do status (sucesso verde, erro vermelho, não executado cinza), o número da ordem, a duração e,
+        no HTTP, método + host + status HTTP. (c) Clicar num nó do desenho abre/rola até o bloco daquele nó na lista
+        "Nós executados" (entrada, saída e erro: o que foi coletado). (d) Um resumo em texto do que aconteceu, ex.:
+        "3 de 3 nós executados com sucesso em 0,12 s · GET jsonplaceholder.typicode.com → 200" ou "Parou no nó 2 (Buscar
+        pedido): destino bloqueado por segurança". (e) Link "Abrir fluxo no editor" (versão atual) para quem pode editar e
+        se o fluxo ainda existe; o desenho mostra SEMPRE o snapshot, nunca o grafo atual. (f) A 390 px o desenho cabe
+        enquadrado (zoom de ajuste) e pode ser recolhido. Tudo escapado (SEG-13).
     - id: EXE-10
       texto: >
         Uma execução que ficar em `executando` por mais de 5 minutos (ex.: processo morto) é exibida como `erro` com resumo "Execução interrompida".

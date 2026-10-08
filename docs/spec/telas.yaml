@@ -92,4 +92,4 @@ telas:
     kwargs: {pk: execucao_demo}
     papel: coordenador
     estados: [sucesso, erro_http, bloqueado_ssrf]
-    regras: [EXE-07, EXE-09, SEG-09, SEG-10]
+    regras: [EXE-07, EXE-09, EXE-15, SEG-09, SEG-10]
