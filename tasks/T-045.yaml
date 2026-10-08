@@ -1,0 +1,15 @@
+id: T-045
+titulo: M4 · QA adversarial (escopo por setor e Home)
+dono: Lupa (qa)
+fontes: [docs/spec/setores.yaml, home.yaml, permissoes.yaml]
+ataques_minimos:
+  - vazamento entre setores: Coordenador A em TODAS as rotas com pk de fluxos/execuções do setor B (GET e POST), filtros
+    ?setor= forjados na lista de usuários/fluxos/execuções, ?q= e ordenação/paginação revelando contagens de outro setor
+  - Home: números, séries, rankings, últimas execuções e json_script nunca incluem dados fora do escopo (comparar com um
+    segundo setor cheio); ?periodo= hostil (gigante, unicode, NUL, lista); medir que nada vaza no HTML nem no JSON
+  - mass assignment: Coordenador/Base enviando `setor` em criar/editar fluxo e usuário; Adm movendo fluxo para setor inativo
+  - troca de setor/papel em sessão aberta: efeito na próxima requisição
+  - setor desativado: o que acontece com quem está nele (acesso, Home)
+  - XSS em nome de setor (lista, select, Home, gráficos SVG em chromium e webkit)
+regras: caixa-preta; banco de teste local; nunca o Supabase.
+arquivos: [tests/adversarial/m4/]
