@@ -12,7 +12,8 @@ from django.utils.dateparse import parse_datetime
 from django.views import View
 from django.views.generic import TemplateView
 
-from apps.contas.permissoes import PermissaoMixin, escopo, pode
+from apps.contas.forms_setores import escolhas_setor
+from apps.contas.permissoes import PermissaoMixin, escopo, papel_de, pode
 from apps.motor import executor
 from apps.nucleo import listagem
 from apps.nucleo.entrada import limpar_texto
@@ -56,6 +57,11 @@ def _json_erro(mensagem, status, campo=None, **extra):
     return JsonResponse(corpo, status=status)
 
 
+def pode_mover_setor(usuario):
+    """SET-04: só o Adm (escopo 'todos' em fluxos.editar) muda o setor de um fluxo."""
+    return papel_de(usuario) == "adm"
+
+
 class FluxoListaView(PermissaoMixin, TemplateView):
     """Lista de fluxos (TEL-04, TEL-12; FLX-01/05). Template `fluxos/lista.html`.
 
@@ -75,6 +81,8 @@ class FluxoListaView(PermissaoMixin, TemplateView):
     - modais: `form_novo` (FluxoForm; com erros se o POST de fluxos:novo falhou), `form_editar`
       (FluxoForm ou None), `modal_aberto` ('', 'novo' ou 'editar'), `fluxo_editando` (dict com pk,
       nome e url_editar do fluxo em edição, ou None)
+    - SET-04: cada linha traz `setor_id` e `setor_nome`; `pode_mover_setor` (só Adm) e
+      `opcoes_setor` [{id, nome}] (setores ativos) para o select `setor` do modal de edição
     """
 
     acao_requerida = "fluxos.ver"
@@ -94,7 +102,7 @@ class FluxoListaView(PermissaoMixin, TemplateView):
         }
 
     def _queryset(self, parametros):
-        qs = escopo(self.request.user, Fluxo.objects, "fluxos.ver").select_related("dono")
+        qs = escopo(self.request.user, Fluxo.objects, "fluxos.ver").select_related("dono", "setor")
         if parametros["q"]:
             qs = qs.filter(Q(nome__icontains=parametros["q"]))
         if parametros["status"]:
@@ -111,6 +119,8 @@ class FluxoListaView(PermissaoMixin, TemplateView):
             "nome": fluxo.nome,
             "descricao": fluxo.descricao,
             "dono_nome": fluxo.dono.nome,
+            "setor_id": fluxo.setor_id,
+            "setor_nome": fluxo.setor.nome if fluxo.setor_id else "",
             "status": fluxo.status,
             "status_rotulo": STATUS[fluxo.status],
             "atualizado_em": fluxo.atualizado_em,
@@ -167,6 +177,12 @@ class FluxoListaView(PermissaoMixin, TemplateView):
             pode_editar=pode_editar,
             pode_excluir=pode_excluir,
             pode_executar=pode(usuario, "fluxos.executar"),
+            pode_mover_setor=pode_mover_setor(usuario),
+            opcoes_setor=(
+                [{"id": valor, "nome": nome} for valor, nome in escolhas_setor("")[1:]]
+                if pode_mover_setor(usuario)
+                else []
+            ),
             url_novo=reverse("fluxos:novo") if pode_criar else "",
             form_novo=self.form_novo or FluxoForm(),
             form_editar=self.form_editar,
@@ -223,7 +239,9 @@ class FluxoEditarView(_FluxoEscopoView):
 
     def post(self, request, pk):
         fluxo = get_object_or_404(self.escopo_queryset(Fluxo.objects), pk=pk)
-        form = FluxoForm(request.POST)
+        form = FluxoForm(
+            request.POST, com_setor=pode_mover_setor(request.user), setor_atual_id=fluxo.setor_id
+        )
         if not form.is_valid():
             visao = FluxoListaView(
                 request=request,
@@ -232,6 +250,7 @@ class FluxoEditarView(_FluxoEscopoView):
                 fluxo_editando={
                     "pk": fluxo.pk,
                     "nome": fluxo.nome,
+                    "setor_id": fluxo.setor_id,
                     "url_editar": reverse("fluxos:editar", kwargs={"pk": fluxo.pk}),
                 },
             )
@@ -239,7 +258,12 @@ class FluxoEditarView(_FluxoEscopoView):
             return visao.render_to_response(visao.get_context_data(), status=200)
         fluxo.nome = form.cleaned_data["nome"]
         fluxo.descricao = form.cleaned_data["descricao"]
-        fluxo.save(update_fields=["nome", "descricao", "atualizado_em"])
+        campos = ["nome", "descricao", "atualizado_em"]
+        novo_setor = form.setor_novo()
+        if novo_setor is not None:
+            fluxo.setor = novo_setor
+            campos.append("setor")
+        fluxo.save(update_fields=campos)
         messages.success(request, "Fluxo atualizado.")
         return redirect("fluxos:editor", pk=fluxo.pk)
 

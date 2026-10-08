@@ -44,13 +44,21 @@ def _limpar_dados_de_telas():
     Fluxo.objects.all().delete()
 
 
+def _apagar_usuarios_e_setores():
+    from apps.contas.models import Setor, Usuario
+
+    Usuario.objects.all().delete()
+    Setor.objects.all().delete()
+
+
 def _usuarios():
     from django.contrib.auth.models import Group
 
-    from apps.contas.models import Usuario
+    from apps.contas.models import Setor, Usuario
 
     _limpar_dados_de_telas()
-    Usuario.objects.all().delete()
+    _apagar_usuarios_e_setores()
+    geral = Setor.objects.create(nome="Geral")
     for nome in ("Adm", "Coordenador", "Base"):
         Group.objects.get_or_create(name=nome)
     criados = {}
@@ -60,7 +68,9 @@ def _usuarios():
         ("base", "base@exemplo.test", "Bia Base", "Base"),
         ("sem_papel", "sem@exemplo.test", "Sem Papel", None),
     ):
-        usuario = Usuario.objects.create_user(email=email, password=SENHA, nome=nome)
+        usuario = Usuario.objects.create_user(
+            email=email, password=SENHA, nome=nome, setor=geral if grupo else None
+        )
         if grupo:
             usuario.groups.add(Group.objects.get(name=grupo))
         criados[chave] = usuario
@@ -109,17 +119,30 @@ def _erro_trocar_senha(page, base):
     _enviar(page, "", {"senha_atual": "errada", "nova_senha": "curta", "confirmacao": "diferente"})
 
 
+def _setores_demo(usuarios):
+    from apps.contas.models import Setor
+
+    for nome, ativo in (("Financeiro", True), ("Atendimento", True), ("Jurídico", False)):
+        Setor.objects.create(nome=nome, ativo=ativo)
+
+
+def _erro_setor(page, base):
+    _enviar(page, "", {"nome": "Geral"})  # nome já existente (sem diferenciar maiúsculas)
+
+
 def _usuarios_extras(quantidade):
     from django.contrib.auth.models import Group
 
-    from apps.contas.models import Usuario
+    from apps.contas.models import Setor, Usuario
 
+    geral = Setor.objects.get(nome="Geral")
     grupos = ["Adm", "Coordenador", "Base"]
     for i in range(quantidade):
         usuario = Usuario.objects.create_user(
             email=f"pessoa{i:02d}@exemplo.test",
             password=SENHA,
             nome=f"Pessoa Fictícia {i:02d}",
+            setor=geral,
             is_active=i % 5 != 0,
         )
         usuario.groups.add(Group.objects.get(name=grupos[i % 3]))
@@ -249,6 +272,9 @@ PREPARADORES = {
     ("TEL-07", "sucesso"): (_execucao_demo("sucesso"), None),
     ("TEL-07", "erro_http"): (_execucao_demo("erro_http"), None),
     ("TEL-07", "bloqueado_ssrf"): (_execucao_demo("bloqueado_ssrf"), None),
+    ("TEL-14", "com_dados"): (_setores_demo, None),
+    ("TEL-15", "padrao"): (None, None),
+    ("TEL-15", "erro_validacao"): (None, _erro_setor),
     ("TEL-08", "padrao"): (None, None),
     ("TEL-08", "erro_validacao"): (None, _erro_trocar_senha),
 }

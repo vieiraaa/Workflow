@@ -6,9 +6,11 @@ from apps.contas.permissoes import nome_do_papel, papel_de, pode
 
 # (chave, rótulo, rota, ícone Lucide, namespace da rota, ação que libera o item). Ordem = menu.
 ITENS_MENU = [
+    ("inicio", "Início", "inicio", "house", "", "inicio.ver"),
     ("fluxos", "Fluxos", "fluxos:lista", "workflow", "fluxos", "fluxos.ver"),
     ("execucoes", "Execuções", "execucoes:lista", "clock", "execucoes", "execucoes.ver"),
     ("usuarios", "Usuários", "contas:usuarios", "users", "contas", "usuarios.gerenciar"),
+    ("setores", "Setores", "contas:setores", "layers", "contas", "setores.gerenciar"),
 ]
 
 
@@ -16,7 +18,9 @@ def montar_menu(request):
     """Itens do menu que o papel pode ver e cujas rotas já existem."""
     if not request.user.is_authenticated:
         return []
-    namespace = getattr(getattr(request, "resolver_match", None), "namespace", "")
+    resolvida = getattr(request, "resolver_match", None)
+    namespace = getattr(resolvida, "namespace", "")
+    rota_atual = getattr(resolvida, "view_name", "")
     menu = []
     for chave, rotulo, rota, icone, ns, acao in ITENS_MENU:
         if not pode(request.user, acao):
@@ -25,9 +29,13 @@ def montar_menu(request):
             url = reverse(rota)
         except NoReverseMatch:
             continue
-        menu.append(
-            {"chave": chave, "rotulo": rotulo, "url": url, "icone": icone, "ativo": namespace == ns}
-        )
+        if chave == "inicio":
+            ativo = rota_atual == "inicio"
+        elif chave in ("usuarios", "setores"):  # mesmo namespace `contas`: marca só o próprio item
+            ativo = rota_atual.startswith(f"contas:{'setor' if chave == 'setores' else 'usuario'}")
+        else:
+            ativo = namespace == ns
+        menu.append({"chave": chave, "rotulo": rotulo, "url": url, "icone": icone, "ativo": ativo})
     return menu
 
 
