@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block titulo %}Início · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}{% if saudacao %}{{ saudacao }}{% else %}Início{% endif %}{% endblock %}
+{% block conteudo %}
+{% if atalhos %}
+<nav class="atalhos" aria-label="Atalhos">
+  {% for item in atalhos %}
+  <a class="atalho" href="{{ item.url }}"><span class="atalho__icone">{% include "componentes/icone.html" with nome=item.icone %}</span><span>{{ item.rotulo }}</span></a>
+  {% endfor %}
+</nav>
+{% else %}
+<section class="card">{% include "componentes/vazio.html" with icone="inbox" titulo="Nenhum atalho disponível" texto="Seu perfil ainda não tem áreas liberadas." %}</section>
+{% endif %}
+{% endblock %}

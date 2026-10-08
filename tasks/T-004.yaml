@@ -1,0 +1,12 @@
+id: T-004
+titulo: M1 · Fatia 1 (back) · Lista de usuários (TEL-02)
+dono: Forja (back)
+depende_de: [T-001]
+skills: [backend]
+regras: [USR-01, USR-02, USR-03, USR-12, PRM-01..05]
+objetivo: View de lista de usuários com busca, filtros, ordenação, paginação e queries constantes; contexto documentado; aviso ao Vitral.
+aceite:
+  - tests/acceptance/m1/test_usuarios.py e test_permissoes.py nas regras acima verdes
+  - testes de unidade próprios em tests/unit/contas/
+  - admin do Usuario registrado (list_display, search_fields, list_filter)
+arquivos: [apps/contas/, apps/nucleo/, config/urls.py, tests/unit/contas/, tests/unit/nucleo/]

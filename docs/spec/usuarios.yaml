@@ -1,0 +1,68 @@
+# M1 · Usuários e papéis. Ids USR-xx. Ação do motor: usuarios.gerenciar (só Adm).
+modelo:
+  Usuario:   # contas.Usuario (AbstractUser custom), USERNAME_FIELD = email
+    nome:    {tipo: texto, obrigatorio: true, max: 120}
+    email:   {tipo: email, obrigatorio: true, unico: true, normalizacao: minusculas e sem espaços nas pontas}
+    papel:   {tipo: um dos Groups Adm|Coordenador|Base, obrigatorio: true}
+    ativo:   {tipo: booleano, padrao: true}   # is_active
+    criado_em: {tipo: datahora, auto: true}
+
+regras:
+  - id: USR-01
+    texto: >
+      Lista de usuários (TEL-02) só para Adm; colunas nome, e-mail, papel (badge), status (ativo/inativo), criado em; ação Editar por linha.
+  - id: USR-02
+    texto: >
+      Busca `?q=` por nome OU e-mail (contém, sem diferenciar maiúsculas). Filtro `?papel=adm|coordenador|base` (controle segmentado, "Todos" padrão) e `?ativo=1|0`. Ordenação `?ordem=nome|-nome|email|-email|criado_em|-criado_em` (padrão nome). Valor inválido de filtro/ordem é ignorado (usa o padrão), nunca 500.
+  - id: USR-03
+    texto: >
+      Paginação de 25 por página (`?pagina=N`); página fora do intervalo mostra a última página válida. Número de queries da lista é constante (não cresce com o número de usuários).
+  - id: USR-04
+    texto: >
+      Criar usuário (TEL-03) com nome, e-mail, papel, senha e confirmação de senha. Senha passa pelos AUTH_PASSWORD_VALIDATORS do Django (mín. 10 caracteres) mais SenhaRepetitivaValidator (mín. 5 caracteres distintos; recusa 'aaaaaaaaaaaa'). Sucesso → redirect para a lista + toast "Usuário <nome> criado.".
+  - id: USR-05
+    texto: >
+      E-mail duplicado (inclusive com maiúsculas diferentes) → erro no campo e-mail "Já existe um usuário com este e-mail." Campos obrigatórios vazios → erro por campo. Senhas diferentes → erro no campo confirmação.
+  - id: USR-06
+    texto: >
+      Editar usuário (TEL-09) altera nome, e-mail, papel e ativo; senha NÃO é editada aqui. Redefinir senha é uma ação separada (POST) na própria tela de edição, com nova senha + confirmação.
+  - id: USR-07
+    texto: >
+      O Adm não pode desativar a si mesmo nem tirar de si o papel Adm (erro de formulário claro).
+  - id: USR-08
+    texto: >
+      O sistema nunca fica sem Adm ativo; qualquer alteração que deixaria zero Adm ativos é recusada com erro claro.
+  - id: USR-09
+    texto: >
+      Usuários não são excluídos (preserva histórico de execuções); "remover" = desativar. Não existe rota de exclusão.
+  - id: USR-10
+    texto: >
+      Trocar a própria senha (TEL-08) disponível a todos os papéis logados: senha atual, nova, confirmação; sucesso mantém a sessão e mostra toast.
+  - id: USR-11
+    texto: >
+      Mudança de papel tem efeito na próxima requisição do usuário afetado (o motor não guarda cache de papel entre requisições).
+  - id: USR-12
+    texto: >
+      O e-mail exibido e campos de texto são sempre escapados (nome com <script> aparece como texto).
+
+# Contrato de formulários e rotas (fecha lacunas do relatório T-003). Nomes EXATOS dos campos POST.
+contrato:
+  - id: USR-13
+    texto: >
+      Login (rota login): campos `username` (o e-mail) e `password` (AuthenticationForm do Django).
+      Logout (rota logout): só POST; GET → 405.
+      Novo usuário (contas:usuario_novo): `nome`, `email`, `papel`, `senha`, `confirmacao`.
+      Editar (contas:usuario_editar, kwarg pk): `nome`, `email`, `papel`, `ativo` (checkbox).
+      Redefinir senha (contas:usuario_redefinir_senha, kwarg pk, só POST): `nova_senha`, `confirmacao`;
+      sucesso → redirect para contas:usuario_editar + toast "Senha de <nome> redefinida."; erro → re-renderiza
+      a tela de edição (200) com o erro no campo.
+      Trocar minha senha (contas:trocar_senha): `senha_atual`, `nova_senha`, `confirmacao`; toast "Senha alterada.".
+  - id: USR-14
+    texto: >
+      Valor do campo `papel` = id do papel em papeis.yaml (`adm`, `coordenador`, `base`), não o nome do Group.
+      Papel vazio → "Escolha um papel."; papel fora da lista → "Papel inválido.". Campo obrigatório vazio →
+      "Este campo é obrigatório." (padrão do Django). Último Adm (USR-08): "É preciso manter pelo menos um
+      administrador ativo." Auto-proteção (USR-07): "Você não pode desativar a si mesmo nem remover o seu papel de administrador."
+  - id: USR-15
+    texto: >
+      Manager — Usuario.objects.create_user(email=..., password=..., nome=...). Usuário sem papel recebe 403 também em trocar_senha (PAP-02 vale para tudo, exceto logout).

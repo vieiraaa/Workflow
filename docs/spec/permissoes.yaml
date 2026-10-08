@@ -1,0 +1,47 @@
+# Matriz de permissões. Ids PRM-xx. O motor apps/contas/permissoes.py LÊ este arquivo
+# (pode(usuario, acao, objeto=None) e escopo(usuario, qs)); nenhuma view repete a regra.
+#
+# Escopos:
+#   todos    -> qualquer objeto
+#   ativos   -> só fluxos com status=ativo
+#   proprias -> só execuções com executado_por = usuario
+#   nenhum   -> negado
+# Anônimo: toda rota exceto `login` redireciona para login (302 com ?next=).
+
+acoes:
+  usuarios.gerenciar:   {adm: todos,  coordenador: nenhum, base: nenhum}   # listar, criar, editar, desativar, redefinir senha
+  fluxos.ver:           {adm: todos,  coordenador: todos,  base: ativos}   # lista de fluxos
+  fluxos.criar:         {adm: todos,  coordenador: todos,  base: nenhum}
+  fluxos.editar:        {adm: todos,  coordenador: todos,  base: nenhum}   # inclui abrir o editor, salvar grafo, ativar/desativar
+  fluxos.excluir:       {adm: todos,  coordenador: todos,  base: nenhum}
+  fluxos.executar:      {adm: todos,  coordenador: todos,  base: ativos}
+  execucoes.ver:        {adm: todos,  coordenador: todos,  base: proprias} # lista e detalhe, inclusive saídas por nó
+  conta.trocar_senha:   {adm: todos,  coordenador: todos,  base: todos}    # a própria senha (sem papel: 403, USR-15)
+
+regras:
+  - id: PRM-01
+    texto: >
+      Anônimo em qualquer rota protegida recebe 302 para `login` com ?next=<rota>. POST anônimo não altera nada.
+  - id: PRM-02
+    texto: >
+      Logado sem permissão para a AÇÃO (escopo nenhum) recebe 403 com a tela de erro do produto (shell + mensagem clara + link para o início), nunca a página padrão do Django.
+  - id: PRM-03
+    texto: >
+      Logado com a ação permitida mas o OBJETO fora do escopo (ex.: Base abrindo execução de outro,
+      Base executando fluxo em rascunho) recebe 404, para não revelar a existência do objeto (anti-IDOR).
+  - id: PRM-04
+    texto: >
+      Listagens aplicam o escopo no banco (escopo(usuario, qs)); objeto fora do escopo nunca aparece, nem em contagem ou paginação.
+  - id: PRM-05
+    texto: >
+      A UI só mostra ações que o motor permite (menu, botões Novo/Editar/Excluir/Executar); o servidor
+      valida de novo em toda requisição. O template recebe flags prontas (ex.: pode_editar), nunca consulta grupos.
+  - id: PRM-06
+    texto: >
+      Menu da sidebar por papel — Adm: Fluxos, Execuções, Usuários · Coordenador: Fluxos, Execuções · Base: Fluxos, Execuções.
+  - id: PRM-07
+    texto: >
+      Rota `inicio` redireciona para `fluxos:lista` (todos os papéis com acesso); usuário sem papel vê a tela "sem acesso" (403).
+  - id: PRM-08
+    texto: >
+      Toda mutação é POST com CSRF válido; GET em rota de mutação retorna 405 ou não altera nada.

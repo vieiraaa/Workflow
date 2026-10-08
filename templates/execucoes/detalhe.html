@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% load static %}
+{% block titulo %}Execução de {{ execucao.fluxo_nome }} · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}{{ execucao.fluxo_nome }}{% endblock %}
+{% block estilos %}
+<link rel="stylesheet" href="{% static 'css/canvas.css' %}">
+<link rel="stylesheet" href="{% static 'css/execucao_fluxo.css' %}">
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/execucao_fluxo.js' %}" defer></script>{% endblock %}
+{% block acoes %}{% include "componentes/botao.html" with rotulo="Execuções" icone="chevron-left" href=url_lista %}{% endblock %}
+{% block conteudo %}
+{% if resumo_texto or url_fluxo %}
+<div class="fluxo-exec__topo">
+  {% if resumo_texto %}<p class="fluxo-exec__resumo" data-resumo-execucao>{{ resumo_texto }}</p>{% endif %}
+  {% if url_fluxo %}{% include "componentes/botao.html" with rotulo="Abrir fluxo no editor" icone="workflow" href=url_fluxo %}{% endif %}
+</div>
+{% endif %}
+<section class="grupo" aria-label="Resumo da execução">
+  <div class="grupo__linha"><span>Status</span><span>{% include "componentes/badge_status.html" with status=execucao.status rotulo=execucao.status_rotulo %}</span></div>
+  <div class="grupo__linha"><span>Executado por</span><span class="grupo__valor">{{ execucao.executado_por_nome }}</span></div>
+  <div class="grupo__linha"><span>Início</span><span class="grupo__valor">{{ execucao.iniciada_em|date:"d/m/Y H:i:s" }}</span></div>
+  <div class="grupo__linha"><span>Fim</span><span class="grupo__valor">{% if execucao.finalizada_em %}{{ execucao.finalizada_em|date:"d/m/Y H:i:s" }}{% else %}—{% endif %}</span></div>
+  <div class="grupo__linha"><span>Duração</span><span class="grupo__valor">{{ execucao.duracao_texto|default:"—" }}</span></div>
+</section>
+
+{% if grafo_execucao.nos %}
+<details class="card" open aria-labelledby="fluxo-exec-titulo">
+  <summary class="fluxo-exec__cab">
+    <h2 class="card__titulo" id="fluxo-exec-titulo">Fluxo executado</h2>
+    {% include "componentes/icone.html" with nome="chevron-down" tamanho=16 %}
+  </summary>
+  <div class="fluxo-exec__corpo" id="fluxo-executado" data-sprite="{% static 'vendor/lucide/1.52.0/sprite.svg' %}">
+    <div class="fluxo-exec__legenda" aria-hidden="true"><span class="l-sucesso">Sucesso</span><span class="l-erro">Erro</span><span>Não executado</span><span class="l-dica">Toque num nó para ver os detalhes</span></div>
+    <div class="fluxo-exec__palco" data-palco></div>
+    <p class="texto-2 texto-sm" data-fluxo-vazio hidden>Não foi possível desenhar o fluxo.</p>
+  </div>
+</details>
+{{ grafo_execucao|json_script:"grafo-execucao" }}
+{% endif %}
+
+{% if execucao.status == "executando" %}
+<section class="card">{% include "componentes/carregando.html" with texto="Execução em andamento…" %}</section>
+{% endif %}
+{% if execucao.erro_resumo %}
+<div class="alerta alerta--erro" role="alert" data-estado="erro_execucao">{% include "componentes/icone.html" with nome="circle-alert" tamanho=16 %}<span>{{ execucao.erro_resumo }}</span></div>
+{% endif %}
+
+{% if resultado_json %}
+<section class="card" aria-labelledby="resultado-titulo">
+  <h2 class="card__titulo" id="resultado-titulo">Resultado</h2>
+  {% include "componentes/bloco_codigo.html" with codigo=resultado_json %}
+</section>
+{% endif %}
+
+<section class="card card--semrecuo" aria-labelledby="nos-titulo">
+  <h2 class="card__titulo nos__titulo" id="nos-titulo">Nós executados</h2>
+  {% if nos %}
+  <div class="nos">
+    {% for no in nos %}
+    <details class="no-exec" id="no-exec-{{ no.no_id }}" data-no-exec="{{ no.no_id }}"{% if no.status == "erro" %} open{% endif %}>
+      <summary class="no-exec__resumo">
+        <span class="no-exec__ordem">{{ forloop.counter }}</span>
+        <span class="no__icone no__icone--{{ no.tipo }}">{% if no.tipo == "gatilho" %}{% include "componentes/icone.html" with nome="zap" %}{% elif no.tipo == "http" %}{% include "componentes/icone.html" with nome="globe" %}{% else %}{% include "componentes/icone.html" with nome="flag" %}{% endif %}</span>
+        <span class="no-exec__titulo">{{ no.titulo }}</span>
+        {% include "componentes/badge_status.html" with status=no.status rotulo=no.status_rotulo %}
+        <span class="no-exec__duracao texto-2 texto-sm">{{ no.duracao_texto }}</span>
+        <span class="no-exec__seta">{% include "componentes/icone.html" with nome="chevron-down" tamanho=16 %}</span>
+      </summary>
+      <div class="no-exec__corpo">
+        {% if no.status == "nao_executado" %}
+        <p class="texto-2">Este nó não foi executado porque um nó anterior falhou.</p>
+        {% endif %}
+        {% if no.erro_categoria or no.erro_mensagem %}
+        <div class="alerta alerta--erro" role="alert" data-estado="erro_no" data-categoria="{{ no.erro_categoria }}">
+          {% include "componentes/icone.html" with nome="circle-alert" tamanho=16 %}
+          <span>{% if no.erro_rotulo and no.erro_rotulo in no.erro_mensagem %}{{ no.erro_mensagem }}{% elif no.erro_mensagem and no.erro_mensagem in execucao.erro_resumo %}<strong>{{ no.erro_rotulo|default:no.erro_categoria }}.</strong>{% else %}<strong>{{ no.erro_rotulo|default:no.erro_categoria }}.</strong> {{ no.erro_mensagem }}{% endif %}</span>
+        </div>
+        {% endif %}
+        {% if no.entrada_json %}
+        <h3 class="no-exec__rotulo">Entrada</h3>
+        {% include "componentes/bloco_codigo.html" with codigo=no.entrada_json %}
+        {% endif %}
+        {% if no.http_status or no.saida_json %}
+        <h3 class="no-exec__rotulo">Saída{% if no.http_status %} · HTTP {{ no.http_status }}{% endif %}</h3>
+        {% endif %}
+        {% if no.headers_saida %}
+        <div class="grupo grupo--plano">
+          <h4 class="grupo__titulo">Cabeçalhos da resposta</h4>
+          {% for h in no.headers_saida %}<div class="grupo__linha"><span class="no-exec__mono">{{ h.nome }}</span><span class="grupo__valor no-exec__mono">{{ h.valor }}</span></div>{% endfor %}
+        </div>
+        {% endif %}
+        {% if no.truncado %}<p><span class="badge badge--erro">Resposta truncada</span> <span class="texto-2 texto-sm">O corpo passou do limite e foi cortado.</span></p>{% endif %}
+        {% if no.corpo_texto %}
+        <h4 class="no-exec__rotulo">Corpo da resposta</h4>
+        {% include "componentes/bloco_codigo.html" with codigo=no.corpo_texto %}
+        {% elif no.saida_json %}
+        {% include "componentes/bloco_codigo.html" with codigo=no.saida_json %}
+        {% endif %}
+      </div>
+    </details>
+    {% endfor %}
+  </div>
+  {% else %}
+  {% include "componentes/vazio.html" with icone="workflow" titulo="Nenhum nó registrado" texto="Esta execução não gravou nós." %}
+  {% endif %}
+</section>
+{% endblock %}

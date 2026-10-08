@@ -1,0 +1,114 @@
+# M2 · Fluxos e grafo canônico. Ids FLX-xx (fluxo) e GRF-xx (grafo).
+# O JS do canvas só converte Drawflow <-> grafo canônico; TODA validação é do servidor.
+modelo:
+  Fluxo:
+    nome:       {tipo: texto, obrigatorio: true, max: 120}
+    descricao:  {tipo: texto, obrigatorio: false, max: 1000}
+    dono:       {tipo: Usuario, auto: quem criou, editavel: false}
+    status:     {tipo: enum, valores: [rascunho, ativo], padrao: rascunho}
+    grafo:      {tipo: json, formato: grafo_canonico}
+    criado_em, atualizado_em: {tipo: datahora, auto: true}
+
+grafo_canonico:
+  exemplo: |
+    {"versao": 1,
+     "nos": [
+       {"id": "n1", "tipo": "gatilho", "titulo": "Início", "posicao": {"x": 80, "y": 120}, "config": {}},
+       {"id": "n2", "tipo": "http", "titulo": "Buscar pedido", "posicao": {"x": 360, "y": 120},
+        "config": {"metodo": "GET", "url": "https://api.exemplo.test/pedidos/1",
+                   "headers": [{"nome": "Accept", "valor": "application/json"}],
+                   "query": [{"nome": "detalhe", "valor": "completo"}], "corpo": ""}},
+       {"id": "n3", "tipo": "saida", "titulo": "Resultado", "posicao": {"x": 640, "y": 120}, "config": {}}],
+     "arestas": [{"de": "n1", "para": "n2"}, {"de": "n2", "para": "n3"}]}
+  tipos_de_no: [gatilho, http, saida]
+
+regras_fluxo:
+  - id: FLX-01
+    texto: >
+      Lista de fluxos (TEL-04) com nome, descrição (1 linha), dono, status (badge), atualizado em. Escopo pelo motor (Base só vê ativos). Busca ?q= no nome, filtro ?status=rascunho|ativo (segmentado), ordenação ?ordem=nome|-nome|atualizado_em|-atualizado_em (padrão -atualizado_em), paginação 25, queries constantes.
+  - id: FLX-02
+    texto: >
+      Criar fluxo (modal ou tela) pede nome e descrição; nasce rascunho, dono = usuário logado, grafo inicial só com um nó gatilho; redirect para o editor.
+  - id: FLX-03
+    texto: >
+      Editar nome/descrição e excluir (com confirmação em modal, POST) para quem tem fluxos.editar/excluir. Excluir mantém as execuções no histórico (fluxo vira nulo; a execução guarda o nome do fluxo).
+  - id: FLX-04
+    texto: >
+      Ativar exige grafo sem pendências (GRF-*); se houver, recusa e devolve as pendências por nó. Voltar para rascunho é sempre permitido.
+  - id: FLX-05
+    texto: >
+      Base vê na lista só fluxos ativos, sem botões de editar/excluir, com botão Executar. Base no editor recebe 403 (ação fluxos.editar = nenhum, PRM-02); Base executando fluxo em rascunho recebe 404 (objeto fora do escopo, PRM-03).
+  - id: FLX-06
+    texto: >
+      Contrato de rotas e campos (nomes EXATOS). fluxos:lista (GET). fluxos:novo (POST; campos `nome`, `descricao`;
+      erro → re-renderiza a lista com o modal aberto e erros por campo, 200; sucesso → redirect fluxos:editor + toast
+      "Fluxo <nome> criado."). fluxos:editar (kwarg pk, POST; `nome`, `descricao`; sucesso → redirect fluxos:editor +
+      toast "Fluxo atualizado."). fluxos:excluir (kwarg pk, POST; → redirect fluxos:lista + toast "Fluxo <nome> excluído.").
+      fluxos:status (kwarg pk, POST; campo `status` = rascunho|ativo; ativar com pendências → 400 JSON
+      {"ok": false, "pendencias": [...]} se Accept: application/json, senão redirect para o editor com toast de erro).
+      fluxos:editor (kwarg pk, GET; o template recebe o grafo canônico em json_script id="grafo-inicial" e
+      `atualizado_em` em ISO-8601). fluxos:salvar_grafo (kwarg pk, POST JSON {"grafo": {...}, "atualizado_em": "..."}).
+      Nome vazio → "Este campo é obrigatório."; nome > 120 → "Use no máximo 120 caracteres.".
+regras_grafo:
+  - id: GRF-01
+    texto: >
+      Salvar o grafo = POST JSON em `fluxos:salvar_grafo` com X-CSRFToken; resposta {"ok": bool, "pendencias": [{"no": id|null, "campo": str|null, "mensagem": str}], "erros": [...]}.
+  - id: GRF-02
+    texto: >
+      Erros de FORMATO recusam o salvamento (ok=false, nada gravado, HTTP 400): JSON inválido, versao != 1,
+      tipo de nó desconhecido, id de nó repetido ou fora de ^[a-zA-Z0-9_-]{1,40}$, aresta para nó inexistente,
+      campos com tipo errado, payload > 256 KB, mais de 50 nós.
+  - id: GRF-03
+    texto: >
+      PENDÊNCIAS não impedem salvar um rascunho (ok=true com pendencias listadas), mas impedem ativar (FLX-04)
+      e executar. São pendências: zero ou mais de um gatilho; nenhuma saída; nó solto (não alcançável a partir
+      do gatilho); ciclo; nó com mais de uma aresta de saída ou de entrada (sem paralelismo); gatilho com
+      entrada; saída com saída; configuração inválida de nó (GRF-04).
+  - id: GRF-04
+    texto: >
+      Nó http: metodo em GET|POST|PUT|PATCH|DELETE; url obrigatória, até 2048 caracteres, esquema http ou https
+      (comparação sem diferenciar maiúsculas) e host presente — placeholders permitidos (validados na execução);
+      headers e query: listas de até 30 pares {nome, valor}, nome obrigatório sem espaços/CR/LF, valor até 4096
+      caracteres sem CR/LF; corpo: vazio ou JSON válido (até 100 KB) só para POST/PUT/PATCH; placeholders no
+      corpo só dentro de valores string. Título de qualquer nó: obrigatório, até 80 caracteres.
+  - id: GRF-05
+    texto: >
+      O editor mostra cada pendência no nó correspondente (badge de erro + mensagem no inspector) e as pendências globais (no=null) na toolbar.
+  - id: GRF-06
+    texto: >
+      Salvar e recarregar devolve o mesmo grafo canônico (ids, títulos, configs, posições e arestas idênticos).
+  - id: GRF-07
+    texto: >
+      Concorrência — o POST envia `atualizado_em` lido ao abrir; se o fluxo mudou depois, recusa com 409 e mensagem "Este fluxo foi alterado por outra pessoa. Recarregue para continuar." (sem sobrescrever).
+
+  - id: GRF-08
+    texto: >
+      Fecha lacunas do T-010. (a) Resposta ok de salvar_grafo inclui o novo `atualizado_em` (ISO-8601), que o editor
+      usa no próximo salvamento sem recarregar. (b) FORMATO (400) = forma/tipo JSON errado: nos/arestas não-lista,
+      headers/query não-lista ou item sem nome/valor string, config não-objeto, posicao sem x/y numéricos. PENDÊNCIA (200)
+      = valor inválido com o tipo certo: método fora da lista, URL vazia/sem host/esquema errado, nome de header com
+      espaço, corpo JSON inválido, título vazio. (c) 409 responde JSON {"ok": false, "erros": [{"campo": null,
+      "mensagem": "Este fluxo foi alterado por outra pessoa. Recarregue para continuar."}]}. (d) fluxos:status com
+      valor fora de rascunho|ativo → 400 sem alteração. (e) descricao > 1000 → "Use no máximo 1000 caracteres.".
+      (f) O editor expõe `atualizado_em` em data-atualizado-em no elemento raiz do editor, formato isoformat() do banco.
+
+  - id: GRF-09
+    texto: >
+      Fecha lacunas do T-020. O POST do grafo é recusado como FORMATO (400, nada gravado) quando: (a) contém chave
+      desconhecida em qualquer nível (raiz, nó, aresta, posicao, config de cada tipo) — o grafo canônico é fechado;
+      (b) a profundidade de aninhamento passa de 16; (c) há número não finito (NaN, Infinity, -Infinity ou overflow como
+      1e999); (d) há string que não codifica em UTF-8 (surrogate solto) ou contém NUL. Mensagem clara por caso; nunca 500.
+
+placeholders:
+  - id: PLH-01
+    texto: >
+      Sintaxe `{{ anterior.<caminho> }}` (espaços internos opcionais). `anterior` = saída do nó imediatamente anterior. Caminho = segmentos [A-Za-z0-9_-]+ separados por ponto; segmento numérico indexa lista.
+  - id: PLH-02
+    texto: >
+      Saída de um nó http para placeholders = {"status": int, "headers": {nome-minúsculo: valor}, "corpo": json ou texto}. Saída do gatilho = {"disparado_em": ISO-8601, "executado_por": email}.
+  - id: PLH-03
+    texto: >
+      Resolvido por parser próprio (sem eval, exec ou engine de template). Caminho inexistente → erro do nó, categoria `placeholder`, mensagem com o caminho.
+  - id: PLH-04
+    texto: >
+      Inserção segura por contexto — na URL o valor é percent-encoded (não injeta /, ?, #, @); em headers/query vira string e CR/LF é recusado; no corpo é escapado como string JSON. Objetos e listas viram JSON compacto.

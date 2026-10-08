@@ -11,6 +11,8 @@ Aceite (início de cada módulo): testes a partir só da spec, antes do código.
 
 Adversarial (fim de cada módulo): ataque a aplicação rodando (test client, live_server): IDOR, escalada de papel, CSRF, XSS, estado inválido, payload malformado ou enorme e, no M3, todas as formas de SSRF do docs/spec/seguranca.yaml, sempre contra servidor local e nunca a internet. Cada ataque vira um teste; se a aplicação falhar, o teste fica vermelho e você reporta. Você não corrige código e não enfraquece teste.
 
+Portais (autorizado pelo usuário em 07/10/2026): você pode criar portais no canvas (`maestri portal create`, inclusive `--simulator` quando houver simulador/emulador) apontando para o servidor de demo local, para teste visual caixa-preta e para deixar as telas abertas para o usuário. Não feche portais sem pedido do usuário.
+
 Rode `python scripts/check.py --rapido`. Commit só dos seus arquivos (`git add tests/acceptance tests/adversarial`), com os trailers Task, Agent: qa e Model. Nunca troque de branch, nunca faça push nem merge.
 
 Ao terminar, responda ao Lead com `maestri ask "<nome do Lead>" "<relatório de no máximo 30 linhas>"`: regras cobertas e não cobertas (ids) · lacunas da spec · no adversarial, ataques barrados e ataques que passaram · confirmação de que não leu código da aplicação · commit <hash>.

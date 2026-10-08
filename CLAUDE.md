@@ -5,8 +5,8 @@ workflows estilo n8n: Gatilho manual → Requisição HTTP → Saída. Piloto fe
 agentes no Maestri (Lead "Orquestrador", Back "Forja", Front "Vitral", QA "Lupa").
 
 ## Fontes da verdade (leia só o trecho que a tarefa cita, pelo id)
-- `docs/spec/papeis.yaml` (PAP-xx), `permissoes.yaml` (PRM-xx), `grafo.yaml` (GRF-xx),
-  `estados.yaml` (EST-xx), `seguranca.yaml` (SEG-xx), `telas.yaml` (TEL-xx), `usuarios.yaml` (USR-xx).
+- `docs/spec/papeis.yaml` (PAP-xx), `permissoes.yaml` (PRM-xx), `grafo.yaml` (FLX/GRF/PLH-xx),
+  `estados.yaml` (EST/EXE-xx), `seguranca.yaml` (SEG-xx), `telas.yaml` (TEL-xx), `usuarios.yaml` (USR-xx).
 - `DECISOES.md`: decisões de uma linha. `PROGRESSO.md`: onde o time está.
 - `tasks/T-0xx.yaml`: objetivo, aceite, `arquivos:` (fronteira dura), dono, depende_de.
 - Skills em `.claude/skills/`: `backend`, `integracao`, `frontend`, `design-base`.
@@ -44,6 +44,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/python scripts/check.py                     # completo, fim de módulo
 .venv/bin/python scripts/telas.py --modulo 1          # capturas em docs/telas/m1/
 .venv/bin/python manage.py semear_demo                # dados fictícios + 3 usuários de demo
+.venv/bin/python scripts/demo.py --porta 8000      # demo local (banco construtor_demo, nunca Supabase); recarrega sozinho
 ```
 
 ## Convenções
@@ -55,8 +56,9 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
   (contrato Back↔Front). Mutação só por POST + CSRF → redirect + `messages`.
 - Listagens: paginação 25, `?q=` busca, `?ordem=` ordenação, queries constantes.
 - Nomes de rota fixos (spec `telas.yaml`): `login`, `logout`, `inicio`, `contas:usuarios`,
-  `contas:usuario_novo`, `contas:usuario_editar`, `fluxos:lista`, `fluxos:editor`,
-  `execucoes:lista`, `execucoes:detalhe`.
+  `contas:usuario_novo`, `contas:usuario_editar`, `contas:trocar_senha`, `fluxos:lista`,
+  `fluxos:editor`, `fluxos:salvar_grafo`, `fluxos:executar`, `execucoes:lista`, `execucoes:detalhe`.
+- 403/404 usam templates do produto (`erros/403.html`, `erros/404.html`, com shell). TEL-10/11.
 - Testes: pytest + pytest-django. Marcador `@pytest.mark.modulo("mN")`. Fixtures de papel em
   `tests/conftest.py`: `usuario_adm`, `usuario_coordenador`, `usuario_base`, e clientes logados
   `cliente_adm`, `cliente_coordenador`, `cliente_base`, `cliente_anonimo`.
@@ -68,6 +70,8 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 - Vitral (Front): `templates/`, `static/`, `tests/unit/frontend/`, `tests/e2e/`.
 - Lupa (QA): `tests/acceptance/`, `tests/adversarial/`. Não lê código da aplicação.
 - Orquestrador (Lead): `docs/`, `tasks/`, `CLAUDE.md`, `DECISOES.md`, `PROGRESSO.md`, `.gitignore`.
+- Git & Gitea: merges na main, tags e push para o Gitea — SÓ a pedido do usuário; permissões próprias
+  (maestri/git-gitea.settings.json). Os demais agentes continuam sem push/merge.
 Fora da sua fronteira: peça ao dono. Não edite arquivo que outro agente está mexendo.
 
 ## Git

@@ -1,0 +1,16 @@
+id: T-032
+titulo: M3 · Correções do adversarial M3 (T-029) + testes de settings de produção
+dono: Forja (back)
+skills: [integracao]
+achados:
+  - testes: tests/adversarial/m3/test_ataques_execucao.py::test_resposta_json_profundissima_nao_derruba_o_motor
+    problema: resposta remota com JSON profundíssimo derruba o motor
+    correcao: limitar profundidade ao interpretar a resposta (mesma regra iterativa da GRF-09); acima do limite, guardar como texto (truncado se preciso), nunca 500
+  - testes: test_segredo_de_query_nao_vai_para_os_logs[INFO|DEBUG-/ok|/status/500|/redir/2] (6)
+    problema: o logger do httpx/httpcore imprime a URL com ?token=... (SEG-11)
+    correcao: silenciar/filtrar os loggers httpx e httpcore (nível WARNING + filtro que mascara query sensível) em todas as settings
+extra:
+  - tests/unit/config/: teste que config.settings.base (produção) tem DEBUG=False, SESSION_COOKIE_SECURE, CSRF_COOKIE_SECURE, SESSION_COOKIE_HTTPONLY, SECURE_HSTS_SECONDS>0, X_FRAME_OPTIONS=DENY, SECURE_CONTENT_TYPE_NOSNIFF e MOTOR_SSRF_LIBERAR vazia (SEG-11/12)
+regra: não edite os testes do QA (tests/adversarial/m3/ é da Lupa)
+aceite: os 7 vermelhos verdes sem alteração; check --modulo 3 verde
+arquivos: [apps/motor/, config/settings/, tests/unit/]

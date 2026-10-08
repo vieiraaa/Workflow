@@ -1,0 +1,7 @@
+{# titulo, linhas: lista de {rotulo, valor} #}
+<section class="grupo">
+  {% if titulo %}<h2 class="grupo__titulo">{{ titulo }}</h2>{% endif %}
+  {% for linha in linhas %}
+  <div class="grupo__linha"><span>{{ linha.rotulo }}</span><span class="grupo__valor">{{ linha.valor }}</span></div>
+  {% endfor %}
+</section>

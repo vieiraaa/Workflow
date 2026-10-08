@@ -1,0 +1,10 @@
+id: T-015
+titulo: M2 · Fatia 2 (back) · Editor e salvar_grafo
+dono: Forja (back)
+depende_de: [T-014]
+skills: [backend]
+regras: [GRF-01, GRF-06, GRF-07, GRF-08, EST-01, SEG-14]
+objetivo: fluxos:editor (json_script grafo-inicial, data-atualizado-em) e fluxos:salvar_grafo (JSON, 400/409, pendências, volta a rascunho). Preparadores do telas.py para TEL-05 (vazio, com_3_nos, erro_validacao_no).
+aceite:
+  - tests/acceptance/m2/test_grafo.py verde; check --modulo 2 verde (exceto smoke do canvas, que é do Vitral)
+arquivos: [apps/fluxos/, config/urls.py, scripts/telas.py, tests/unit/fluxos/]

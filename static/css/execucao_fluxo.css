@@ -1,0 +1,29 @@
+/* Desenho do fluxo executado (TEL-07, EXE-15). Só tokens; os nós reaproveitam .no do canvas.css. */
+.fluxo-exec__topo { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); }
+.fluxo-exec__topo .botao { flex: none; }
+.fluxo-exec__resumo { flex: 1 1 260px; margin: 0; font-size: var(--text-body); color: var(--text); padding: var(--sp-3) var(--sp-4); background: var(--surface); border-radius: var(--r-l); box-shadow: var(--shadow-1); }
+.fluxo-exec__cab { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); cursor: pointer; list-style: none; }
+.fluxo-exec__cab::-webkit-details-marker { display: none; }
+.fluxo-exec__cab .icone { transition: transform var(--dur) var(--ease); color: var(--text-3); }
+details[open] > .fluxo-exec__cab .icone { transform: rotate(180deg); }
+.fluxo-exec__corpo { margin-top: var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-3); }
+.fluxo-exec__legenda { display: flex; flex-wrap: wrap; gap: var(--sp-3); font-size: var(--text-sm); color: var(--text-2); }
+.fluxo-exec__legenda span::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: var(--r-pill); margin-right: var(--sp-1); background: var(--text-3); }
+.fluxo-exec__legenda .l-sucesso::before { background: var(--success); }
+.fluxo-exec__legenda .l-erro::before { background: var(--danger); }
+.fluxo-exec__palco { position: relative; overflow: hidden; background: var(--bg); border-radius: var(--r-m); border: 1px solid var(--hairline); }
+.fluxo-exec__mundo { position: relative; transform-origin: 0 0; }
+.fluxo-exec__arestas { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
+.fluxo-exec__aresta { fill: none; stroke: var(--text-3); stroke-width: 2px; }
+.fluxo-exec__aresta--inativa { stroke-dasharray: 4 4; opacity: .6; }
+.fluxo-exec__no { position: absolute; width: 220px; height: 64px; padding: var(--sp-3); font: inherit; color: var(--text); text-align: left; cursor: pointer; background: var(--surface); border: 2px solid var(--hairline); border-radius: var(--r-l); box-shadow: var(--shadow-1); transition: box-shadow var(--dur) var(--ease); }
+.fluxo-exec__no:hover { box-shadow: var(--shadow-2); }
+.fluxo-exec__no--sucesso { border-color: var(--success); }
+.fluxo-exec__no--erro { border-color: var(--danger); }
+.fluxo-exec__no--nao_executado { border-color: var(--hairline); opacity: .7; }
+.fluxo-exec__no .no { height: 100%; }
+.fluxo-exec__ordem { flex: none; width: 22px; height: 22px; border-radius: var(--r-pill); background: var(--fill); color: var(--text-2); display: grid; place-items: center; font-size: var(--text-sm); font-weight: 600; }
+.fluxo-exec__no--sucesso .fluxo-exec__ordem { background: var(--success); color: var(--on-accent); }
+.fluxo-exec__no--erro .fluxo-exec__ordem { background: var(--danger); color: var(--on-accent); }
+.fluxo-exec__no .icone { position: static; display: block; }
+.fluxo-exec__legenda .l-dica::before { display: none; }

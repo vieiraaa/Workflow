@@ -1,0 +1,12 @@
+{% comment %} No celular, linhas com a classe tabela__linha viram blocos (ver app.css: tabela__principal, __secundario, __papel, __status, __acoes). colunas: lista de str; linhas: lista de listas de str; vazio_titulo, vazio_texto, vazio_acao_rotulo, vazio_acao_url.
+   Células com markup (badge, ações) usam <table class="tabela"> direto no template da tela. {% endcomment %}
+<div class="card card--semrecuo">
+  {% if linhas %}
+  <div class="tabela-rolagem"><table class="tabela">
+    <thead><tr>{% for coluna in colunas %}<th scope="col">{{ coluna }}</th>{% endfor %}</tr></thead>
+    <tbody>{% for linha in linhas %}<tr>{% for celula in linha %}<td>{{ celula }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}
+  {% include "componentes/vazio.html" with icone="inbox" titulo=vazio_titulo texto=vazio_texto acao_rotulo=vazio_acao_rotulo acao_url=vazio_acao_url %}
+  {% endif %}
+</div>

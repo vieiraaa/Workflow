@@ -1,0 +1,10 @@
+{# page_obj; consulta: querystring extra já codificada pelo Back (ex.: "q=x&ordem=nome&"), opcional #}
+{% if page_obj.paginator.num_pages > 1 %}
+<nav class="paginacao" aria-label="Paginação">
+  <span>Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+  <div class="paginacao__botoes">
+    {% if page_obj.has_previous %}<a class="botao botao--secundario" href="?{{ consulta }}pagina={{ page_obj.previous_page_number }}">{% include "componentes/icone.html" with nome="chevron-left" tamanho=16 %}<span>Anterior</span></a>{% endif %}
+    {% if page_obj.has_next %}<a class="botao botao--secundario" href="?{{ consulta }}pagina={{ page_obj.next_page_number }}"><span>Próxima</span>{% include "componentes/icone.html" with nome="chevron-right" tamanho=16 %}</a>{% endif %}
+  </div>
+</nav>
+{% endif %}

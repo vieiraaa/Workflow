@@ -1,0 +1,12 @@
+id: T-036
+titulo: Execução · linha clicável e desenho do fluxo executado (EXE-15)
+dono: Vitral (front)
+depende_de: ["contrato do Forja (T-035)"]
+skills: [design-base, frontend]
+objetivo: >
+  (a) linha inteira clicável no histórico (tabela e blocos), acessível (link no nome + área clicável, foco visível);
+  (b) no detalhe, card "Fluxo executado" com canvas só leitura (Drawflow em modo fixo ou SVG próprio, reaproveitando o
+  componente do nó do editor) com cor por status, ordem, duração e resumo HTTP; (c) clicar no nó abre e rola até o
+  <details> do nó; (d) resumo em texto no topo; (e) "Abrir fluxo no editor"; (f) enquadrado a 390 px e recolhível.
+aceite: e2e (abrir pelo clique na linha; clicar no nó abre o bloco certo); capturas TEL-06/TEL-07 sem pendência alta
+arquivos: [templates/execucoes/, templates/componentes/, static/, tests/unit/frontend/, tests/e2e/]

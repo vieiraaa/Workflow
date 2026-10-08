@@ -1,0 +1,17 @@
+id: T-009
+titulo: M1 · Correções do adversarial (T-008)
+dono: Forja (back)
+depende_de: [T-008]
+skills: [backend]
+achados:
+  - teste: tests/adversarial/m1/test_ataques_usuarios.py::test_parametros_da_lista_malformados[params13]
+    regra: USR-02, SEG-14
+    problema: GET /usuarios/?q=%00 → 500 (Postgres não aceita NUL em text).
+    correcao: sanitizar entrada textual de busca/filtros (remover \x00) num ponto comum (apps/nucleo), reutilizável nas listas do M2/M3; e tratar NUL em campos de form (nome/e-mail) com erro de validação, nunca 500.
+  - teste: tests/adversarial/m1/test_ataques_usuarios.py::test_desativado_com_sessao_aberta_perde_acesso_em_todas_as_rotas
+    regra: PAP-04
+    problema: usuário desativado perde acesso, mas a sessão não é encerrada; ao reativar, o cookie antigo volta a valer.
+    correcao: ao detectar usuário inativo na requisição (middleware), fazer logout/flush da sessão; ao desativar pela tela de edição, invalidar as sessões do alvo (ex.: rotacionar session hash).
+aceite:
+  - os 2 testes acima verdes sem alteração; check --modulo 1 verde
+arquivos: [apps/, config/, tests/unit/]

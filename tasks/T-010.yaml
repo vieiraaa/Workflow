@@ -1,0 +1,14 @@
+id: T-010
+titulo: M2 · Testes de aceite (fluxos, grafo, editor) a partir só da spec
+dono: Lupa (qa)
+depende_de: []
+fontes: [docs/spec/grafo.yaml (FLX, GRF, PLH-01 só sintaxe), docs/spec/estados.yaml (EST-01), docs/spec/permissoes.yaml, docs/spec/telas.yaml (m2), CLAUDE.md]
+entregas:
+  - tests/acceptance/m2/test_fluxos_lista.py (FLX-01, FLX-05, PRM-03/04 com fluxos, queries constantes 1 vs 30)
+  - tests/acceptance/m2/test_fluxos_crud.py (FLX-02, FLX-03, FLX-04, EST-01)
+  - tests/acceptance/m2/test_grafo.py (GRF-01..07: POST JSON com X-CSRFToken, formato x pendência, limites, 409 de concorrência, ida e volta idêntica)
+regras:
+  - @pytest.mark.modulo("m2"); docstring com o id; reverse() no teste
+  - nomes de rota: fluxos:lista, fluxos:editor, fluxos:salvar_grafo (kwarg pk). Rotas de criar/editar/excluir/ativar não estão nomeadas na spec: registre a lacuna e me mande os nomes que você assumiu (eu fecho na spec antes do Back começar)
+  - não teste execução (é M3), nem o canvas JS (é do Front, Playwright)
+arquivos: [tests/acceptance/]

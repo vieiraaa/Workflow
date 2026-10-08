@@ -1,0 +1,16 @@
+id: T-008
+titulo: M1 · QA adversarial contra a aplicação rodando
+dono: Lupa (qa)
+depende_de: [T-004, T-005, T-006]
+fontes: [docs/spec/papeis.yaml, permissoes.yaml, usuarios.yaml, seguranca.yaml (SEG-12..15), CLAUDE.md]
+objetivo: Atacar o M1 como um usuário malicioso; cada ataque vira um teste em tests/adversarial/m1/.
+ataques_minimos:
+  - IDOR e escalada: Coordenador/Base em todas as rotas de usuários (GET e POST); Base tentando virar Adm por POST forjado; Adm alterando campos não editáveis (ex. is_superuser, is_staff, groups extras) por POST
+  - auto-proteção: o único Adm se desativando/rebaixando por todas as rotas; corrida de dois Adm se rebaixando (sequencial basta)
+  - CSRF: todo POST do M1 sem token com enforce_csrf_checks=True
+  - XSS: nome/e-mail com payloads em lista, edição, toast, menu, título da página
+  - entrada inválida: e-mail enorme, nome 10 KB, unicode/zero-width, papel inexistente, pk não numérico, ?pagina=-1/abc/9999, ?ordem=senha, ?q= 10 KB
+  - sessão: usuário desativado com sessão aberta; troca de papel efetiva na próxima requisição; logout por GET
+  - login: enumeração de e-mail (mensagem e status iguais), open redirect via ?next=https://externo.test
+regras: Não leia código da aplicação. Teste falhando = achado (não enfraqueça). Só dados fictícios, nada de rede externa.
+arquivos: [tests/adversarial/]

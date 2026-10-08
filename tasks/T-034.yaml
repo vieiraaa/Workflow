@@ -1,0 +1,11 @@
+id: T-034
+titulo: Servidor de demo recarrega o código e aplica migrations sozinho
+dono: Forja (back)
+problema: >
+  scripts/demo.py roda runserver com use_reloader=False: o demo iniciado em 07/10 15:07 continuou servindo o código do M2
+  (executar placeholder) depois da T-027; o usuário clicou em Executar e nada foi executado (08/10 09:43).
+correcao: >
+  use_reloader=True (portável), com migrate/semeadura só no processo pai (sem rodar duas vezes); ao detectar migration
+  pendente no reload, aplicar ou avisar claramente no log. Documentar no CLAUDE.md da seção Comandos (o Lead edita).
+aceite: alterar uma view com o demo no ar reflete sem reiniciar; check --rapido verde
+arquivos: [scripts/demo.py, tests/unit/]

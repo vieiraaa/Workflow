@@ -1,0 +1,11 @@
+{# Aplica o tema salvo (ou o do sistema) antes da pintura. #}
+<script>
+(function () {
+  var tema = null;
+  try { tema = localStorage.getItem("tema"); } catch (e) {}
+  if (tema !== "light" && tema !== "dark") {
+    tema = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  document.documentElement.setAttribute("data-theme", tema);
+})();
+</script>

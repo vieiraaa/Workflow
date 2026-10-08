@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block titulo %}Usuários · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}Usuários{% endblock %}
+{% block acoes %}{% if url_novo %}{% include "componentes/botao.html" with rotulo="Novo usuário" icone="plus" variante="primario" href=url_novo %}{% endif %}{% endblock %}
+{% block conteudo %}
+<form class="filtros" method="get" role="search">
+  <div class="campo filtros__busca">
+    <label class="sr-only" for="busca">Buscar por nome ou e-mail</label>
+    <input id="busca" type="search" name="q" value="{{ q }}" placeholder="Buscar por nome ou e-mail" maxlength="200">
+  </div>
+  {% if papel_atual %}<input type="hidden" name="papel" value="{{ papel_atual }}">{% endif %}
+  {% if ativo_atual %}<input type="hidden" name="ativo" value="{{ ativo_atual }}">{% endif %}
+  {% if ordem != "nome" %}<input type="hidden" name="ordem" value="{{ ordem }}">{% endif %}
+  {% include "componentes/botao.html" with rotulo="Buscar" icone="search" tipo="submit" %}
+  {% include "componentes/segmentado.html" with opcoes=filtros_papel %}
+  {% include "componentes/segmentado.html" with opcoes=filtros_status %}
+</form>
+
+<div class="card card--semrecuo">
+  {% if usuarios %}
+  <div class="tabela-rolagem"><table class="tabela">
+    <thead><tr>
+      <th scope="col"{% if ordenacoes.nome.sentido %} aria-sort="{% if ordenacoes.nome.sentido == 'asc' %}ascending{% else %}descending{% endif %}"{% endif %}><a class="tabela__ordem" href="{{ ordenacoes.nome.url }}">Nome{% if ordenacoes.nome.sentido == "asc" %} ↑{% elif ordenacoes.nome.sentido == "desc" %} ↓{% endif %}</a></th>
+      <th scope="col"{% if ordenacoes.email.sentido %} aria-sort="{% if ordenacoes.email.sentido == 'asc' %}ascending{% else %}descending{% endif %}"{% endif %}><a class="tabela__ordem" href="{{ ordenacoes.email.url }}">E-mail{% if ordenacoes.email.sentido == "asc" %} ↑{% elif ordenacoes.email.sentido == "desc" %} ↓{% endif %}</a></th>
+      <th scope="col">Papel</th>
+      <th scope="col">Status</th>
+      <th scope="col"{% if ordenacoes.criado_em.sentido %} aria-sort="{% if ordenacoes.criado_em.sentido == 'asc' %}ascending{% else %}descending{% endif %}"{% endif %}><a class="tabela__ordem" href="{{ ordenacoes.criado_em.url }}">Criado em{% if ordenacoes.criado_em.sentido == "asc" %} ↑{% elif ordenacoes.criado_em.sentido == "desc" %} ↓{% endif %}</a></th>
+      <th scope="col"><span class="sr-only">Ações</span></th>
+    </tr></thead>
+    <tbody>
+      {% for u in usuarios %}
+      <tr class="tabela__linha"{% if u.url_editar %} data-href="{{ u.url_editar }}"{% endif %}>
+        <td class="tabela__principal">{% if u.url_editar %}<a class="tabela__link" href="{{ u.url_editar }}">{{ u.nome }}</a>{% else %}{{ u.nome }}{% endif %}</td>
+        <td class="tabela__secundario texto-2">{{ u.email }}</td>
+        <td class="tabela__papel">{% include "componentes/badge_status.html" with status="papel" rotulo=u.papel_rotulo %}</td>
+        <td class="tabela__status">{% if u.ativo %}{% include "componentes/badge_status.html" with status="ativo" rotulo="Ativo" %}{% else %}{% include "componentes/badge_status.html" with status="rascunho" rotulo="Inativo" %}{% endif %}</td>
+        <td class="tabela__extra texto-2">{{ u.criado_em|date:"d/m/Y" }}</td>
+        <td class="tabela__acoes">{% if u.url_editar %}<span class="tabela__editar">{% include "componentes/botao.html" with variante="icone" icone="pencil" href=u.url_editar rotulo_acessivel="Editar usuário" %}</span><span class="tabela__chevron">{% include "componentes/icone.html" with nome="chevron-right" %}</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% include "componentes/paginacao.html" %}
+  {% else %}
+  {% include "componentes/vazio.html" with icone="search" titulo="Nenhum usuário encontrado" texto="Nenhum resultado para esta busca ou filtro. Tente outros termos." acao_rotulo="Limpar filtros" acao_url="?" %}
+  {% endif %}
+</div>
+{% endblock %}

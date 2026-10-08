@@ -1,0 +1,5 @@
+{# nome, rotulo, marcado, erros (opcional: lista de textos) #}
+<div class="campo{% if erros %} campo--erro{% endif %}">
+  <label class="toggle"><span>{{ rotulo }}</span><input type="checkbox" name="{{ nome }}"{% if marcado %} checked{% endif %}{% if erros %} aria-invalid="true"{% endif %}><span class="toggle__trilho"></span></label>
+  {% for erro in erros %}<p class="campo__erro" role="alert">{{ erro }}</p>{% endfor %}
+</div>

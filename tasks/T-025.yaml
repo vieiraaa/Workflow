@@ -1,0 +1,7 @@
+id: T-025
+titulo: M3 · Motor — placeholders (parser restrito) e mascaramento
+dono: Forja (back)
+skills: [integracao]
+regras: [PLH-01..04, SEG-09, SEG-10]
+objetivo: apps/motor/placeholders.py (sem eval/exec/template engine; ruff banned-api) e apps/motor/mascarar.py, com testes de unidade exaustivos.
+arquivos: [apps/motor/, tests/unit/motor/]

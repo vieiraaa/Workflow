@@ -1,0 +1,84 @@
+# Estados e execução. Ids EST-xx (M3: EXE-xx).
+fluxo:
+  estados: [rascunho, ativo]
+  transicoes:
+    - {de: rascunho, para: ativo, condicao: grafo sem pendências (FLX-04)}
+    - {de: ativo, para: rascunho, condicao: sempre}
+  regras:
+    - id: EST-01
+      texto: >
+        Editar o grafo de um fluxo ativo é permitido; se o salvamento gerar pendências, o fluxo volta automaticamente para rascunho e o editor avisa.
+
+execucao:
+  modelo:
+    Execucao: {fluxo: FK nulo, fluxo_nome: texto, grafo_snapshot: json, executado_por: Usuario,
+               status: enum, iniciada_em: datahora, finalizada_em: datahora nula, erro_resumo: texto}
+    ExecucaoNo: {execucao: FK, no_id, no_tipo, no_titulo, ordem: int, status: enum,
+                 entrada: json, saida: json, erro_categoria: texto nulo, erro_mensagem: texto, duracao_ms: int}
+  estados: [executando, sucesso, erro]
+  estados_no: [sucesso, erro, nao_executado]
+  regras:
+    - id: EXE-01
+      texto: >
+        Executar = POST `fluxos:executar` (CSRF). Execução síncrona na própria requisição; ao fim, redirect para `execucoes:detalhe` com toast. O botão mostra estado carregando e fica desabilitado durante o POST.
+    - id: EXE-02
+      texto: >
+        Antes de rodar, valida o grafo (GRF-03); com pendências, não cria execução e volta com erro claro.
+    - id: EXE-03
+      texto: >
+        A execução grava um snapshot do grafo; editar ou excluir o fluxo depois não altera o histórico.
+    - id: EXE-04
+      texto: >
+        Percorre a cadeia a partir do gatilho, em ordem; grava um ExecucaoNo por nó com entrada (config resolvida, headers sensíveis mascarados), saída, erro e duração em ms.
+    - id: EXE-05
+      texto: >
+        Falha num nó → status do nó `erro` com categoria (SEG-10), execução `erro`, nós seguintes `nao_executado`; o que já rodou é mantido.
+    - id: EXE-06
+      texto: >
+        Resposta HTTP 4xx/5xx é ERRO do nó (categorias http_4xx/http_5xx), mas status, headers e corpo da resposta são gravados na saída para diagnóstico.
+    - id: EXE-07
+      texto: >
+        O nó saída grava como saída a saída completa do nó anterior; o detalhe (TEL-07) destaca o resultado da saída em bloco JSON com botão copiar.
+    - id: EXE-08
+      texto: >
+        Histórico (TEL-06) com fluxo, executado por, status (badge), início, duração; escopo pelo motor (Base: só as próprias); filtro ?status=, busca ?q= por nome do fluxo, ordenação padrão -iniciada_em, paginação 25, queries constantes.
+    - id: EXE-09
+      texto: >
+        Detalhe (TEL-07) mostra cabeçalho (fluxo, status, quem, início, fim, duração) e a lista de nós em ordem, cada um expansível com entrada, saída (status HTTP, headers, corpo) e erro.
+    - id: EXE-11
+      texto: >
+        Contrato de rotas (nomes EXATOS). fluxos:executar (kwarg pk, só POST, CSRF) → redirect execucoes:detalhe + toast
+        "Execução concluída." (sucesso) ou "A execução terminou com erro." (erro); pendências → redirect de volta com toast
+        de erro e nenhuma execução criada. execucoes:lista (GET; ?q=, ?status=executando|sucesso|erro, ?ordem=, ?pagina=).
+        execucoes:detalhe (kwarg pk, GET). Fora do escopo → 404 (PRM-03).
+    - id: EXE-12
+      texto: >
+        Formato gravado por nó http — entrada: {"metodo", "url", "headers": [{nome, valor}], "query": [{nome, valor}],
+        "corpo"} já com placeholders resolvidos e SEG-09 aplicado; saída: {"status": int, "headers": {nome-minúsculo: valor},
+        "corpo": json ou texto, "truncado": bool}. Gatilho: saída PLH-02. Saída: saída = saída do anterior. Erro:
+        erro_categoria (SEG-10) + erro_mensagem própria.
+    - id: EXE-13
+      texto: >
+        Executar é síncrono com limite total de 60 s por execução (além dos limites por nó de SEG-07); estourou → nó atual
+        com categoria timeout e execução erro. O botão Executar (lista e editor) mostra carregando e bloqueia duplo envio.
+    - id: EXE-14
+      texto: >
+        Concorrência (fecha lacunas do T-033). (a) O bloqueio de duplo envio é do cliente (EXE-13); o servidor aceita
+        execuções simultâneas do mesmo fluxo (no piloto não há idempotência no servidor: um duplo POST pode criar até 2
+        execuções, todas íntegras e finalizadas). (b) Salvar e executar ao mesmo tempo: o snapshot da execução é o grafo
+        antigo OU o novo, nunca uma mistura (leitura do grafo numa única consulta).
+    - id: EXE-15
+      texto: >
+        Pedido do usuário (08/10): ver "o fluxo que aconteceu". (a) No histórico (TEL-06) a LINHA inteira da execução é
+        clicável e abre o detalhe (desktop e celular), não só o nome. (b) O detalhe (TEL-07) mostra, abaixo do resumo, o
+        DESENHO do fluxo como foi executado (o grafo_snapshot, já mascarado, em canvas só leitura, sem arrastar nem editar):
+        cada nó com a cor do status (sucesso verde, erro vermelho, não executado cinza), o número da ordem, a duração e,
+        no HTTP, método + host + status HTTP. (c) Clicar num nó do desenho abre/rola até o bloco daquele nó na lista
+        "Nós executados" (entrada, saída e erro: o que foi coletado). (d) Um resumo em texto do que aconteceu, ex.:
+        "3 de 3 nós executados com sucesso em 0,12 s · GET jsonplaceholder.typicode.com → 200" ou "Parou no nó 2 (Buscar
+        pedido): destino bloqueado por segurança". (e) Link "Abrir fluxo no editor" (versão atual) para quem pode editar e
+        se o fluxo ainda existe; o desenho mostra SEMPRE o snapshot, nunca o grafo atual. (f) A 390 px o desenho cabe
+        enquadrado (zoom de ajuste) e pode ser recolhido. Tudo escapado (SEG-13).
+    - id: EXE-10
+      texto: >
+        Uma execução que ficar em `executando` por mais de 5 minutos (ex.: processo morto) é exibida como `erro` com resumo "Execução interrompida".

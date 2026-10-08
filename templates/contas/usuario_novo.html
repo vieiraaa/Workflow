@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block titulo %}Novo usuário · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}Novo usuário{% endblock %}
+{% block conteudo %}
+<section class="card card--formulario">
+  <form class="formulario" method="post" novalidate>
+    {% csrf_token %}
+    {% include "componentes/alerta.html" with erros=form.non_field_errors estado="erro_validacao" %}
+    {% include "componentes/campo.html" with campo=form.nome %}
+    {% include "componentes/campo.html" with campo=form.email %}
+    {% include "componentes/campo.html" with campo=form.papel %}
+    {% include "componentes/campo.html" with campo=form.senha %}
+    {% include "componentes/campo.html" with campo=form.confirmacao %}
+    <div class="formulario__acoes">
+      {% include "componentes/botao.html" with rotulo="Cancelar" href=url_lista %}
+      <button class="botao botao--primario" type="submit" data-carregando>Criar usuário</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

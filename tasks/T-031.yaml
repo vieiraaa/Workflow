@@ -1,0 +1,26 @@
+id: T-031
+titulo: M3 · Correções da revisão de segurança (T-030)
+dono: Forja (back)
+depende_de: [T-030]
+skills: [integracao]
+regra: Os 7 testes de tests/adversarial/test_revisao_seguranca.py devem ficar verdes SEM alteração (arquivo do revisor).
+achados:
+  - {sev: alta, ref: "apps/motor/http.py:319", teste: test_headers_gotejados_nao_furam_o_prazo_do_no,
+     problema: "send(stream=True) sem prazo total; headers gotejados (slowloris) ignoram MOTOR_TIMEOUT_NO/EXECUCAO",
+     sugestao: "deadline absoluto por nó aplicado a cada operação (timeout = min(restante, leitura)) e watchdog/fechamento do socket ao estourar"}
+  - {sev: alta, ref: "apps/motor/http.py:350-366", teste: test_cadeia_de_redirects_lentos_nao_fura_o_prazo_do_no,
+     problema: "cada salto de redirect ganha connect+read cheios", sugestao: "checar limite_tempo antes de cada send e passar o restante como timeout"}
+  - {sev: media, ref: "apps/motor/executor.py:139-152,198", teste: test_surrogate_na_resposta_nao_derruba_a_execucao,
+     problema: "surrogate solto na resposta remota → jsonb recusa no _gravar fora do try → 500 e execução presa em executando",
+     sugestao: "sanear surrogates/NUL antes de gravar; _gravar protegido; a execução sempre termina (sucesso ou erro)"}
+  - {sev: media, ref: "apps/motor/http.py:244", teste: test_bomba_gzip_nao_explode_memoria,
+     problema: "descompactação por pedaço inteiro antes do limite (pico 46 MB)", sugestao: "zlib.decompressobj com max_length incremental"}
+  - {sev: media, ref: "apps/motor/executor.py:168,184 + mascarar.py:22", teste: test_segredo_de_set_cookie_vaza_no_historico_via_placeholder,
+     problema: "valor de header sensível do nó anterior vai para query/header/corpo via placeholder e fica em claro no histórico",
+     sugestao: "rastrear valores sensíveis da saída anterior e mascará-los onde aparecerem na entrada gravada"}
+  - {sev: baixa, ref: "apps/motor/mascarar.py:64-70", teste: test_snapshot_nao_mascara_header_com_nome_vindo_de_placeholder}
+  - {sev: baixa, ref: "apps/motor/mascarar.py:14,35", teste: test_query_sensivel_percent_encoded_na_url_nao_e_mascarada,
+     sugestao: "comparar nomes após percent-decode"}
+aceite:
+  - 7 testes do revisor verdes sem alteração; aceite m3 e adversarial verdes; check --modulo 3 verde
+arquivos: [apps/motor/, apps/execucoes/, tests/unit/motor/]

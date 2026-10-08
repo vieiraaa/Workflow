@@ -1,0 +1,24 @@
+{% load static %}<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Algo deu errado · Construtor de Workflows</title>
+  {% include "componentes/_tema_inicial.html" %}
+  <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body>
+{% comment %}Autossuficiente: não usa context processors, sessão nem banco (pode ser renderizada no meio de uma falha).{% endcomment %}
+<main class="publica">
+  <section class="card publica__caixa">
+    <div class="vazio">
+      <div class="vazio__icone">{% include "componentes/icone.html" with nome="triangle-alert" tamanho=24 %}</div>
+      <h1>Algo deu errado</h1>
+      <p class="vazio__texto">Tivemos um problema inesperado do nosso lado. Tente novamente em instantes.</p>
+      <a class="botao botao--primario" href="/">Voltar ao início</a>
+    </div>
+  </section>
+</main>
+</body>
+</html>

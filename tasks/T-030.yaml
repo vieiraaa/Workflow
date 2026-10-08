@@ -1,0 +1,11 @@
+id: T-030
+titulo: M3 · Revisão de segurança (Revisor de Segurança, opus)
+dono: Revisor de Segurança
+depende_de: [T-027]
+escopo: [apps/motor/ (http.py, executor.py, placeholders.py, mascarar.py), views que disparam execução ou mostram saídas (apps/fluxos/views.py, apps/execucoes/), apps/contas/permissoes.py, config/settings/ (segurança), apps/fluxos/grafo.py]
+foco: >
+  bypass de SSRF (DNS rebinding, IPv6, IPv4 mapeado, decimal/octal, redirect, "@", esquema em maiúsculas, IDN, zona IPv6),
+  segredo em log/histórico/snapshot/mensagem de erro, IDOR em execuções, injeção via placeholder, limites de tamanho e
+  tempo (slowloris, gzip bomba), pontos não cobertos pelo aceite: json_invalido e timeout de conexão.
+regras: Só lê e roda testes. Prova cada achado com teste vermelho em tests/adversarial/test_revisao_seguranca.py (único arquivo editável). Nunca .env, internet ou DATABASE_URL.
+arquivos: [tests/adversarial/test_revisao_seguranca.py]

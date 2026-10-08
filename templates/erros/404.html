@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block titulo %}Página não encontrada · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}Página não encontrada{% endblock %}
+{% block conteudo %}
+{% url 'inicio' as url_inicio %}
+<section class="card">{% include "componentes/vazio.html" with icone="search" titulo="Página não encontrada" texto="O endereço não existe ou foi removido." acao_rotulo="Ir para o início" acao_url=url_inicio %}</section>
+{% endblock %}

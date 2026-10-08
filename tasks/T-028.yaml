@@ -1,0 +1,12 @@
+id: T-028
+titulo: M3 · Templates do histórico e do detalhe de execução (TEL-06, TEL-07) e botão Executar
+dono: Vitral (front)
+depende_de: ["aviso do Forja (T-027)"]
+skills: [design-base, frontend]
+objetivo: >
+  Histórico (tabela/blocos, filtro de status, busca, estado vazio), detalhe (cabeçalho, nós em ordem expansíveis com
+  entrada/saída/erro, status HTTP, headers, corpo em bloco_codigo com copiar, badge truncado, mensagens de erro por
+  categoria), botão Executar com carregando e bloqueio de duplo envio na lista e no editor (EXE-13). Corpo de resposta
+  SEMPRE escapado (SEG-13). Pode começar já pelo layout com dados fictícios do contrato EXE-12.
+aceite: render tests; capturas m3 sem pendência alta; e2e: executar a partir do editor e ver o detalhe
+arquivos: [templates/execucoes/, templates/fluxos/, templates/componentes/, static/, tests/unit/frontend/, tests/e2e/]

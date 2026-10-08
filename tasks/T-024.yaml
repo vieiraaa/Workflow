@@ -1,0 +1,6 @@
+id: T-024
+titulo: M3 · Models Execucao/ExecucaoNo, escopo e admin
+dono: Forja (back)
+skills: [backend]
+regras: [EXE-03, EXE-10, EXE-12, PRM-03, PRM-04, execucoes.ver]
+arquivos: [apps/execucoes/, apps/contas/permissoes.py, tests/unit/execucoes/]

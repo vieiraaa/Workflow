@@ -1,0 +1,9 @@
+id: T-016
+titulo: M2 · Templates da lista de fluxos (TEL-04, TEL-12) e modais
+dono: Vitral (front)
+depende_de: [T-002, "aviso do Forja (T-014)"]
+skills: [design-base, frontend]
+objetivo: Lista de fluxos com busca, segmentado de status, tabela (blocos no celular), estado vazio com "Novo fluxo", modal de criar/editar (erros por campo), modal de confirmação de exclusão, botão Executar para Base (sem editar/excluir).
+aceite:
+  - render tests; checklist alto da design-base sem pendência nas capturas m2
+arquivos: [templates/fluxos/, templates/componentes/, static/, tests/unit/frontend/]

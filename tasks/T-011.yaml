@@ -1,0 +1,21 @@
+id: T-011
+titulo: Servidor de demonstração local (para os portais de visualização)
+dono: Forja (back)
+depende_de: []
+skills: [integracao]
+objetivo: >
+  Subir a aplicação localmente para visualização no canvas, SEM tocar no Supabase, com dados fictícios
+  que mostrem todas as telas prontas (M0, M1 e, conforme o M2 avança, fluxos).
+entregas:
+  - config/settings/demo.py: herda de base; Postgres local postgres://localhost:5432/construtor_demo sem SSL
+    (ignora DATABASE_URL; NUNCA carrega o .env), DEBUG=True, ALLOWED_HOSTS locais, trava anti-Supabase reutilizada
+  - scripts/demo.py: cria o banco se não existir, migrate, semeia (idempotente) e roda runserver em 127.0.0.1:8000
+    (--porta opcional; --resetar recria o banco). Imprime as credenciais fictícias de demo (adm/coord/base/sem papel
+    @exemplo.test) com senhas FIXAS de demo, só válidas nesse banco local.
+  - semeadura de demo: ~30 usuários fictícios (como nas capturas) e, quando o model Fluxo existir, fluxos de exemplo
+    (rascunho/ativo, um com 3 nós) — deixe o gancho pronto
+  - portável (pathlib, sys.executable); sem comando de shell específico
+aceite:
+  - .venv/bin/python scripts/demo.py sobe em 127.0.0.1:8000 e o login funciona com as credenciais impressas
+  - check --rapido verde; teste de unidade para a trava (demo não aceita host supabase)
+arquivos: [config/settings/demo.py, scripts/demo.py, apps/contas/management/, tests/unit/]

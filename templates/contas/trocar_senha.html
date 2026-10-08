@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block titulo %}Trocar minha senha · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}Trocar minha senha{% endblock %}
+{% block conteudo %}
+<section class="card card--formulario">
+  <form class="formulario" method="post" novalidate>
+    {% csrf_token %}
+    {% include "componentes/alerta.html" with erros=form.non_field_errors estado="erro_validacao" %}
+    {% include "componentes/campo.html" with campo=form.senha_atual %}
+    {% include "componentes/campo.html" with campo=form.nova_senha %}
+    {% include "componentes/campo.html" with campo=form.confirmacao %}
+    <div class="formulario__acoes">
+      <button class="botao botao--primario" type="submit" data-carregando>Alterar senha</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

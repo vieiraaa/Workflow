@@ -1,0 +1,15 @@
+id: T-017
+titulo: M2 · Editor de canvas (TEL-05) com Drawflow
+dono: Vitral (front)
+depende_de: [T-002, "contrato FLX-06/GRF-08; aviso do Forja (T-015) para integrar"]
+skills: [design-base, frontend]
+objetivo: >
+  Editor conforme a skill frontend: Drawflow vendorizado (versão + licença → linha para o Lead), paleta com os 3 tipos,
+  nó como card (ícone por tipo, título, resumo, badge de erro), inspector lateral com o formulário do nó, toolbar
+  (salvar, executar desabilitado até o M3, zoom, status), Delete/Ctrl+S, aviso de alterações não salvas,
+  conversão Drawflow <-> grafo canônico (docs/spec/grafo.yaml), pendências do servidor mostradas no nó certo (GRF-05),
+  409 com mensagem e recarregar. Pode começar já pelo vendor, CSS e conversor, antes da view do Forja.
+aceite:
+  - tests/e2e/: smoke Playwright (criar 3 nós, conectar, salvar, recarregar, grafo igual) verde
+  - estados vazio, com_3_nos e erro_validacao_no nas capturas, sem pendência alta; usável a 390px (paleta/inspector recolhíveis)
+arquivos: [templates/fluxos/, templates/componentes/, static/, tests/unit/frontend/, tests/e2e/]

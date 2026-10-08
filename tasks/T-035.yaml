@@ -1,0 +1,9 @@
+id: T-035
+titulo: Execução · "o fluxo que aconteceu" — contexto do back (EXE-15)
+dono: Forja (back)
+regras: [EXE-15, EXE-12, SEG-09, SEG-13]
+objetivo: >
+  No ExecucaoDetalheView, acrescentar ao contexto (documentado na docstring): `grafo_execucao` (snapshot mascarado com,
+  por nó: status, ordem 1-based, duracao_texto, metodo, host e http_status quando houver) para json_script;
+  `resumo_texto` (EXE-15 d); manter `url_fluxo`. Queries constantes. Avisar o Vitral com o contrato.
+arquivos: [apps/execucoes/, tests/unit/execucoes/]

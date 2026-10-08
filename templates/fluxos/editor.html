@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% load static %}
+{% block titulo %}{{ fluxo.nome }} · Editor · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}{{ fluxo.nome }}{% endblock %}
+{% block estilos %}
+<link rel="stylesheet" href="{% static 'vendor/drawflow/0.0.60/drawflow.min.css' %}">
+<link rel="stylesheet" href="{% static 'css/canvas.css' %}">
+{% endblock %}
+{% block acoes %}{% include "componentes/botao.html" with rotulo="Fluxos" icone="chevron-left" href=url_lista %}{% endblock %}
+{% block conteudo_classe %}conteudo--cheio{% endblock %}
+{% block conteudo %}
+{% csrf_token %}
+<div class="editor" data-editor
+     data-sprite="{% static 'vendor/lucide/1.52.0/sprite.svg' %}"
+     data-url-salvar="{{ url_salvar }}" data-url-status="{{ url_status }}"
+     data-atualizado-em="{{ atualizado_em }}" data-status="{{ fluxo.status }}">
+  <aside class="editor__paleta" aria-label="Paleta de nós">
+    <button class="botao botao--icone editor__fechar" type="button" data-acao="fechar-painel" aria-label="Fechar">{% include "componentes/icone.html" with nome="x" %}</button>
+    <h2 class="editor__titulo-painel">Adicionar nó</h2>
+    <button class="paleta__item" type="button" draggable="true" data-paleta-tipo="gatilho"><span class="no__icone no__icone--gatilho">{% include "componentes/icone.html" with nome="zap" %}</span><span>Gatilho manual</span></button>
+    <button class="paleta__item" type="button" draggable="true" data-paleta-tipo="http"><span class="no__icone no__icone--http">{% include "componentes/icone.html" with nome="globe" %}</span><span>Requisição HTTP</span></button>
+    <button class="paleta__item" type="button" draggable="true" data-paleta-tipo="saida"><span class="no__icone no__icone--saida">{% include "componentes/icone.html" with nome="flag" %}</span><span>Saída</span></button>
+    <p class="texto-2 texto-sm">Arraste para o canvas ou toque para adicionar.</p>
+  </aside>
+
+  <div class="editor__area">
+    <div class="toolbar" role="toolbar" aria-label="Ferramentas do editor">
+      <button class="botao botao--secundario" type="button" data-acao="paleta" aria-label="Adicionar nó">{% include "componentes/icone.html" with nome="plus" tamanho=16 %}<span class="botao__rotulo-desktop">Nó</span></button>
+      <span class="toolbar__sep"></span>
+      <div class="toolbar__grupo">
+        <button class="botao botao--icone" type="button" data-acao="zoom-menos" aria-label="Diminuir zoom">{% include "componentes/icone.html" with nome="zoom-out" %}</button>
+        <button class="botao botao--icone" type="button" data-acao="zoom-mais" aria-label="Aumentar zoom">{% include "componentes/icone.html" with nome="zoom-in" %}</button>
+        <button class="botao botao--icone" type="button" data-acao="ajustar" aria-label="Ajustar à tela">{% include "componentes/icone.html" with nome="maximize" %}</button>
+      </div>
+      <span class="toolbar__sep"></span>
+      <span data-status class="badge badge--rascunho">Rascunho</span>
+      <button class="botao botao--secundario" type="button" data-acao="status" data-alternar-status><span>Ativar</span></button>
+      <div class="toolbar__pendencias">
+        <button class="botao botao--destrutivo" type="button" data-acao="pendencias" data-pendencias hidden>{% include "componentes/icone.html" with nome="triangle-alert" tamanho=16 %}<span></span></button>
+        <div class="pendencias-pop" data-pendencias-lista hidden></div>
+      </div>
+      <span class="toolbar__sep"></span>
+      {% if pode_executar %}
+      <form method="post" action="{{ url_executar }}" data-executar>{% csrf_token %}
+        <button class="botao botao--secundario" type="submit" data-carregando data-texto-carregando="Executando…" aria-label="Executar">{% include "componentes/icone.html" with nome="play" tamanho=16 %}<span class="botao__rotulo-desktop">Executar</span></button>
+      </form>
+      {% else %}
+      <button class="botao botao--secundario" type="button" disabled title="Execução indisponível para este fluxo" aria-label="Executar (indisponível)">{% include "componentes/icone.html" with nome="play" tamanho=16 %}<span class="botao__rotulo-desktop">Executar</span></button>
+      {% endif %}
+      <button class="botao botao--primario" type="button" data-acao="salvar" data-salvar aria-label="Salvar">{% include "componentes/icone.html" with nome="save" tamanho=16 %}<span class="botao__rotulo-desktop">Salvar</span></button>
+    </div>
+    <div class="canvas" data-canvas></div>
+    <p class="editor__vazio" data-dica-vazio hidden>Adicione nós pela paleta e conecte as portas.</p>
+    <div class="banner" data-banner role="alert" hidden>
+      {% include "componentes/icone.html" with nome="circle-alert" tamanho=16 %}<span></span>
+      <button class="botao botao--primario" type="button" data-acao="recarregar">Recarregar</button>
+    </div>
+  </div>
+
+  <aside class="editor__inspector" aria-label="Configuração do nó">
+    <button class="botao botao--icone editor__fechar" type="button" data-acao="fechar-painel" aria-label="Fechar">{% include "componentes/icone.html" with nome="x" %}</button>
+    <h2 class="editor__titulo-painel">Configuração</h2>
+    <div data-inspector-corpo></div>
+  </aside>
+</div>
+{{ grafo|json_script:"grafo-inicial" }}
+{{ pendencias|json_script:"pendencias-iniciais" }}
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'vendor/drawflow/0.0.60/drawflow.min.js' %}"></script>
+<script src="{% static 'js/canvas/conversor.js' %}"></script>
+<script src="{% static 'js/canvas/editor.js' %}"></script>
+{% endblock %}

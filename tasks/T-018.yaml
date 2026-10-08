@@ -1,0 +1,45 @@
+id: T-018
+titulo: Correções dos portais de visualização (T-012)
+dono: Vitral (front)
+depende_de: [T-012]
+skills: [design-base, frontend]
+achados:
+  - id: A1
+    severidade: RECLASSIFICADO pelo Lead (não é bug da app) — ver nota
+    nota: >
+      Investigado pelo Lead: no portal do Maestri o documento fica com visibilityState=hidden e o WebKit pausa
+      transições CSS; a classe menu-aberto é aplicada, mas o transform não anda. Em Chromium e WebKit reais (Playwright,
+      390px, UA iPhone) o menu abre. Nenhuma correção obrigatória; opcional: nada.
+    severidade_original: alta
+    problema: >
+      Menu hambúrguer não abre em 390 e 412 px (portais iOS e Android). aria-expanded vira true, mas o <aside> continua
+      em left:-240px e não recebe classe/estado; reproduz também por click() em JS. No celular só se navega por URL.
+    correcao: >
+      Abrir/fechar a sidebar no mobile (classe/atributo no shell, overlay escurecido, fecha com Esc, clique fora e ao
+      navegar; foco vai para o primeiro item ao abrir e volta ao botão ao fechar; respeita prefers-reduced-motion).
+      Vale em todas as telas com shell, inclusive 403/404.
+  - id: A2
+    severidade: media (o usuário pediu acabamento visual)
+    problema: <select> de Papel usa o estilo nativo do SO (gradiente e setas), destoando dos campos.
+    correcao: estilizar select no componente campo (appearance:none, fundo --fill, raio --r-m, ícone chevron do Lucide, foco --ring), light e dark.
+  - id: A3
+    severidade: baixa
+    problema: botão do menu sem rótulo acessível de estado.
+    correcao: aria-label "Abrir menu"/"Fechar menu" alternando com aria-expanded.
+  - id: V1
+    severidade: alta (revisão visual m2, rodada 1)
+    problema: >
+      Editor (TEL-05) não enquadra o grafo ao abrir: a 1440 o 3º nó fica sob o inspector; a 390 sai pela direita.
+    correcao: ao carregar (e ao recarregar após salvar), aplicar o "ajustar" (fit) considerando a área útil do canvas
+      (descontando paleta/inspector abertos), com zoom entre o mínimo e 1.
+  - id: V2
+    severidade: baixa
+    problema: faixa cinza de alguns px abaixo do canvas a 1440.
+  - id: V3
+    severidade: media
+    problema: não existe 500 do produto (handler500 + erros/500.html); cairia na página padrão do Django.
+    correcao: template erros/500.html autossuficiente (sem depender de context processors nem do banco), e o Forja liga o handler500.
+aceite:
+  - A2, A3, V1 resolvidos (V2 se simples); V3 template pronto e combinado com o Forja
+  - check --rapido verde; capturas m1 e m2 sem regressão
+arquivos: [templates/base.html, templates/componentes/, static/, tests/unit/frontend/, tests/e2e/]

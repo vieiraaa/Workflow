@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block titulo %}Sem permissão · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}Sem permissão{% endblock %}
+{% block conteudo %}
+{% url 'inicio' as url_inicio %}
+<section class="card">
+  {% if sem_papel %}
+  <div class="vazio">
+    <div class="vazio__icone">{% include "componentes/icone.html" with nome="lock" tamanho=24 %}</div>
+    <h2>Sem permissão</h2>
+    <p class="vazio__texto">Sua conta ainda não tem um papel. Peça a um administrador para liberar o acesso.</p>
+    <form method="post" action="{% url 'logout' %}">{% csrf_token %}
+      {% include "componentes/botao.html" with rotulo="Sair" icone="log-out" variante="primario" tipo="submit" %}
+    </form>
+  </div>
+  {% else %}
+  {% include "componentes/vazio.html" with icone="lock" titulo="Sem permissão" texto="Você não tem acesso a esta página." acao_rotulo="Ir para o início" acao_url=url_inicio %}
+  {% endif %}
+</section>
+{% endblock %}

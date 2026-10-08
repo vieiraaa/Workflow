@@ -1,0 +1,13 @@
+id: T-020
+titulo: M2 · QA adversarial contra a aplicação rodando
+dono: Lupa (qa)
+depende_de: [T-014, T-015, T-016, T-017]
+fontes: [docs/spec/grafo.yaml, estados.yaml, permissoes.yaml, seguranca.yaml (SEG-12..14)]
+ataques_minimos:
+  - IDOR/escalada: Base em editor, salvar_grafo, novo, editar, excluir, status (GET/POST), por pk de fluxo ativo e rascunho; pk inexistente/não numérico
+  - salvar_grafo: sem CSRF; Content-Type errado; JSON gigante (> 256 KB), profundo (aninhamento), com 51 nós, ids com caracteres hostis, arestas duplicadas, auto-aresta, ciclos longos; atualizado_em forjado/antigo/futuro (409); corrida de dois salvamentos
+  - XSS: nome/descrição do fluxo e título/URL/headers do nó com payloads, na lista, no editor (json_script, inspector, resumo do nó, toolbar) e nos toasts
+  - status: ativar com pendências por POST forjado; valores inválidos; Base mudando status
+  - placeholders: só sintaxe salva (não executar); payloads tipo {{ __import__ }}, {{ anterior.__class__ }} não devem quebrar o salvamento (execução é M3)
+regras: Não leia código da aplicação. Teste falhando = achado. Só dados fictícios, nada de rede externa. Use o Playwright em chromium e webkit onde houver tela.
+arquivos: [tests/adversarial/m2/]

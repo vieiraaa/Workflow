@@ -1,0 +1,5 @@
+{# titulo, texto. Para conteúdo livre use <section class="card"> direto. #}
+<section class="card">
+  {% if titulo %}<h2 class="card__titulo">{{ titulo }}</h2>{% endif %}
+  {% if texto %}<p class="texto-2">{{ texto }}</p>{% endif %}
+</section>

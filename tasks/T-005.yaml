@@ -1,0 +1,10 @@
+id: T-005
+titulo: M1 · Fatia 2 (back) · Criar, editar, redefinir senha (TEL-03, TEL-09)
+dono: Forja (back)
+depende_de: [T-004]
+skills: [backend]
+regras: [USR-04, USR-05, USR-06, USR-07, USR-08, USR-09, USR-11, PAP-02, PRM-08]
+objetivo: Forms e views de criar/editar usuário e redefinir senha, com regras de último Adm e auto-proteção; toasts via messages.
+aceite:
+  - testes de aceite das regras acima verdes; unidade em tests/unit/contas/
+arquivos: [apps/contas/, config/urls.py, tests/unit/contas/]

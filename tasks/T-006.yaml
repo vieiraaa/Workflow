@@ -1,0 +1,10 @@
+id: T-006
+titulo: M1 · Fatia 3 (back) · Trocar a própria senha e encerrar sessão de inativo (TEL-08)
+dono: Forja (back)
+depende_de: [T-005]
+skills: [backend]
+regras: [USR-10, PAP-04]
+objetivo: PasswordChange do próprio usuário mantendo sessão; middleware/checagem que encerra sessão de usuário desativado.
+aceite:
+  - testes de aceite das regras acima verdes; check completo verde no fim do M1
+arquivos: [apps/contas/, apps/nucleo/, config/, tests/unit/contas/]
