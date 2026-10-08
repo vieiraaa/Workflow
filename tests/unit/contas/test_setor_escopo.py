@@ -127,3 +127,15 @@ def test_migration_de_dados_cria_geral_e_vincula():
     fluxo.refresh_from_db()
     assert usuario.setor.nome == fluxo.setor.nome == "Geral"
     assert Setor.objects.filter(nome="Geral").count() == 1
+
+
+def test_adm_sem_setor_ve_tudo(coord_fin, usuario_coordenador):
+    adm = criar_usuario("admsem@exemplo.test", "Adm Sem", "Adm", setor=None)
+    f1 = demo.criar_fluxo(usuario_coordenador, "A")
+    f2 = demo.criar_fluxo(coord_fin, "B")
+    e1 = demo_exec.criar_execucao(usuario_coordenador)
+    e2 = demo_exec.criar_execucao(coord_fin)
+    assert adm.setor_id is None
+    assert set(escopo(adm, Fluxo.objects)) == {f1, f2}
+    assert set(escopo(adm, Execucao.objects)) == {e1, e2}
+    assert pode(adm, "fluxos.editar", f2)

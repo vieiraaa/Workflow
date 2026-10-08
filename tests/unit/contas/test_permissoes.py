@@ -47,8 +47,16 @@ def test_matriz_da_spec(usuario_adm, usuario_coordenador, usuario_base):
 
 
 def test_escopo_ativos_e_proprias_em_objetos(usuario_base):
-    assert permissoes.pode(usuario_base, "fluxos.executar", SimpleNamespace(status="ativo"))
-    assert not permissoes.pode(usuario_base, "fluxos.executar", SimpleNamespace(status="rascunho"))
+    setor = usuario_base.setor_id
+    assert permissoes.pode(
+        usuario_base, "fluxos.executar", SimpleNamespace(status="ativo", setor_id=setor)
+    )
+    assert not permissoes.pode(
+        usuario_base, "fluxos.executar", SimpleNamespace(status="rascunho", setor_id=setor)
+    )
+    assert not permissoes.pode(
+        usuario_base, "fluxos.executar", SimpleNamespace(status="ativo", setor_id=setor + 1)
+    )
     assert permissoes.pode(
         usuario_base, "execucoes.ver", SimpleNamespace(executado_por_id=usuario_base.pk)
     )
@@ -72,8 +80,10 @@ def test_escopo_ativos_e_proprias_filtram_no_banco(usuario_base):
 
     qs = MagicMock()
     qs.all.return_value = qs
+    qs.model._meta.get_fields.return_value = [SimpleNamespace(name="setor")]
     permissoes.escopo(usuario_base, qs, "fluxos.ver")
-    qs.filter.assert_called_once_with(status="ativo")
+    qs.filter.assert_called_once_with(setor=usuario_base.setor_id)
+    qs.filter.return_value.filter.assert_called_once_with(status="ativo")
     qs.reset_mock()
     permissoes.escopo(usuario_base, qs, "execucoes.ver")
     qs.filter.assert_called_once_with(executado_por=usuario_base)
@@ -85,8 +95,9 @@ def test_escopo_infere_acao_pelo_modelo(usuario_base):
     qs = MagicMock()
     qs.all.return_value = qs
     qs.model._meta.label_lower = "fluxos.fluxo"
+    qs.model._meta.get_fields.return_value = [SimpleNamespace(name="setor")]
     permissoes.escopo(usuario_base, qs)
-    qs.filter.assert_called_once_with(status="ativo")
+    qs.filter.return_value.filter.assert_called_once_with(status="ativo")
 
 
 def test_nome_do_papel(usuario_adm, usuario_base, usuario_sem_papel):

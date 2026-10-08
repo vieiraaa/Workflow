@@ -20,6 +20,7 @@ TODOS = "todos"
 ATIVOS = "ativos"
 PROPRIAS = "proprias"
 SETOR = "setor"
+ATIVOS_DO_SETOR = "ativos_do_setor"
 
 # Modelo (app_label.model) -> ação de leitura usada por escopo() quando `acao` não é informada.
 ACAO_DE_LEITURA = {
@@ -65,54 +66,45 @@ def _escopo_da_acao(usuario, acao):
     return acoes[acao].get(papel, NENHUM) if papel else NENHUM
 
 
-def _escopo_efetivo(usuario, acao, modelo_tem_setor):
-    """SET-06: para o Coordenador, 'todos' em objetos com setor vale 'só o setor dele'."""
-    escopo_da_acao = _escopo_da_acao(usuario, acao)
-    if escopo_da_acao == TODOS and modelo_tem_setor and papel_de(usuario) == "coordenador":
-        return SETOR
-    return escopo_da_acao
-
-
 def _tem_setor(modelo):
     meta = getattr(modelo, "_meta", None)
     return meta is not None and any(campo.name == "setor" for campo in meta.get_fields())
 
 
+def _do_setor(usuario, objeto):
+    return usuario.setor_id is not None and getattr(objeto, "setor_id", None) == usuario.setor_id
+
+
 def pode(usuario, acao, objeto=None):
-    escopo_da_acao = _escopo_efetivo(usuario, acao, objeto is not None and _tem_setor(type(objeto)))
+    escopo_da_acao = _escopo_da_acao(usuario, acao)
     if escopo_da_acao == NENHUM:
         return False
     if objeto is None or escopo_da_acao == TODOS:
         return True
     if escopo_da_acao == SETOR:
-        return usuario.setor_id is not None and objeto.setor_id == usuario.setor_id
+        return _do_setor(usuario, objeto)
+    if escopo_da_acao == ATIVOS_DO_SETOR:
+        return getattr(objeto, "status", None) == "ativo" and _do_setor(usuario, objeto)
     if escopo_da_acao == ATIVOS:
-        return getattr(objeto, "status", None) == "ativo" and _mesmo_setor(usuario, objeto)
+        return getattr(objeto, "status", None) == "ativo"
     if escopo_da_acao == PROPRIAS:
         return getattr(objeto, "executado_por_id", None) == usuario.pk
     return False
 
 
-def _mesmo_setor(usuario, objeto):
-    if not _tem_setor(type(objeto)):
-        return True
-    return usuario.setor_id is not None and objeto.setor_id == usuario.setor_id
-
-
 def escopo(usuario, qs, acao=None):
     qs = qs.all() if hasattr(qs, "all") else qs
     acao = acao or ACAO_DE_LEITURA[qs.model._meta.label_lower]
-    tem_setor = _tem_setor(qs.model)
-    escopo_da_acao = _escopo_efetivo(usuario, acao, tem_setor)
+    escopo_da_acao = _escopo_da_acao(usuario, acao)
     if escopo_da_acao == TODOS:
         return qs
-    if escopo_da_acao == SETOR:
-        return qs.filter(setor=usuario.setor_id) if usuario.setor_id else qs.none()
-    if escopo_da_acao == ATIVOS:
-        if tem_setor and not usuario.setor_id:
+    if escopo_da_acao in (SETOR, ATIVOS_DO_SETOR):
+        if not usuario.setor_id or not _tem_setor(qs.model):
             return qs.none()
-        qs = qs.filter(status="ativo")
-        return qs.filter(setor=usuario.setor_id) if tem_setor else qs
+        qs = qs.filter(setor=usuario.setor_id)
+        return qs.filter(status="ativo") if escopo_da_acao == ATIVOS_DO_SETOR else qs
+    if escopo_da_acao == ATIVOS:
+        return qs.filter(status="ativo")
     if escopo_da_acao == PROPRIAS:
         return qs.filter(executado_por=usuario)
     return qs.none()
