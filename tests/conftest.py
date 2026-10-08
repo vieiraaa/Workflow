@@ -2,7 +2,7 @@ import pytest
 from django.contrib.auth.models import Group
 from django.test import Client
 
-from apps.contas.models import Usuario
+from apps.contas.models import Setor, Usuario
 
 
 def pytest_addoption(parser):
@@ -31,6 +31,8 @@ SENHA_TESTE = "SenhaForte#12345"
 
 
 def criar_usuario(email, nome, grupo=None, **extra):
+    if grupo in ("Adm", "Coordenador", "Base") and "setor" not in extra:
+        extra["setor"] = Setor.objects.get_or_create(nome="Geral")[0]
     usuario = Usuario.objects.create_user(email=email, password=SENHA_TESTE, nome=nome, **extra)
     if grupo:
         usuario.groups.add(Group.objects.get(name=grupo))
@@ -46,6 +48,16 @@ def _cliente_logado(usuario):
 @pytest.fixture
 def senha_teste():
     return SENHA_TESTE
+
+
+@pytest.fixture
+def setor_geral(db):
+    return Setor.objects.get_or_create(nome="Geral")[0]
+
+
+@pytest.fixture
+def outro_setor(db):
+    return Setor.objects.create(nome="Financeiro")
 
 
 @pytest.fixture

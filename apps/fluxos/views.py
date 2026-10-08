@@ -196,6 +196,7 @@ class FluxoNovoView(PermissaoMixin, View):
             nome=form.cleaned_data["nome"],
             descricao=form.cleaned_data["descricao"],
             dono=request.user,
+            setor_id=request.user.setor_id,
             grafo=grafo_inicial(),
         )
         messages.success(request, f"Fluxo {fluxo.nome} criado.")
@@ -221,7 +222,7 @@ class FluxoEditarView(_FluxoEscopoView):
     http_method_names = ["post", "options"]
 
     def post(self, request, pk):
-        fluxo = get_object_or_404(Fluxo, pk=pk)
+        fluxo = get_object_or_404(self.escopo_queryset(Fluxo.objects), pk=pk)
         form = FluxoForm(request.POST)
         if not form.is_valid():
             visao = FluxoListaView(
@@ -253,7 +254,7 @@ class FluxoExcluirView(PermissaoMixin, View):
     http_method_names = ["post", "options"]
 
     def post(self, request, pk):
-        fluxo = get_object_or_404(Fluxo, pk=pk)
+        fluxo = get_object_or_404(self.escopo_queryset(Fluxo.objects), pk=pk)
         nome = fluxo.nome
         fluxo.delete()
         messages.success(request, f"Fluxo {nome} excluído.")
@@ -274,7 +275,7 @@ class FluxoStatusView(PermissaoMixin, View):
     http_method_names = ["post", "options"]
 
     def post(self, request, pk):
-        fluxo = get_object_or_404(Fluxo, pk=pk)
+        fluxo = get_object_or_404(self.escopo_queryset(Fluxo.objects), pk=pk)
         novo = request.POST.get("status", "")
         destino = "fluxos:lista" if request.POST.get("voltar") == "lista" else None
         if novo not in STATUS:
@@ -354,7 +355,7 @@ class FluxoEditorView(PermissaoMixin, View):
     http_method_names = ["get", "head", "options"]
 
     def get(self, request, pk):
-        fluxo = get_object_or_404(Fluxo, pk=pk)
+        fluxo = get_object_or_404(self.escopo_queryset(Fluxo.objects), pk=pk)
         erros, pendencias = validar(fluxo.grafo)
         if erros:
             pendencias = [
@@ -398,7 +399,7 @@ class SalvarGrafoView(PermissaoMixin, View):
     http_method_names = ["post", "options"]
 
     def post(self, request, pk):
-        get_object_or_404(Fluxo, pk=pk)
+        get_object_or_404(self.escopo_queryset(Fluxo.objects), pk=pk)
         if len(request.body) > LIMITE_GRAFO_BYTES:
             return _json_erro("O grafo é grande demais (máximo de 256 KB).", 400)
         try:
@@ -424,7 +425,9 @@ class SalvarGrafoView(PermissaoMixin, View):
         if lido is None:
             return _json_erro("atualizado_em inválido.", 400, "atualizado_em")
         with transaction.atomic():
-            fluxo = get_object_or_404(Fluxo.objects.select_for_update(), pk=pk)
+            fluxo = get_object_or_404(
+                self.escopo_queryset(Fluxo.objects).select_for_update(), pk=pk
+            )
             if fluxo.atualizado_em != lido:
                 return _json_erro(MSG_CONFLITO, 409)
             voltou = bool(pendencias) and fluxo.status == Fluxo.ATIVO

@@ -49,6 +49,7 @@ def criar_fluxo(dono, nome, status="rascunho", grafo=None, descricao=""):
         nome=nome,
         descricao=descricao,
         dono=dono,
+        setor_id=dono.setor_id,
         status=status,
         grafo=copy.deepcopy(grafo if grafo is not None else grafo_inicial()),
     )

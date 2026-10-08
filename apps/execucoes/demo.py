@@ -113,6 +113,7 @@ def criar_execucao(usuario, cenario="sucesso", fluxo=None, nome=None, minutos_at
         fluxo_nome=nome or (fluxo.nome if fluxo else "Consulta de pedidos"),
         grafo_snapshot=mascarar_grafo(grafo),
         executado_por=usuario,
+        setor_id=fluxo.setor_id if fluxo is not None else usuario.setor_id,
         status=status,
         iniciada_em=inicio,
         finalizada_em=inicio + timedelta(milliseconds=duracao),

@@ -4,7 +4,7 @@ import secrets
 from django.contrib.auth.models import Group
 from django.core.management.base import BaseCommand
 
-from apps.contas.models import Usuario
+from apps.contas.models import Setor, Usuario
 
 USUARIOS_DEMO = [
     ("adm@exemplo.test", "Ana Admin", "Adm"),
@@ -26,7 +26,10 @@ class Command(BaseCommand):
         )
 
     def _garantir(self, email, nome, grupo, senha, **extra):
-        usuario, novo = Usuario.objects.get_or_create(email=email, defaults={"nome": nome, **extra})
+        geral, _ = Setor.objects.get_or_create(nome="Geral")
+        usuario, novo = Usuario.objects.get_or_create(
+            email=email, defaults={"nome": nome, "setor": geral, **extra}
+        )
         if novo:
             usuario.set_password(senha)
             usuario.save()

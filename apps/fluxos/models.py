@@ -36,6 +36,14 @@ class Fluxo(models.Model):
         verbose_name="dono",
         editable=False,
     )
+    setor = models.ForeignKey(
+        "contas.Setor",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="fluxos",
+        verbose_name="setor",
+    )
     status = models.CharField("status", max_length=10, choices=STATUS, default=RASCUNHO)
     grafo = models.JSONField("grafo", default=grafo_inicial)
     criado_em = models.DateTimeField("criado em", auto_now_add=True)
@@ -48,6 +56,11 @@ class Fluxo(models.Model):
 
     def __str__(self):
         return self.nome
+
+    def save(self, *args, **kwargs):
+        if self._state.adding and self.setor_id is None:  # SET-04: nasce no setor do dono
+            self.setor_id = self.dono.setor_id
+        super().save(*args, **kwargs)
 
     def clean(self):
         """O grafo gravado por qualquer entrada (admin, semeadura) segue o formato canônico."""
