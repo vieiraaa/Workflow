@@ -180,7 +180,10 @@ def test_detalhe_mostra_status_por_no_e_ordem(cliente_adm, fabrica_execucao):
             ("s", "saida", "Sai Ord", "nao_executado"),
         ],
     )
-    h = _detalhe(cliente_adm, e).lower()
+    pagina = _detalhe(cliente_adm, e)
+    inicio = pagina.find("Nós executados")
+    assert inicio >= 0, 'lista "Nós executados" (EXE-09) ausente'
+    h = pagina[inicio:].lower()
     assert h.index("gat ord") < h.index("http ord") < h.index("sai ord")
     assert "sucesso" in h and "erro" in h and re.search(r"n[ãa]o[ _]executado", h)
 
@@ -222,7 +225,9 @@ def test_resumo_de_bloqueio_ssrf_em_texto(
     """EXE-15(d): destino bloqueado (servidor local não liberado) → 'Parou no nó 2 (…): destino bloqueado por segurança'."""
     _, e, _ = executar(cliente_coordenador, cadeia(cfg_http(f"{servidor.base}/ok")))
     h = _detalhe(cliente_coordenador, e)
-    assert re.search(r"Parou no n[óo] 2 \(H1\).{0,40}destino bloqueado por seguran[çc]a", h, re.S)
+    assert re.search(
+        r"Parou no n[óo] 2 \(H1\).{0,40}destino bloqueado por seguran[çc]a", h, re.S | re.I
+    )
     assert servidor.contagem("/ok") == 0
 
 
