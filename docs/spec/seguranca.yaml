@@ -107,4 +107,10 @@ motor_v2:
       rede)."; não existe opção para rodar sem a camada fora dos testes de unidade do próprio runner. O teste
       test_modelo_de_permissao_do_node_nao_barra_rede (processo com os flags exatos do runner não conecta no servidor
       local) tem de ficar VERDE.
+  - id: SEG-21
+    texto: >
+      SUBSTITUI o item 6 da SEG-16 (T-061): valores DIGITADOS em header ou query sensíveis (SEG-09) — inclusive na query da
+      própria url — com 4 ou mais caracteres também são mascarados POR VALOR ("••••") onde quer que reapareçam: saída do
+      nó, requisicoes[].resposta (headers e corpo) e tela. Junto com o mascaramento por valor de credencial (CRD-02,
+      MV2-18 C4), segredo refletido pelo servidor remoto não fica gravado em claro.
 
