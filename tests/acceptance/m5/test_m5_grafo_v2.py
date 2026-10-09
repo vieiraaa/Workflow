@@ -96,7 +96,8 @@ def test_titulo_duplicado_e_pendencia_nao_erro(cliente_adm, fluxo, salvar_grafo,
     """MV2-02/L3: título único no fluxo; duplicado = PENDÊNCIA (200), salva como rascunho."""
     base["nos"][2]["titulo"] = base["nos"][1]["titulo"]
     r = _salvar(salvar_grafo, cliente_adm, fluxo, base)
-    assert r.status_code == 200 and r.json()["ok"] is True and r.json()["pendencias"]
+    assert r.status_code == 200 and r.json()["ok"] is True
+    assert f'Já existe um nó com o título "{base["nos"][1]["titulo"]}".' in [p["mensagem"] for p in r.json()["pendencias"]]
 
 
 def test_titulo_com_mais_de_80_e_pendencia(cliente_adm, fluxo, salvar_grafo, base):
@@ -112,11 +113,11 @@ def test_aresta_para_alca_inexistente_e_dados_fixos_de_no_inexistente_sao_penden
     """MV2-02/L3: saida ≥ nº de saídas do tipo e dados_fixos de nó que não existe = pendência (200)."""
     base["arestas"][1]["saida"] = 5
     r = _salvar(salvar_grafo, cliente_adm, fluxo, base)
-    assert r.status_code == 200 and r.json()["pendencias"]
+    assert r.status_code == 200 and "Ligação para uma saída que este nó não tem." in [p["mensagem"] for p in r.json()["pendencias"]]
     base["arestas"][1]["saida"] = 0
     base["dados_fixos"] = {"fantasma": [{"json": {}}]}
     r = _salvar(salvar_grafo, cliente_adm, fluxo, base)
-    assert r.status_code == 200 and r.json()["pendencias"]
+    assert r.status_code == 200 and "Dados fixos de um nó que não existe." in [p["mensagem"] for p in r.json()["pendencias"]]
 
 
 def test_aresta_para_no_inexistente_e_400(cliente_adm, fluxo, salvar_grafo, base):
@@ -214,6 +215,11 @@ def test_fan_out_e_varias_entradas_nao_sao_pendencia(cliente_adm, fluxo, salvar_
     assert r.status_code == 200 and r.json()["pendencias"] == []
 
 
+MENSAGEM = {"ciclo": "O fluxo tem um ciclo.", "dois_gatilhos": "O fluxo precisa de exatamente um gatilho.",
+            "solto": "Este nó não está ligado ao gatilho.", "gatilho_com_entrada": "O gatilho não pode ter entrada.",
+            "saida_com_saida": "A Saída não pode ter ligações de saída."}
+
+
 @pytest.mark.parametrize("caso", ["ciclo", "dois_gatilhos", "solto", "gatilho_com_entrada", "saida_com_saida"])
 def test_pendencias_v2_na_resposta_do_salvar(caso, cliente_adm, fluxo, salvar_grafo, h):
     """MV2-04/L4: cada pendência volta em `pendencias` (200 ok=true), aponta o nó e impede ativar."""
@@ -230,7 +236,8 @@ def test_pendencias_v2_na_resposta_do_salvar(caso, cliente_adm, fluxo, salvar_gr
         g = h.grafo2([base[0], base[1], h.no2("s", "saida", x=3), h.no2("t", "sem_operacao", x=4)],
                      [("g", "a"), ("a", "s"), ("s", "t")])
     r = _salvar(salvar_grafo, cliente_adm, fluxo, g)
-    assert r.status_code == 200 and r.json()["ok"] is True and r.json()["pendencias"]
+    assert r.status_code == 200 and r.json()["ok"] is True
+    assert MENSAGEM[caso] in [p["mensagem"] for p in r.json()["pendencias"]]
     cliente_adm.post(reverse("fluxos:status", kwargs={"pk": fluxo.pk}), {"status": "ativo"})
     fluxo.refresh_from_db()
     assert fluxo.status == "rascunho"
@@ -263,6 +270,7 @@ def test_abrir_v1_no_editor_entrega_v2_migrado(cliente_adm, fabrica_fluxo, grafo
     valores = [q["valor"].replace(" ", "") for q in segunda["config"]["query"]]
     assert valores == ["{{$json.corpo.id}}", "{{$json.status}}"]
     assert segunda["config"]["resposta_completa"] is True
+    assert segunda["config"]["corpo"] == {"tipo": "nenhum", "conteudo": ""}
     n2 = next(n for n in g["nos"] if n["id"] == "n2")
     assert n2["config"]["query"][0]["valor"].replace(" ", "") == "{{$json.executado_por}}"
     assert (n2["titulo"], n2["posicao"]) == ("Buscar pedido", {"x": 360, "y": 120})
@@ -284,6 +292,15 @@ def test_salvar_v1_converte_e_grava_v2(cliente_adm, fabrica_fluxo, salvar_grafo,
     assert f.grafo["versao"] == 2
     assert all("saida" in a and "entrada" in a for a in f.grafo["arestas"])
     assert "anterior" not in json.dumps(f.grafo)
+
+
+def test_migra_corpo_json_nao_vazio_do_v1(cliente_adm, fabrica_fluxo, grafo_do_editor, v1):
+    """MV2-14(1): corpo v1 string não vazia → {"tipo": "json", "conteudo": <mesma string>}."""
+    v1["nos"][1]["config"]["metodo"] = "POST"
+    v1["nos"][1]["config"]["corpo"] = '{"a": 1}'
+    g = grafo_do_editor(cliente_adm, fabrica_fluxo(grafo=v1))
+    n2 = next(n for n in g["nos"] if n["id"] == "n2")
+    assert n2["config"]["corpo"] == {"tipo": "json", "conteudo": '{"a": 1}'}
 
 
 def test_executa_fluxo_v1_com_o_mesmo_significado(cliente_adm, liberado, fabrica_fluxo, usuario_adm, modelos, no, jsons):

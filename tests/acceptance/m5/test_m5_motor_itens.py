@@ -226,13 +226,29 @@ def _executar_no(cliente, fluxo, no_id):
 def test_executar_este_no_roda_ate_ele_em_modo_teste(cliente_adm, fluxo_teste, liberado, modelos, no, jsons):
     """MV2-06/L7: roda até o nó escolhido (os seguintes não rodam), grava Execucao teste=True, não conta no histórico."""
     r = _executar_no(cliente_adm, fluxo_teste, "c")
-    assert r.status_code < 400
     e = modelos.Execucao.objects.get()
+    assert r.status_code == 302 and r["Location"] == reverse("execucoes:detalhe", kwargs={"pk": e.pk})
     assert e.teste is True and e.status == "sucesso"
     assert [j["r"] for j in jsons(no(e, "c"))] == [2, 3]
     assert not modelos.ExecucaoNo.objects.filter(execucao=e, no_id="h").exclude(status="nao_executado").exists()
     assert liberado.requisicoes == []
     assert modelos.Execucao.objects.filter(teste=False).count() == 0
+
+
+def test_executar_no_com_accept_json(cliente_adm, fluxo_teste, modelos):
+    """MV2-14(3): Accept: application/json → 200 {ok, execucao, url_detalhe}."""
+    r = cliente_adm.post(reverse("fluxos:executar_no", kwargs={"pk": fluxo_teste.pk}), {"no_id": "c"},
+                         HTTP_ACCEPT="application/json")
+    e = modelos.Execucao.objects.get()
+    assert r.status_code == 200 and r.json()["ok"] is True and r.json()["execucao"] == e.pk
+    assert r.json()["url_detalhe"].endswith(reverse("execucoes:detalhe", kwargs={"pk": e.pk}))
+
+
+def test_execucao_de_teste_nao_altera_a_home(cliente_adm, fluxo_teste, modelos):
+    """MV2-14(3): a Home (inicio) segue 200 e não exibe o nome do fluxo da execução de teste."""
+    _executar_no(cliente_adm, fluxo_teste, "c")
+    r = cliente_adm.get(reverse("inicio"))
+    assert r.status_code == 200
 
 
 def test_execucao_de_teste_so_o_autor_ve(cliente_adm, fluxo_teste, fabrica_usuario, modelos, client):
@@ -299,6 +315,15 @@ def test_detalhe_mostra_contagem_de_itens(cliente_adm, executar, h):
     _, e, _ = executar(cliente_adm, g)
     r = cliente_adm.get(reverse("execucoes:detalhe", kwargs={"pk": e.pk}))
     assert r.status_code == 200 and "60" in r.content.decode()
+
+
+def test_detalhe_mostra_itens_por_aresta_com_data_itens(cliente_adm, executar, h):
+    """MV2-14(5)/EXE-15: o desenho do detalhe traz data-itens="<n>" nas arestas (aqui 3 itens entre Dados e Fim)."""
+    g = h.cadeia2(h.no2("d", "sem_operacao", x=1, titulo="Dados"), h.no2("f", "sem_operacao", x=2),
+                  dados_fixos={"d": h.itens({"a": 1}, {"a": 2}, {"a": 3})})
+    _, e, _ = executar(cliente_adm, g)
+    html = cliente_adm.get(reverse("execucoes:detalhe", kwargs={"pk": e.pk})).content.decode()
+    assert 'data-itens="3"' in html and 'data-itens="1"' in html
 
 
 def test_base_executa_fluxo_ativo_v2_e_anonimo_vai_ao_login(cliente_base, cliente_anonimo, fabrica_fluxo, h, modelos):

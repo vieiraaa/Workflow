@@ -228,3 +228,12 @@ def test_mensagem_de_erro_nao_vaza_detalhes_internos(executar_expr):
     e, n = executar_expr("{{ $json.nao.x }}")
     m = (n.erro_mensagem or "") + (e.erro_resumo or "")
     assert "Traceback" not in m and ".py" not in m and "line " not in m.lower()
+
+
+def test_pagecount_e_response_fora_da_paginacao_sao_undefined(avaliar, executar_expr):
+    """MV2-14(2): $pageCount/$response fora da paginação = undefined ('' em texto); acessar propriedade = erro 'expressao'."""
+    assert avaliar("a{{ $pageCount }}b") == "ab"
+    assert avaliar("a{{ $response }}b") == "ab"
+    for expr in ("{{ $response.body }}", "{{ $pageCount.x }}"):
+        e, n = executar_expr(expr)
+        assert e.status == "erro" and n.erro_categoria == "expressao", expr
