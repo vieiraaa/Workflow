@@ -4,6 +4,7 @@ import json
 import time
 
 import pytest
+from django.urls import reverse
 
 pytestmark = [pytest.mark.django_db, pytest.mark.modulo("m5")]
 
@@ -128,11 +129,23 @@ def test_erros_seg10_continuam_valendo(http_no, liberado, h):
 # ---------------- SSRF por requisição (SEG-01..08) ----------------
 
 @pytest.mark.parametrize("url", ["http://169.254.169.254/latest/meta-data/", "http://localhost/x", "http://[::1]/x",
-                                 "http://2130706433/x", "http://0177.0.0.1/x", "file:///etc/passwd", "http://user:pw@127.0.0.1/"])
+                                 "http://2130706433/x", "http://0177.0.0.1/x", "http://user:pw@127.0.0.1/"])
 def test_ssrf_no_http_v2(url, http_no, liberado, h):
     """NOV-05/SEG-01..06: destinos proibidos → bloqueado_ssrf (ou pendência/erro de URL), nada é enviado."""
     e, n = http_no(h.cfg_http2(url))
     assert e.status == "erro" and n.erro_categoria in ("bloqueado_ssrf", "placeholder") and liberado.requisicoes == []
+
+
+@pytest.mark.parametrize("url", ["file:///etc/passwd", "ftp://exemplo.test/x", "gopher://exemplo.test/", "javascript:alert(1)", "data:text/plain,x"])
+def test_esquema_nao_http_literal_e_pendencia_e_nao_executa(url, cliente_adm, fabrica_fluxo, salvar_grafo, modelos, liberado, h):
+    """SEG-01/SEG-16(8)/GRF-04: esquema não-http LITERAL na url = pendência ao salvar; a execução nem inicia (nada enviado)."""
+    f = fabrica_fluxo(grafo=h.cadeia2(), status="rascunho")
+    g = h.cadeia2(h.no2("h", "http", h.cfg_http2(url), x=1))
+    r = salvar_grafo(cliente_adm, f, g)
+    assert r.status_code == 200 and any(p["no"] == "h" for p in r.json()["pendencias"])
+    f.refresh_from_db()
+    cliente_adm.post(reverse("fluxos:executar", kwargs={"pk": f.pk}))
+    assert modelos.Execucao.objects.count() == 0 and liberado.requisicoes == []
 
 
 def test_servidor_local_nao_liberado_e_bloqueado(http_no, liberado, nao_liberado, h):

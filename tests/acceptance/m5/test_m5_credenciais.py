@@ -70,7 +70,10 @@ def test_valor_cifrado_em_repouso(criar_cred, Credencial):
     with connection.cursor() as cur:
         cur.execute(f'SELECT * FROM "{tabela}"')
         linhas = cur.fetchall()
-    assert linhas and SEGREDO not in json.dumps(linhas, default=lambda o: bytes(o).decode("latin-1"))
+    def _texto(o):
+        return bytes(o).decode("latin-1") if isinstance(o, memoryview | bytes) else str(o)
+
+    assert linhas and SEGREDO not in json.dumps(linhas, default=_texto)
     assert SEGREDO not in str(Credencial.objects.values())
 
 
@@ -239,7 +242,7 @@ def test_valor_mascarado_em_requisicoes_entrada_saida_snapshot_e_tela(
     n = no(e, "h")
     hs = {x["nome"].lower(): x["valor"] for x in n.requisicoes[0]["headers"]}
     assert hs["authorization"] == "••••"
-    assert SEGREDO not in _tudo_gravado(e) and "••••" in json.dumps(n.saida)  # /eco reflete o header no corpo
+    assert SEGREDO not in _tudo_gravado(e) and "••••" in json.dumps(n.saida, ensure_ascii=False)  # /eco reflete o header no corpo
     assert SEGREDO not in json.dumps(f.grafo) and "Digisac" in json.dumps(f.grafo)
     assert SEGREDO not in _html(cliente_adm.get(reverse("execucoes:detalhe", kwargs={"pk": e.pk})))
     assert SEGREDO not in _html(cliente_adm.get(reverse("fluxos:editor", kwargs={"pk": f.pk})))
