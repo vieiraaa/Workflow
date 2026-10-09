@@ -243,3 +243,46 @@ def executar_expr(executar, cadeia2_dados, no, cliente_adm):
         return e, no(e, "calc")
 
     return _ex
+
+
+@pytest.fixture
+def rodar_no(executar, cliente_adm, no, jsons):
+    """rodar_no(tipo, config, entrada, saidas=1, **extra_no) → (execucao, [lista de jsons de cada saída]).
+
+    gatilho → Dados (dados fixos) → <nó testado> → um 'sem operação' por saída (S0, S1…), cada um na alça i.
+    Nó sem itens (status sem_itens) devolve [] para a saída.
+    """
+
+    def _rodar(tipo, config, entrada, saidas=1, **extra):
+        nos = [no2("g", "gatilho", titulo="Início"), no2("d", "sem_operacao", x=1, titulo="Dados"),
+               no2("t", tipo, config, x=2, titulo="Testado", **extra)]
+        ars = [("g", "d"), ("d", "t")]
+        for i in range(saidas):
+            nos.append(no2(f"s{i}", "sem_operacao", x=3, y=i * 100, titulo=f"S{i}"))
+            ars.append(aresta("t", f"s{i}", i, 0))
+        _, e, _ = executar(cliente_adm, grafo2(nos, ars, {"d": itens(*entrada)}))
+        assert e is not None
+        return e, [jsons(no(e, f"s{i}")) for i in range(saidas)]
+
+    return _rodar
+
+
+@pytest.fixture
+def nao_liberado():
+    """Segundo servidor local que NÃO entra em MOTOR_SSRF_LIBERAR (o motor tem de bloqueá-lo, SEG-02)."""
+    s = ServidorLocal()
+    yield s
+    s.parar()
+
+
+@pytest.fixture
+def http_no(executar, cliente_adm, liberado, h, no, jsons):
+    """http_no(config_http, entrada=[{}], **extra_no) → (execucao, ExecucaoNo 'h'). Cadeia g → Dados(pin) → http 'h'."""
+
+    def _h(config, entrada=None, **extra):
+        g = h.cadeia2(h.no2("d", "sem_operacao", x=1, titulo="Dados"), h.no2("h", "http", config, x=2, titulo="HTTP", **extra),
+                      dados_fixos={"d": h.itens(*(entrada if entrada is not None else [{}]))})
+        _, e, _ = executar(cliente_adm, g)
+        return e, no(e, "h")
+
+    return _h
