@@ -63,8 +63,10 @@ class ExecucaoListaView(PermissaoMixin, TemplateView):
         }
 
     def _queryset(self, parametros):
-        qs = escopo(self.request.user, Execucao.objects, "execucoes.ver").select_related(
-            "executado_por"
+        qs = (
+            escopo(self.request.user, Execucao.objects, "execucoes.ver")
+            .filter(teste=False)
+            .select_related("executado_por")
         )
         if parametros["q"]:
             qs = qs.filter(fluxo_nome__icontains=parametros["q"])
@@ -131,7 +133,7 @@ class ExecucaoDetalheView(PermissaoMixin, TemplateView):
 
     Contexto (além do shell), tudo texto puro (o template escapa):
     - `execucao`: {pk, fluxo_nome, status, status_rotulo, executado_por_nome, iniciada_em,
-      finalizada_em, duracao_texto, erro_resumo} (status efetivo; EXE-10)
+      finalizada_em, duracao_texto, erro_resumo, teste (bool)} (status efetivo; EXE-10)
     - `nos`: lista em ordem, cada um {ordem, no_id, tipo, titulo, status ('sucesso'|'erro'|
       'nao_executado'), status_rotulo, duracao_texto, erro_categoria, erro_rotulo, erro_mensagem,
       entrada_json (indentado, mascarado), saida_json, http_status (int|None),
@@ -150,6 +152,8 @@ class ExecucaoDetalheView(PermissaoMixin, TemplateView):
     template_name = "execucoes/detalhe.html"
 
     def _no(self, no):
+        if isinstance(no.saida, list) or isinstance(no.entrada, list):
+            return self._no_v2(no)
         saida = no.saida if isinstance(no.saida, dict) else {}
         headers = saida.get("headers") if isinstance(saida.get("headers"), dict) else {}
         return {
@@ -173,9 +177,55 @@ class ExecucaoDetalheView(PermissaoMixin, TemplateView):
             "truncado": bool(saida.get("truncado")),
         }
 
+    def _no_v2(self, no):
+        """Nó gravado pelo motor v2 (MV2-07): entrada/saída são listas de itens (até 50)."""
+        requisicoes = no.requisicoes if isinstance(no.requisicoes, list) else []
+        ultimo = requisicoes[-1] if requisicoes else {}
+        status_http = ultimo.get("status") if isinstance(ultimo.get("status"), int) else None
+        return {
+            "ordem": no.ordem,
+            "no_id": no.no_id,
+            "tipo": no.no_tipo,
+            "titulo": no.no_titulo,
+            "status": no.status,
+            "status_rotulo": apresentacao.ROTULOS_NO.get(no.status, no.status),
+            "duracao_ms": no.duracao_ms,
+            "duracao_texto": apresentacao.duracao_texto(no.duracao_ms)
+            if no.status != "nao_executado"
+            else "",
+            "erro_categoria": no.erro_categoria or "",
+            "erro_rotulo": apresentacao.ROTULOS_ERRO.get(no.erro_categoria or "", ""),
+            "erro_mensagem": no.erro_mensagem,
+            "erro": {"categoria": no.erro_categoria, "mensagem": no.erro_mensagem}
+            if no.erro_categoria
+            else None,
+            "itens_entrada": no.itens_entrada,
+            "itens_saida": no.itens_saida,
+            "saidas_contagem": no.saidas_contagem,
+            "entrada": no.entrada if isinstance(no.entrada, list) else [],
+            "saida": no.saida if isinstance(no.saida, list) else [],
+            "entrada_json": apresentacao.json_formatado(no.entrada),
+            "saida_json": apresentacao.json_formatado(no.saida),
+            "truncado": no.truncado,
+            "fixo": no.status == "fixo",
+            "desativado": no.status == "desativado",
+            "logs": no.logs,
+            "requisicoes": requisicoes,
+            "http_status": status_http,
+            "headers_saida": [],
+            "corpo_texto": "",
+        }
+
     @staticmethod
     def _alvo_http(no):
         """(metodo, host) do nó http, da entrada já resolvida e mascarada; sem query nem login."""
+        if isinstance(no.requisicoes, list) and no.requisicoes:
+            primeira = no.requisicoes[0]
+            try:
+                host = urlsplit(str(primeira.get("url", ""))).hostname or ""
+            except ValueError:
+                host = ""
+            return (str(primeira.get("metodo", "")) if host else "", host)
         entrada = no.entrada if isinstance(no.entrada, dict) else {}
         try:
             host = urlsplit(str(entrada.get("url", ""))).hostname or ""
@@ -195,6 +245,8 @@ class ExecucaoDetalheView(PermissaoMixin, TemplateView):
             saida = (
                 registro.saida if registro is not None and isinstance(registro.saida, dict) else {}
             )
+            if registro is not None and registro.requisicoes:
+                saida = {"status": registro.requisicoes[-1].get("status")}
             metodo, host = (
                 self._alvo_http(registro) if registro and registro.no_tipo == "http" else ("", "")
             )
@@ -216,8 +268,20 @@ class ExecucaoDetalheView(PermissaoMixin, TemplateView):
                     else None,
                 }
             )
+        contagem = {
+            (a.get("de"), a.get("saida", 0), a.get("para"), a.get("entrada", 0)): a.get("itens", 0)
+            for a in (execucao.arestas if isinstance(execucao.arestas, list) else [])
+        }
         arestas = [
-            {"de": a.get("de"), "para": a.get("para")}
+            {
+                "de": a.get("de"),
+                "saida": a.get("saida", 0),
+                "para": a.get("para"),
+                "entrada": a.get("entrada", 0),
+                "itens": contagem.get(
+                    (a.get("de"), a.get("saida", 0), a.get("para"), a.get("entrada", 0)), 0
+                ),
+            }
             for a in grafo.get("arestas") or []
             if isinstance(a, dict)
         ]
@@ -250,13 +314,15 @@ class ExecucaoDetalheView(PermissaoMixin, TemplateView):
         contexto = super().get_context_data(**kwargs)
         usuario = self.request.user
         execucao = get_object_or_404(
-            escopo(usuario, Execucao.objects, "execucoes.ver").select_related("executado_por"),
+            escopo(usuario, Execucao.objects, "execucoes.ver")
+            .filter(Q(teste=False) | Q(executado_por=usuario))
+            .select_related("executado_por"),
             pk=self.kwargs["pk"],
         )
         registros = list(execucao.nos.all())
         nos = [self._no(no) for no in registros]
         resultado = next(
-            (n for n in nos if n["tipo"] == "saida" and n["status"] == "sucesso"), None
+            (n for n in nos if n["tipo"] == "saida" and n["status"] in ("sucesso", "fixo")), None
         )
         pode_ir_ao_fluxo = execucao.fluxo_id is not None and pode(usuario, "fluxos.editar")
         contexto.update(
@@ -270,6 +336,7 @@ class ExecucaoDetalheView(PermissaoMixin, TemplateView):
                 "finalizada_em": execucao.finalizada_em,
                 "duracao_texto": apresentacao.duracao_texto(execucao.duracao_ms),
                 "erro_resumo": execucao.erro_resumo_efetivo,
+                "teste": execucao.teste,
             },
             nos=nos,
             grafo_execucao=self._grafo_execucao(execucao, registros),

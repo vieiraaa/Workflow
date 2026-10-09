@@ -43,6 +43,8 @@ class Execucao(models.Model):
     iniciada_em = models.DateTimeField("iniciada em", default=timezone.now, db_index=True)
     finalizada_em = models.DateTimeField("finalizada em", null=True, blank=True)
     erro_resumo = models.TextField("resumo do erro", blank=True)
+    teste = models.BooleanField("execução de teste", default=False)
+    arestas = models.JSONField("itens por aresta", default=list, blank=True)
 
     class Meta:
         verbose_name = "execução"
@@ -93,7 +95,15 @@ class ExecucaoNo(models.Model):
     """Resultado de um nó numa execução (entrada/saída já com segredos mascarados, SEG-09)."""
 
     SUCESSO, ERRO, NAO_EXECUTADO = "sucesso", "erro", "nao_executado"
-    STATUS = [(SUCESSO, "Sucesso"), (ERRO, "Erro"), (NAO_EXECUTADO, "Não executado")]
+    SEM_ITENS, DESATIVADO, FIXO = "sem_itens", "desativado", "fixo"
+    STATUS = [
+        (SUCESSO, "Sucesso"),
+        (ERRO, "Erro"),
+        (NAO_EXECUTADO, "Não executado"),
+        (SEM_ITENS, "Sem itens"),
+        (DESATIVADO, "Desativado"),
+        (FIXO, "Dados fixos"),
+    ]
 
     execucao = models.ForeignKey(Execucao, on_delete=models.CASCADE, related_name="nos")
     no_id = models.CharField("id do nó", max_length=40)
@@ -101,8 +111,15 @@ class ExecucaoNo(models.Model):
     no_titulo = models.CharField("título do nó", max_length=80, blank=True)
     ordem = models.PositiveIntegerField("ordem")
     status = models.CharField("status", max_length=14, choices=STATUS)
-    entrada = models.JSONField("entrada", default=dict)
-    saida = models.JSONField("saída", default=dict)
+    # v2 (MV2-12 L2): lista de itens [{"json": ...}] (até 50). Linhas v1 guardam um dict.
+    entrada = models.JSONField("entrada", default=list)
+    saida = models.JSONField("saída", default=list)
+    itens_entrada = models.PositiveIntegerField("itens de entrada", default=0)
+    itens_saida = models.PositiveIntegerField("itens de saída", default=0)
+    saidas_contagem = models.JSONField("itens por saída", default=list, blank=True)
+    truncado = models.BooleanField("truncado", default=False)
+    logs = models.JSONField("logs do código", default=list, blank=True)
+    requisicoes = models.JSONField("requisições HTTP", default=list, blank=True)
     erro_categoria = models.CharField(  # noqa: DJ001 - a spec define a categoria como texto nulo
         "categoria do erro", max_length=30, null=True, blank=True
     )

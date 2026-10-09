@@ -13,4 +13,5 @@ urlpatterns = [
     path("<int:pk>/status/", views.FluxoStatusView.as_view(), name="status"),
     path("<int:pk>/grafo/", views.SalvarGrafoView.as_view(), name="salvar_grafo"),
     path("<int:pk>/executar/", views.FluxoExecutarView.as_view(), name="executar"),
+    path("<int:pk>/executar-no/", views.FluxoExecutarNoView.as_view(), name="executar_no"),
 ]

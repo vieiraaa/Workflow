@@ -114,6 +114,43 @@ def ocultar_valores(entrada, segredos):
     return resultado
 
 
+def _limpar_texto(texto, variantes):
+    for variante in variantes:
+        texto = texto.replace(variante, MASCARA)
+    return texto
+
+
+def _variantes(segredos):
+    achadas = set()
+    for segredo in segredos:
+        achadas |= {
+            segredo,
+            json.dumps(segredo, ensure_ascii=False)[1:-1],
+            quote(segredo, safe=""),
+        }
+    return sorted((v for v in achadas if v), key=len, reverse=True)
+
+
+def mascarar_itens(itens, segredos=()):
+    """Cópia dos itens para gravar/exibir: dicts `headers` com nomes sensíveis mascarados e
+    qualquer ocorrência dos `segredos` (valores de credencial etc.) trocada por `••••`."""
+    variantes = _variantes(segredos)
+
+    def percorrer(valor):
+        if isinstance(valor, str):
+            return _limpar_texto(valor, variantes) if variantes else valor
+        if isinstance(valor, list):
+            return [percorrer(v) for v in valor]
+        if isinstance(valor, dict):
+            copia = {k: percorrer(v) for k, v in valor.items()}
+            if isinstance(copia.get("headers"), dict):
+                copia["headers"] = mascarar_headers_dict(copia["headers"])
+            return copia
+        return valor
+
+    return percorrer(itens)
+
+
 def mascarar_saida_http(saida):
     """Saída gravada de um nó http (EXE-12): headers de resposta mascarados."""
     mascarada = dict(saida)

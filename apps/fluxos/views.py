@@ -19,13 +19,13 @@ from apps.nucleo import listagem
 from apps.nucleo.entrada import limpar_texto
 
 from .forms import FluxoForm
-from .grafo import validar
+from .grafo import normalizar, validar
 from .models import Fluxo, grafo_inicial
 
 ORDENS = {"nome": "nome", "atualizado_em": "atualizado_em"}
 ORDEM_PADRAO = "-atualizado_em"
 STATUS = {"rascunho": "Rascunho", "ativo": "Ativo"}
-LIMITE_GRAFO_BYTES = 256 * 1024
+LIMITE_GRAFO_BYTES = 2 * 1024 * 1024
 MSG_CONFLITO = "Este fluxo foi alterado por outra pessoa. Recarregue para continuar."
 
 
@@ -361,6 +361,82 @@ class FluxoExecutarView(_FluxoEscopoView):
         return redirect("execucoes:detalhe", pk=execucao.pk)
 
 
+class FluxoExecutarNoView(_FluxoEscopoView):
+    """Executar até este nó (MV2-06, MV2-12 L7, MV2-14). Só POST; fluxos.editar.
+
+    Campos: `no_id` (obrigatório) e, opcional, `grafo` (JSON do editor ainda não salvo; sem ele
+    usa o grafo gravado). Cria uma `Execucao` de teste (`teste=True`): visível só para quem
+    rodou, fora da lista oficial e da Home. Com `Accept: application/json`: 200
+    {"ok": true, "execucao": pk, "url_detalhe", "status", "nos": {<id>: {status, itens_entrada,
+    itens_saida, saida (até 50), erro, logs}}, "arestas": [{de, saida, para, entrada, itens}]};
+    sem: redirect para `execucoes:detalhe`. Pendências → 400 {"ok": false, "pendencias": [...]}
+    (JSON) ou toast + redirect ao editor. `no_id` desconhecido → 400.
+    """
+
+    acao_requerida = "fluxos.editar"
+    http_method_names = ["post", "options"]
+
+    def _entrada(self, request):
+        if "application/json" in request.content_type:
+            try:
+                dados = json.loads(request.body or b"{}")
+            except ValueError, RecursionError:
+                return None
+            return dados if isinstance(dados, dict) else None
+        dados = request.POST.dict()
+        if dados.get("grafo"):
+            try:
+                dados["grafo"] = json.loads(dados["grafo"])
+            except ValueError, RecursionError:
+                return None
+        return dados
+
+    def post(self, request, pk):
+        fluxo = self.obter(pk)
+        if len(request.body) > LIMITE_GRAFO_BYTES:
+            return _json_erro("O grafo é grande demais (máximo de 2 MB).", 400)
+        dados = self._entrada(request)
+        no_id = (dados or {}).get("no_id") or (dados or {}).get("no")
+        grafo = (dados or {}).get("grafo")
+        if not isinstance(no_id, str) or (grafo is not None and not isinstance(grafo, dict)):
+            return _json_erro("Envie no_id (e, se quiser, o grafo do editor).", 400, "no_id")
+        try:
+            execucao = executor.executar_teste(fluxo, request.user, no_id, grafo)
+        except KeyError:
+            return _json_erro("Nó desconhecido.", 400, "no_id")
+        except executor.FluxoComPendencias as erro:
+            if _quer_json(request):
+                return JsonResponse({"ok": False, "pendencias": erro.pendencias}, status=400)
+            messages.error(request, "Este fluxo tem pendências. Corrija antes de executar o nó.")
+            return redirect("fluxos:editor", pk=fluxo.pk)
+        url = reverse("execucoes:detalhe", kwargs={"pk": execucao.pk})
+        if not _quer_json(request):
+            return redirect(url)
+        nos = {
+            n.no_id: {
+                "status": n.status,
+                "itens_entrada": n.itens_entrada,
+                "itens_saida": n.itens_saida,
+                "saida": n.saida,
+                "erro": {"categoria": n.erro_categoria, "mensagem": n.erro_mensagem}
+                if n.erro_categoria
+                else None,
+                "logs": n.logs,
+            }
+            for n in execucao.nos.all()
+        }
+        return JsonResponse(
+            {
+                "ok": True,
+                "execucao": execucao.pk,
+                "url_detalhe": url,
+                "status": execucao.status,
+                "nos": nos,
+                "arestas": execucao.arestas,
+            }
+        )
+
+
 class FluxoEditorView(PermissaoMixin, View):
     """Editor de canvas (TEL-05; GRF-06/08). fluxos.editar; pk inexistente → 404.
     Template `fluxos/editor.html`.
@@ -389,7 +465,7 @@ class FluxoEditorView(PermissaoMixin, View):
         contexto = {
             "fluxo": fluxo,
             "status_rotulo": STATUS[fluxo.status],
-            "grafo": fluxo.grafo,
+            "grafo": normalizar(fluxo.grafo),
             "atualizado_em": fluxo.atualizado_em.isoformat(),
             "pendencias": pendencias,
             "url_salvar": reverse("fluxos:salvar_grafo", kwargs=chave),
@@ -398,6 +474,7 @@ class FluxoEditorView(PermissaoMixin, View):
             "url_editar": reverse("fluxos:editar", kwargs=chave),
             "url_excluir": reverse("fluxos:excluir", kwargs=chave),
             "url_executar": reverse("fluxos:executar", kwargs=chave),
+            "url_executar_no": reverse("fluxos:executar_no", kwargs=chave),
             "form_meta": FluxoForm(initial={"nome": fluxo.nome, "descricao": fluxo.descricao}),
             "pode_excluir": pode(request.user, "fluxos.excluir"),
             "pode_executar": pode(request.user, "fluxos.executar", fluxo),
@@ -425,7 +502,7 @@ class SalvarGrafoView(PermissaoMixin, View):
     def post(self, request, pk):
         get_object_or_404(self.escopo_queryset(Fluxo.objects), pk=pk)
         if len(request.body) > LIMITE_GRAFO_BYTES:
-            return _json_erro("O grafo é grande demais (máximo de 256 KB).", 400)
+            return _json_erro("O grafo é grande demais (máximo de 2 MB).", 400)
         try:
             corpo = json.loads(
                 request.body, parse_constant=_recusar_constante, parse_float=_float_finito
@@ -455,7 +532,7 @@ class SalvarGrafoView(PermissaoMixin, View):
             if fluxo.atualizado_em != lido:
                 return _json_erro(MSG_CONFLITO, 409)
             voltou = bool(pendencias) and fluxo.status == Fluxo.ATIVO
-            fluxo.grafo = grafo
+            fluxo.grafo = normalizar(grafo)
             if voltou:
                 fluxo.status = Fluxo.RASCUNHO
             fluxo.save(update_fields=["grafo", "status", "atualizado_em"])

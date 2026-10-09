@@ -1,4 +1,4 @@
-"""Validação do grafo canônico (docs/spec/grafo.yaml: GRF-02, GRF-03, GRF-04, GRF-08).
+"""Validação do grafo canônico v2 (docs/spec/grafo.yaml GRF-*, motor-v2.yaml MV2-02, MV2-12 L3/L4).
 
 `validar(grafo)` não toca no banco e devolve `(erros_de_formato, pendencias)`:
 - erros de formato (lista de {"campo", "mensagem"}): forma/tipo JSON errado; recusam o salvamento.
@@ -13,26 +13,38 @@ import math
 import re
 from urllib.parse import urlsplit
 
-VERSAO = 1
-MAX_NOS = 50
+from . import catalogo
+from .migracao import para_v2
+
+VERSAO = 2
+MAX_NOS = 200
+MAX_ARESTAS = 400
+MAX_NOTAS = 100
+MAX_TEXTO_NOTA = 5000
 MAX_TITULO = 80
 MAX_URL = 2048
 MAX_PARES = 30
 MAX_VALOR_PAR = 4096
 MAX_CORPO_BYTES = 100 * 1024
-TIPOS_DE_NO = ("gatilho", "http", "saida")
+MAX_ITENS_FIXOS = 1000
 METODOS = ("GET", "POST", "PUT", "PATCH", "DELETE")
 METODOS_COM_CORPO = ("POST", "PUT", "PATCH")
 MAX_PROFUNDIDADE = 16
-CHAVES_RAIZ = {"versao", "nos", "arestas"}
-CHAVES_NO = {"id", "tipo", "titulo", "posicao", "config"}
-CHAVES_ARESTA = {"de", "para"}
-CHAVES_POSICAO = {"x", "y"}
-CHAVES_CONFIG = {
-    "gatilho": set(),
-    "saida": set(),
-    "http": {"metodo", "url", "headers", "query", "corpo"},
+CHAVES_RAIZ = {"versao", "nos", "arestas", "notas", "dados_fixos"}
+CHAVES_NO = {
+    "id",
+    "tipo",
+    "titulo",
+    "posicao",
+    "config",
+    "desativado",
+    "executar_uma_vez",
+    "em_erro",
 }
+CHAVES_ARESTA = {"de", "saida", "para", "entrada"}
+CHAVES_POSICAO = {"x", "y"}
+CHAVES_NOTA = {"id", "texto", "posicao", "tamanho", "cor"}
+CHAVES_TAMANHO = {"l", "a"}
 CHAVES_PAR = {"nome", "valor"}
 RE_ID = re.compile(r"[a-zA-Z0-9_-]{1,40}")
 RE_ESPACO = re.compile(r"\s")
@@ -100,7 +112,27 @@ def _chaves_desconhecidas(objeto, permitidas, onde):
     return [_erro(onde, f"Chave desconhecida: '{extra}'.") for extra in extras]
 
 
-# ---------------------------------------------------------------- formato (GRF-02)
+# ---------------------------------------------------------------- formato (GRF-02, MV2-02)
+def _tipo_ok(valor, tipo):
+    if tipo == "texto":
+        return isinstance(valor, str)
+    if tipo == "texto?":
+        return valor is None or isinstance(valor, str)
+    if tipo == "bool":
+        return isinstance(valor, bool)
+    if tipo == "int":
+        return isinstance(valor, int) and not isinstance(valor, bool)
+    if tipo == "numero":
+        return _numero(valor)
+    if tipo == "lista":
+        return isinstance(valor, list)
+    if tipo == "obj":
+        return isinstance(valor, dict)
+    if tipo == "obj?":
+        return valor is None or isinstance(valor, dict)
+    return False
+
+
 def _formato_pares(config, campo, onde):
     erros = []
     pares = config.get(campo)
@@ -128,6 +160,43 @@ def _formato_pares(config, campo, onde):
     return erros
 
 
+def _formato_config(tipo, config, onde):
+    esquema = catalogo.ESQUEMA_CONFIG[tipo]
+    erros = _chaves_desconhecidas(config, set(esquema), f"{onde}.config")
+    for campo, esperado in esquema.items():
+        if campo not in config:
+            continue
+        valor = config[campo]
+        if not _tipo_ok(valor, esperado):
+            erros.append(_erro(f"{onde}.config.{campo}", f"'{campo}' tem um tipo inválido."))
+            continue
+        permitidos = catalogo.ENUMS_CONFIG.get((tipo, campo))
+        if permitidos and valor not in permitidos:
+            erros.append(_erro(f"{onde}.config.{campo}", f"Valor inválido em '{campo}'."))
+    if tipo == "http" and not erros:
+        for campo in ("headers", "query"):
+            erros += _formato_pares(config, campo, f"{onde}.config")
+        corpo = config.get("corpo")
+        if corpo is not None:
+            erros += _chaves_desconhecidas(corpo, catalogo.CHAVES_CORPO, f"{onde}.config.corpo")
+            if corpo.get("tipo", "nenhum") not in catalogo.TIPOS_DE_CORPO:
+                erros.append(_erro(f"{onde}.config.corpo.tipo", "Tipo de corpo inválido."))
+            conteudo = corpo.get("conteudo", "")
+            if corpo.get("tipo") == "formulario":
+                erros += _formato_pares(corpo, "conteudo", f"{onde}.config.corpo")
+            elif not isinstance(conteudo, str):
+                erros.append(
+                    _erro(f"{onde}.config.corpo.conteudo", "O conteúdo do corpo deve ser um texto.")
+                )
+    return erros
+
+
+def _formato_posicao(posicao, onde):
+    if not (isinstance(posicao, dict) and _numero(posicao.get("x")) and _numero(posicao.get("y"))):
+        return [_erro(onde, "A posição precisa de x e y numéricos.")]
+    return _chaves_desconhecidas(posicao, CHAVES_POSICAO, onde)
+
+
 def _formato_no(no, indice):
     onde = f"nos[{indice}]"
     if not isinstance(no, dict):
@@ -138,26 +207,85 @@ def _formato_no(no, indice):
         erros.append(
             _erro(f"{onde}.id", "O id do nó deve ter de 1 a 40 letras, números, '-' ou '_'.")
         )
-    if no.get("tipo") not in TIPOS_DE_NO:
+    tipo = no.get("tipo")
+    if tipo not in catalogo.TIPOS_DE_NO:
         erros.append(_erro(f"{onde}.tipo", "Tipo de nó desconhecido."))
     if not isinstance(no.get("titulo"), str):
         erros.append(_erro(f"{onde}.titulo", "O título do nó deve ser um texto."))
-    posicao = no.get("posicao")
-    if not (isinstance(posicao, dict) and _numero(posicao.get("x")) and _numero(posicao.get("y"))):
-        erros.append(_erro(f"{onde}.posicao", "A posição do nó precisa de x e y numéricos."))
-    elif extras := _chaves_desconhecidas(posicao, CHAVES_POSICAO, f"{onde}.posicao"):
-        erros += extras
+    posicao_erros = _formato_posicao(no.get("posicao"), f"{onde}.posicao")
+    erros += posicao_erros
+    for campo in ("desativado", "executar_uma_vez"):
+        if campo in no and not isinstance(no[campo], bool):
+            erros.append(_erro(f"{onde}.{campo}", f"'{campo}' deve ser verdadeiro ou falso."))
+    if no.get("em_erro", "parar") not in catalogo.EM_ERRO:
+        erros.append(_erro(f"{onde}.em_erro", "Valor inválido em 'em_erro'."))
     config = no.get("config")
     if not isinstance(config, dict):
         erros.append(_erro(f"{onde}.config", "A configuração do nó deve ser um objeto."))
-    elif no.get("tipo") in CHAVES_CONFIG:
-        erros += _chaves_desconhecidas(config, CHAVES_CONFIG[no["tipo"]], f"{onde}.config")
-    if isinstance(config, dict) and no.get("tipo") == "http":
-        for campo in ("metodo", "url", "corpo"):
-            if campo in config and not isinstance(config[campo], str):
-                erros.append(_erro(f"{onde}.config.{campo}", f"'{campo}' deve ser um texto."))
-        for campo in ("headers", "query"):
-            erros += _formato_pares(config, campo, f"{onde}.config")
+    elif tipo in catalogo.ESQUEMA_CONFIG:
+        erros += _formato_config(tipo, config, onde)
+    return erros
+
+
+def _formato_aresta(aresta, indice):
+    onde = f"arestas[{indice}]"
+    if not (
+        isinstance(aresta, dict)
+        and isinstance(aresta.get("de"), str)
+        and isinstance(aresta.get("para"), str)
+    ):
+        return [_erro(onde, "Cada aresta precisa de 'de' e 'para' em texto.")]
+    erros = _chaves_desconhecidas(aresta, CHAVES_ARESTA, onde)
+    for campo in ("saida", "entrada"):
+        valor = aresta.get(campo, 0)
+        if not (isinstance(valor, int) and not isinstance(valor, bool)) or valor < 0:
+            erros.append(_erro(f"{onde}.{campo}", f"'{campo}' deve ser um inteiro a partir de 0."))
+    return erros
+
+
+def _formato_nota(nota, indice):
+    onde = f"notas[{indice}]"
+    if not isinstance(nota, dict):
+        return [_erro(onde, "Cada nota deve ser um objeto.")]
+    erros = _chaves_desconhecidas(nota, CHAVES_NOTA, onde)
+    if not isinstance(nota.get("id"), str) or not RE_ID.fullmatch(nota.get("id", "")):
+        erros.append(
+            _erro(f"{onde}.id", "O id da nota deve ter de 1 a 40 letras, números, '-' ou '_'.")
+        )
+    texto = nota.get("texto", "")
+    if not isinstance(texto, str):
+        erros.append(_erro(f"{onde}.texto", "O texto da nota deve ser um texto."))
+    elif len(texto) > MAX_TEXTO_NOTA:
+        erros.append(
+            _erro(f"{onde}.texto", f"A nota pode ter no máximo {MAX_TEXTO_NOTA} caracteres.")
+        )
+    erros += _formato_posicao(nota.get("posicao"), f"{onde}.posicao")
+    tamanho = nota.get("tamanho")
+    if tamanho is not None:
+        if not (
+            isinstance(tamanho, dict) and _numero(tamanho.get("l")) and _numero(tamanho.get("a"))
+        ):
+            erros.append(_erro(f"{onde}.tamanho", "O tamanho precisa de l e a numéricos."))
+        else:
+            erros += _chaves_desconhecidas(tamanho, CHAVES_TAMANHO, f"{onde}.tamanho")
+    if nota.get("cor", "amarela") not in catalogo.CORES_NOTA:
+        erros.append(_erro(f"{onde}.cor", "Cor de nota inválida."))
+    return erros
+
+
+def _formato_dados_fixos(dados_fixos):
+    erros = []
+    for chave, itens in dados_fixos.items():
+        onde = f"dados_fixos.{chave}"
+        if not isinstance(itens, list):
+            erros.append(_erro(onde, "Os dados fixos de um nó devem ser uma lista de itens."))
+        elif len(itens) > MAX_ITENS_FIXOS:
+            erros.append(_erro(onde, f"Use no máximo {MAX_ITENS_FIXOS} itens fixos por nó."))
+        elif not all(
+            isinstance(i, dict) and set(i) == {"json"} and isinstance(i["json"], dict)
+            for i in itens
+        ):
+            erros.append(_erro(onde, 'Cada item fixo deve ser {"json": {...}}.'))
     return erros
 
 
@@ -170,14 +298,24 @@ def _formato(grafo):
     if grafo.get("versao") != VERSAO or isinstance(grafo.get("versao"), bool):
         erros.append(_erro("versao", "Versão do grafo não suportada."))
     nos, arestas = grafo.get("nos"), grafo.get("arestas")
+    notas, dados_fixos = grafo.get("notas", []), grafo.get("dados_fixos", {})
     if not isinstance(nos, list):
         erros.append(_erro("nos", "'nos' deve ser uma lista."))
     if not isinstance(arestas, list):
         erros.append(_erro("arestas", "'arestas' deve ser uma lista."))
+    if not isinstance(notas, list):
+        erros.append(_erro("notas", "'notas' deve ser uma lista."))
+    if not isinstance(dados_fixos, dict):
+        erros.append(_erro("dados_fixos", "'dados_fixos' deve ser um objeto."))
     if erros:
         return erros
-    if len(nos) > MAX_NOS:
-        return [_erro("nos", f"Use no máximo {MAX_NOS} nós.")]
+    for campo, lista, limite in (
+        ("nos", nos, MAX_NOS),
+        ("arestas", arestas, MAX_ARESTAS),
+        ("notas", notas, MAX_NOTAS),
+    ):
+        if len(lista) > limite:
+            return [_erro(campo, f"Use no máximo {limite} em '{campo}'.")]
     ids = set()
     for indice, no in enumerate(nos):
         erros += _formato_no(no, indice)
@@ -187,17 +325,23 @@ def _formato(grafo):
                 erros.append(_erro(f"nos[{indice}].id", "Id de nó repetido."))
             ids.add(id_)
     for indice, aresta in enumerate(arestas):
-        onde = f"arestas[{indice}]"
-        if not (
+        erros += _formato_aresta(aresta, indice)
+        if (
             isinstance(aresta, dict)
             and isinstance(aresta.get("de"), str)
             and isinstance(aresta.get("para"), str)
+            and (aresta["de"] not in ids or aresta["para"] not in ids)
         ):
-            erros.append(_erro(onde, "Cada aresta precisa de 'de' e 'para' em texto."))
-        elif extras := _chaves_desconhecidas(aresta, CHAVES_ARESTA, onde):
-            erros += extras
-        elif aresta["de"] not in ids or aresta["para"] not in ids:
-            erros.append(_erro(onde, "A aresta aponta para um nó que não existe."))
+            erros.append(_erro(f"arestas[{indice}]", "A aresta aponta para um nó que não existe."))
+    ids_notas = set()
+    for indice, nota in enumerate(notas):
+        erros += _formato_nota(nota, indice)
+        id_ = nota.get("id") if isinstance(nota, dict) else None
+        if isinstance(id_, str):
+            if id_ in ids_notas:
+                erros.append(_erro(f"notas[{indice}].id", "Id de nota repetido."))
+            ids_notas.add(id_)
+    erros += _formato_dados_fixos(dados_fixos)
     return erros
 
 
@@ -256,6 +400,33 @@ def _pendencias_corpo(no_id, metodo, corpo):
     return []
 
 
+def _corpo(config):
+    corpo = config.get("corpo")
+    return corpo if isinstance(corpo, dict) else {"tipo": "nenhum", "conteudo": ""}
+
+
+def _pendencias_corpo(no_id, metodo, corpo):
+    tipo, conteudo = corpo.get("tipo", "nenhum"), corpo.get("conteudo", "")
+    if tipo == "formulario":
+        if not conteudo:
+            return []
+        if metodo not in METODOS_COM_CORPO:
+            return [_pendencia(no_id, "corpo", "Este método não aceita corpo; deixe-o vazio.")]
+        return _pendencias_pares(no_id, {"conteudo": conteudo}, "conteudo", "campos do formulário")
+    if tipo == "nenhum" or not conteudo.strip():
+        return []
+    if metodo not in METODOS_COM_CORPO:
+        return [_pendencia(no_id, "corpo", "Este método não aceita corpo; deixe-o vazio.")]
+    if len(conteudo.encode("utf-8")) > MAX_CORPO_BYTES:
+        return [_pendencia(no_id, "corpo", "O corpo pode ter no máximo 100 KB.")]
+    if tipo == "json" and not conteudo.lstrip().startswith("="):
+        try:
+            json.loads(conteudo)
+        except ValueError:
+            return [_pendencia(no_id, "corpo", "O corpo precisa ser um JSON válido.")]
+    return []
+
+
 def _pendencias_http(no):
     config, no_id = no["config"], no["id"]
     metodo = config.get("metodo", "")
@@ -267,7 +438,7 @@ def _pendencias_http(no):
     pendencias += _pendencias_url(no_id, config.get("url", ""))
     pendencias += _pendencias_pares(no_id, config, "headers", "cabeçalhos")
     pendencias += _pendencias_pares(no_id, config, "query", "parâmetros de consulta")
-    pendencias += _pendencias_corpo(no_id, metodo, config.get("corpo", ""))
+    pendencias += _pendencias_corpo(no_id, metodo, _corpo(config))
     return pendencias
 
 
@@ -294,54 +465,113 @@ def _tem_ciclo(ids, saidas):
     return None
 
 
-def _pendencias_estrutura(nos, arestas):
+def _alcancaveis(inicios, saidas):
+    visto, pilha = set(inicios), list(inicios)
+    while pilha:
+        for vizinho in saidas.get(pilha.pop(), ()):
+            if vizinho not in visto:
+                visto.add(vizinho)
+                pilha.append(vizinho)
+    return visto
+
+
+def arestas_de_retorno(nos, arestas):
+    """Índices das arestas de retorno de laço (NOV-04): aresta cujo destino é um Repetir em lotes
+    R e cuja origem é alcançável a partir da saída 0 ("loop") de R. Só aceita estrutura válida."""
+    por_id = {n["id"]: n for n in nos}
+    retornos = set()
+    for repetir in (n["id"] for n in nos if n["tipo"] == "repetir_em_lotes"):
+        saidas = {}
+        for aresta in arestas:
+            if aresta["de"] in por_id and aresta["para"] in por_id:
+                saidas.setdefault(aresta["de"], []).append(aresta["para"])
+        iniciais = [
+            a["para"]
+            for a in arestas
+            if a["de"] == repetir and a.get("saida", 0) == 0 and a["para"] in por_id
+        ]
+        dentro = _alcancaveis(iniciais, saidas)
+        for indice, aresta in enumerate(arestas):
+            if aresta["para"] == repetir and aresta["de"] in dentro:
+                retornos.add(indice)
+    return retornos
+
+
+def _pendencias_arestas(nos_por_id, arestas):
     pendencias = []
-    ids = [n["id"] for n in nos]
-    saidas = {i: [] for i in ids}
-    entradas = {i: 0 for i in ids}
     for aresta in arestas:
-        saidas[aresta["de"]].append(aresta["para"])
-        entradas[aresta["para"]] += 1
+        origem, destino = nos_por_id.get(aresta["de"]), nos_por_id.get(aresta["para"])
+        if origem is None or destino is None:
+            pendencias.append(
+                _pendencia(None, None, "Uma conexão aponta para um nó que não existe.")
+            )
+            continue
+        if origem["tipo"] == "saida":
+            pendencias.append(
+                _pendencia(origem["id"], None, "A Saída não pode ter ligações de saída.")
+            )
+        elif aresta.get("saida", 0) >= catalogo.n_saidas(origem):
+            pendencias.append(
+                _pendencia(origem["id"], None, "Ligação para uma saída que este nó não tem.")
+            )
+        if destino["tipo"] == "gatilho":
+            pendencias.append(_pendencia(destino["id"], None, "O gatilho não pode ter entrada."))
+        elif aresta.get("entrada", 0) >= catalogo.n_entradas(destino):
+            pendencias.append(
+                _pendencia(destino["id"], None, "Uma conexão chega a uma alça que este nó não tem.")
+            )
+    return pendencias
+
+
+def _pendencias_estrutura(grafo):
+    nos, arestas = grafo["nos"], grafo["arestas"]
+    pendencias = []
+    por_id = {n["id"]: n for n in nos}
+    pendencias += _pendencias_arestas(por_id, arestas)
+    validas = [a for a in arestas if a["de"] in por_id and a["para"] in por_id]
     gatilhos = [n["id"] for n in nos if n["tipo"] == "gatilho"]
     if len(gatilhos) != 1:
-        pendencias.append(_pendencia(None, None, "O fluxo precisa ter exatamente um gatilho."))
-    if not any(n["tipo"] == "saida" for n in nos):
-        pendencias.append(_pendencia(None, None, "O fluxo precisa de pelo menos uma saída."))
+        pendencias.append(_pendencia(None, None, "O fluxo precisa de exatamente um gatilho."))
+    titulos = {}
     for no in nos:
-        id_, tipo = no["id"], no["tipo"]
-        if tipo == "gatilho" and entradas[id_]:
+        titulos.setdefault(no["titulo"].strip(), []).append(no["id"])
+    for titulo, ids in titulos.items():
+        if titulo and len(ids) > 1:
+            pendencias += [
+                _pendencia(id_, "titulo", f'Já existe um nó com o título "{titulo}".')
+                for id_ in ids[1:]
+            ]
+    for chave in grafo.get("dados_fixos", {}):
+        if chave not in por_id:
             pendencias.append(
-                _pendencia(id_, None, "O gatilho não pode receber conexões de entrada.")
+                _pendencia(None, "dados_fixos", "Dados fixos de um nó que não existe.")
             )
-        if tipo == "saida" and saidas[id_]:
-            pendencias.append(_pendencia(id_, None, "A saída não pode ter conexões de saída."))
-        if len(saidas[id_]) > 1:
+    retornos = arestas_de_retorno(nos, validas)
+    por_repetir = {}
+    for indice in retornos:
+        por_repetir.setdefault(validas[indice]["para"], []).append(indice)
+    for repetir, indices in por_repetir.items():
+        if len(indices) > 1:
             pendencias.append(
-                _pendencia(
-                    id_, None, "Este nó tem mais de uma conexão de saída (não há paralelismo)."
-                )
+                _pendencia(repetir, None, "Repetir em lotes aceita uma única conexão de retorno.")
             )
-        if entradas[id_] > 1:
-            pendencias.append(
-                _pendencia(
-                    id_, None, "Este nó tem mais de uma conexão de entrada (não há paralelismo)."
-                )
-            )
+    saidas = {i: [] for i in por_id}
+    for indice, aresta in enumerate(validas):
+        if indice not in retornos:
+            saidas[aresta["de"]].append(aresta["para"])
     if gatilhos:
-        alcancados, pilha = set(gatilhos), list(gatilhos)
-        while pilha:
-            for vizinho in saidas[pilha.pop()]:
-                if vizinho not in alcancados:
-                    alcancados.add(vizinho)
-                    pilha.append(vizinho)
-        for id_ in ids:
-            if id_ not in alcancados:
-                pendencias.append(_pendencia(id_, None, "Nó solto: não está ligado ao gatilho."))
-    no_do_ciclo = _tem_ciclo(ids, saidas)
+        todas = {i: [] for i in por_id}
+        for aresta in validas:
+            todas[aresta["de"]].append(aresta["para"])
+        alcancados = _alcancaveis(gatilhos, todas)
+        pendencias += [
+            _pendencia(id_, None, "Este nó não está ligado ao gatilho.")
+            for id_ in por_id
+            if id_ not in alcancados
+        ]
+    no_do_ciclo = _tem_ciclo(list(por_id), saidas)
     if no_do_ciclo is not None:
-        pendencias.append(
-            _pendencia(no_do_ciclo, None, "O fluxo tem um ciclo; remova a conexão que volta.")
-        )
+        pendencias.append(_pendencia(no_do_ciclo, None, "O fluxo tem um ciclo."))
     return pendencias
 
 
@@ -359,12 +589,34 @@ def _pendencias(grafo):
             )
         if no["tipo"] == "http":
             pendencias += _pendencias_http(no)
-    return pendencias + _pendencias_estrutura(grafo["nos"], grafo["arestas"])
+    return pendencias + _pendencias_estrutura(grafo)
+
+
+def normalizar(grafo):
+    """Grafo v2 completo (converte v1 e preenche padrões); só chame com `validar(...)` sem erros."""
+    grafo = para_v2(grafo)
+    novo = json.loads(json.dumps(grafo))
+    novo.setdefault("notas", [])
+    novo.setdefault("dados_fixos", {})
+    for no in novo["nos"]:
+        no.setdefault("desativado", False)
+        no.setdefault("executar_uma_vez", False)
+        no.setdefault("em_erro", "parar")
+    for aresta in novo["arestas"]:
+        aresta.setdefault("saida", 0)
+        aresta.setdefault("entrada", 0)
+    for nota in novo["notas"]:
+        nota.setdefault("texto", "")
+        nota.setdefault("cor", "amarela")
+    return novo
 
 
 def validar(grafo):
-    """Valida o grafo canônico. Devolve (erros_de_formato, pendencias)."""
+    """Valida o grafo (v1 é convertido antes). Devolve (erros_de_formato, pendencias)."""
+    if isinstance(grafo, dict) and (erros := _sanidade(grafo)):
+        return erros, []  # antes de copiar/migrar: aninhamento extremo não pode estourar a pilha
+    grafo = para_v2(grafo)
     erros = _formato(grafo)
     if erros:
         return erros, []
-    return [], _pendencias(grafo)
+    return [], _pendencias(normalizar(grafo))

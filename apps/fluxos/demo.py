@@ -2,6 +2,7 @@
 
 import copy
 
+from .migracao import migrar_v1_para_v2
 from .models import Fluxo, grafo_inicial
 
 
@@ -17,6 +18,10 @@ def _no(id_, tipo, titulo, x, y, **config):
 
 def grafo_exemplo(url="https://api.exemplo.test/pedidos/1", titulo="Buscar pedido"):
     """Cadeia Gatilho → HTTP → Saída. Válida quando `url` é uma URL http(s) completa."""
+    return migrar_v1_para_v2(_grafo_v1(url, titulo))
+
+
+def _grafo_v1(url, titulo):
     return {
         "versao": 1,
         "nos": [
