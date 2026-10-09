@@ -1,31 +1,40 @@
-"""Expressões `{{ ... }}` do motor (MV2-10/11/12 L8). Interpretador próprio, sem eval.
+"""Expressões `{{ ... }}` do motor (MV2-10/11/12 L8, PLH-04). Interpretador próprio, sem eval.
 
-API pública (estável): `Escopo`, `ErroExpressao`, `resolver_texto`, `resolver_valor`, `avaliar`.
+Subconjunto de JavaScript (tokenizador + parser + avaliador em Python puro), lista branca fechada
+de funções/métodos, 2.000 caracteres por expressão, 10.000 passos, resultado ≤ 1 MB.
+
+API pública: `Escopo`, `ErroExpressao`, `resolver_texto`, `resolver_valor`, `avaliar`,
+`como_texto`, `previa`.
 """
 
 import json
-import re
+from functools import lru_cache
 
-CATEGORIA = "expressao"
-_BLOCO = re.compile(r"\{\{(.*?)\}\}", re.DOTALL)
-_PASSO = re.compile(r"""\.([A-Za-z_]\w*)|\[(\d+)\]|\[\s*(?:"([^"]*)"|'([^']*)')\s*\]""")
-_RAIZ_NO = re.compile(r"""\$\(\s*(?:"([^"]*)"|'([^']*)')\s*\)""")
-MAX_RESOLVIDO = 1_000_000
+from .avaliador import MAX_RESULTADO, UNDEF, avaliar_ast, para_json, para_texto, tipo_de
+from .erros import CATEGORIA, ErroExpressao
+from .parser import parsear
 
+__all__ = [
+    "CATEGORIA",
+    "ErroExpressao",
+    "Escopo",
+    "avaliar",
+    "como_texto",
+    "previa",
+    "resolver_texto",
+    "resolver_valor",
+]
 
-class ErroExpressao(Exception):
-    """Erro de expressão (categoria `expressao`); `mensagem` é própria, sem texto de exceção."""
-
-    categoria = CATEGORIA
-
-    def __init__(self, mensagem):
-        super().__init__(mensagem)
-        self.mensagem = mensagem
+MAX_EXPRESSAO = 2000
 
 
 class Escopo:
-    """Dados que a expressão enxerga. `item` é o item atual ({"json": ...}); `resultados` mapeia
-    título do nó → lista de itens da saída 0 do último run."""
+    """Dados que a expressão enxerga.
+
+    `item` é o item atual ({"json": ...}); `entrada` a lista de itens de entrada do nó;
+    `resultados` mapeia título do nó → itens da saída 0 do último run; `contexto` aceita
+    agora (datetime), execucao_id, fluxo_nome, usuario_email, parametros, pagina, resposta.
+    """
 
     def __init__(self, item=None, indice=0, entrada=(), resultados=None, **contexto):
         self.item = item
@@ -35,105 +44,110 @@ class Escopo:
         self.contexto = contexto
 
 
-def _passos(texto, posicao):
-    achados = []
-    while posicao < len(texto):
-        achado = _PASSO.match(texto, posicao)
-        if achado is None:
-            raise ErroExpressao(f"Expressão não suportada: {texto.strip()[:60]}")
-        nome, indice, dq, sq = achado.groups()
-        achados.append(
-            nome
-            if nome is not None
-            else int(indice)
-            if indice is not None
-            else (dq if dq is not None else sq)
-        )
-        posicao = achado.end()
-    return achados
+@lru_cache(maxsize=1024)
+def _ast(fonte):
+    return parsear(fonte)
 
 
-def _descer(valor, passos, texto):
-    for passo in passos:
-        if valor is None:
-            raise ErroExpressao(
-                f"Não é possível ler '{passo}' de um valor vazio em: {texto.strip()[:60]}"
-            )
-        if isinstance(passo, int):
-            valor = valor[passo] if isinstance(valor, list) and passo < len(valor) else None
-        else:
-            valor = valor.get(passo) if isinstance(valor, dict) else None
+def _avaliar_js(fonte, escopo):
+    if len(fonte) > MAX_EXPRESSAO:
+        raise ErroExpressao("A expressão passa de 2.000 caracteres.", fonte)
+    return avaliar_ast(_ast(fonte), escopo, fonte)
+
+
+def _conferir_tamanho(valor, fonte):
+    if isinstance(valor, str):
+        grande = len(valor) > MAX_RESULTADO
+    elif isinstance(valor, list | dict):
+        grande = len(json.dumps(valor, ensure_ascii=False, default=str)) > MAX_RESULTADO
+    else:
+        grande = False
+    if grande:
+        raise ErroExpressao("O valor resolvido passa de 1 MB.", fonte)
+
+
+def avaliar(fonte, escopo):
+    """Valor tipado (pronto para JSON; undefined → None) da expressão `fonte` (sem as chaves)."""
+    bruto = _avaliar_js(fonte, escopo)
+    valor = None if bruto is UNDEF else para_json(bruto)
+    _conferir_tamanho(valor, fonte)
     return valor
 
 
-def avaliar(expr, escopo):
-    """Valor TIPADO da expressão `expr` (sem as chaves)."""
-    texto = expr.strip()
-    if len(texto) > 2000:
-        raise ErroExpressao("A expressão passa de 2.000 caracteres.")
-    if texto.startswith("$json"):
-        base = escopo.item["json"] if escopo.item else None
-        return _descer(base, _passos(texto, 5), texto)
-    achado = _RAIZ_NO.match(texto)
-    if achado:
-        titulo = achado.group(1) if achado.group(1) is not None else achado.group(2)
-        if titulo not in escopo.resultados:
-            raise ErroExpressao(f"O nó '{titulo}' não existe ou ainda não executou.")
-        itens = escopo.resultados[titulo]
-        resto = texto[achado.end() :]
-        for metodo, escolher in (
-            (".first()", lambda i: i[0] if i else None),
-            (".last()", lambda i: i[-1] if i else None),
-        ):
-            if resto.startswith(metodo):
-                item = escolher(itens)
-                resto = resto[len(metodo) :]
-                if not resto:
-                    return item
-                if resto.startswith(".json"):
-                    return _descer(item["json"] if item else None, _passos(resto, 5), texto)
-        raise ErroExpressao(f"Expressão não suportada: {texto[:60]}")
-    raise ErroExpressao(f"Expressão não suportada: {texto[:60]}")
+previa = avaliar
 
 
 def como_texto(valor):
-    if valor is None:
+    """Texto de um valor tipado: null/undefined = ''; lista/objeto = JSON compacto."""
+    if valor is None or valor is UNDEF:
         return ""
     if isinstance(valor, str):
         return valor
-    if isinstance(valor, bool):
-        return "true" if valor else "false"
-    try:
-        return json.dumps(valor, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
-    except ValueError:
-        raise ErroExpressao("O valor não pode ser escrito como JSON.") from None
+    if tipo_de(valor) in ("array", "object"):
+        return json.dumps(para_json(valor), ensure_ascii=False, separators=(",", ":"))
+    return para_texto(valor)
+
+
+def _blocos(texto):
+    """Itera (inicio, fim, expressao) de cada `{{ expr }}`; respeita strings e chaves internas."""
+    posicao = 0
+    while True:
+        inicio = texto.find("{{", posicao)
+        if inicio == -1:
+            return
+        i, nivel, fim = inicio + 2, 0, None
+        while i < len(texto):
+            c = texto[i]
+            if c in "'\"`":
+                i += 1
+                while i < len(texto) and texto[i] != c:
+                    i += 2 if texto[i] == "\\" else 1
+            elif c == "{":
+                nivel += 1
+            elif c == "}":
+                if nivel == 0 and texto.startswith("}}", i):
+                    fim = i
+                    break
+                nivel = max(nivel - 1, 0)
+            i += 1
+        if fim is None:
+            raise ErroExpressao("Expressão sem fechamento '}}'.", texto[inicio:])
+        yield inicio, fim + 2, texto[inicio + 2 : fim]
+        posicao = fim + 2
+
+
+def _template(texto):
+    return texto[1:] if texto.startswith("=") else texto
 
 
 def resolver_texto(texto, escopo, formatar=None):
-    """Texto com cada `{{ expr }}` substituído (valor virado texto, depois `formatar`)."""
+    """Texto com cada `{{ expr }}` substituído (valor virado texto e, depois, `formatar`)."""
     if not isinstance(texto, str):
         return texto
-    if texto.startswith("="):
-        texto = texto[1:]
+    texto = _template(texto)
     saida, posicao = [], 0
-    for achado in _BLOCO.finditer(texto):
-        valor = como_texto(avaliar(achado.group(1), escopo))
-        saida.append(texto[posicao : achado.start()])
+    for inicio, fim, fonte in _blocos(texto):
+        valor = como_texto(avaliar(fonte, escopo))
+        saida.append(texto[posicao:inicio])
         saida.append(formatar(valor) if formatar else valor)
-        posicao = achado.end()
+        posicao = fim
     saida.append(texto[posicao:])
     resultado = "".join(saida)
-    if len(resultado) > MAX_RESOLVIDO:
+    if len(resultado) > MAX_RESULTADO:
         raise ErroExpressao("O valor resolvido passa de 1 MB.")
     return resultado
 
 
 def resolver_valor(texto, escopo):
-    """Como `resolver_texto`; campo que é exatamente UM `{{ expr }}` devolve o valor tipado."""
+    """Como `resolver_texto`; o campo que é exatamente UM `{{ expr }}` devolve o valor tipado."""
     if not isinstance(texto, str):
         return texto
-    corpo = texto[1:] if texto.startswith("=") else texto
-    unico = _BLOCO.fullmatch(corpo.strip())
-    if unico and corpo.strip().count("{{") == 1:
-        return avaliar(unico.group(1), escopo)
+    corpo = _template(texto).strip()
+    blocos = list(_blocos(corpo))
+    if len(blocos) == 1 and blocos[0][0] == 0 and blocos[0][1] == len(corpo):
+        return avaliar(blocos[0][2], escopo)
     return resolver_texto(texto, escopo)
+
+
+def tem_expressao(texto):
+    return isinstance(texto, str) and (texto.startswith("=") or "{{" in texto)
