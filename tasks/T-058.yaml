@@ -1,0 +1,18 @@
+id: T-058
+titulo: M5 · Prova de isolamento do runtime JS (SEG-17) — Revisor de Segurança
+dono: Revisor de Segurança (opus)
+depende_de: [T-050]
+escopo: [apps/motor/codigo/ (protótipo do Forja, 93fe655), tests/unit/motor/ (fugas já cobertas)]
+foco: >
+  O Forja recomenda Node 24 com --permission (sem --allow-*), env vazio, vm novo sem objetos do host, max-old-space 128.
+  Node 24 NÃO controla rede pelo modelo de permissões; o bloqueio de rede depende do vm, que a própria documentação do Node
+  diz não ser fronteira de segurança. Tente, como atacante que escreve o jsCode: escapar do vm (constructor.constructor,
+  Error.prepareStackTrace, Proxy, getters em objetos devolvidos, Symbol.for, import() dinâmico, WebAssembly), obter
+  `process`, `require`, `process.binding`/`internalBinding`, abrir socket (net/http/dns/fetch/WebSocket), ler arquivos ou
+  env, criar processo/worker, esgotar CPU/memória/saída, travar o processo pai (stdout gigante, JSON malicioso),
+  vazar dados de outra execução. Servidor HTTP local para provar rede; nunca a internet.
+entrega: >
+  Testes vermelhos em tests/adversarial/test_revisao_seguranca.py para cada fuga que funcionar; relatório por severidade.
+  Se o vm for contornável, recomende a camada que fecha a rede no macOS e no Linux/Windows do servidor (ex.: Node 25+
+  com permissão de rede, sandbox do SO, processo sem rede, QuickJS) com prós e contras.
+arquivos: [tests/adversarial/test_revisao_seguranca.py]
