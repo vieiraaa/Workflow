@@ -359,3 +359,119 @@ def criar_cred(cliente_adm):
         return cliente_adm.post(reverse("credenciais:nova"), dados)
 
     return _c
+
+
+# ---------------- parte D: API Digisac FALSA (IMP-06) ----------------
+
+TOKEN_DIGISAC = "TOKEN_FICTICIO_DIGISAC"  # o mesmo literal do exemplo sanitizado
+
+
+def _chamados_ficticios():
+    """20 chamados com casos de borda: sem contato, sem departamento, sem usuário, aberto (endedAt nulo), sem protocolo, UTF-8."""
+    lista = []
+    for i in range(1, 21):
+        t = {"id": f"t-{i:02d}", "protocol": f"2026{i:06d}", "isOpen": False, "startedAt": f"2026-10-08T{(i % 20) + 3:02d}:00:00.000Z",
+             "endedAt": f"2026-10-08T{(i % 20) + 3:02d}:30:00.000Z",
+             "contact": {"id": f"c{i}", "name": f"Contato {i}"}, "department": {"id": "d1", "name": "Suporte"},
+             "user": {"id": f"u{i % 3}", "name": f"Atendente {i % 3}"}}
+        lista.append(t)
+    del lista[4]["contact"]
+    lista[7]["department"] = None
+    del lista[10]["user"]
+    lista[13]["isOpen"], lista[13]["endedAt"] = True, None
+    del lista[2]["protocol"]
+    lista[16]["contact"]["name"] = "Ação Ç ☃ — Zé"
+    return lista
+
+
+class DigisacFalso:
+    """Servidor local com /api/v1/me, /api/v1/users e /api/v1/tickets (paginado por `query` JSON, como o Digisac). Nunca internet."""
+
+    def __init__(self, servidor, token=TOKEN_DIGISAC, users_status=200):
+        self.srv, self.token, self.users_status = servidor, token, users_status
+        self.chamados = _chamados_ficticios()
+        servidor.rotas["/api/v1/me"] = self._me
+        servidor.rotas["/api/v1/users"] = self._users
+        servidor.rotas["/api/v1/tickets"] = self._tickets
+
+    def _auth(self, req):
+        return req["headers"].get("authorization") == f"Bearer {self.token}"
+
+    def _me(self, req):
+        if not self._auth(req):
+            return 401, {"error": "unauthorized"}, None
+        return 200, {"data": {"id": "u-ia", "name": "Maggy IA"}}, None
+
+    def _users(self, req):
+        if not self._auth(req):
+            return 401, {"error": "unauthorized"}, None
+        if self.users_status != 200:
+            return self.users_status, {"error": "falha simulada"}, None
+        return 200, {"data": [{"id": "u0", "name": "Atendente 0"}], "total": 1}, None
+
+    def pagina(self, p, por_pagina):
+        """Página p (1-based) com 1 chamado REPETIDO no começo das páginas ≥2 (a API real pode repetir)."""
+        t = self.chamados
+        inicio = (p - 1) * por_pagina
+        fatia = t[inicio:inicio + por_pagina]
+        if p >= 2 and inicio > 0:
+            fatia = [t[inicio - 1], *t[inicio:inicio + por_pagina - 1]]
+        return fatia
+
+    def _tickets(self, req):
+        if not self._auth(req):
+            return 401, {"error": "unauthorized"}, None
+        q = json.loads(req["query"]["query"][0])
+        p, pp = q["page"], q["perPage"]
+        return 200, {"data": self.pagina(p, pp), "total": len(self.chamados)}, None
+
+    def esperado_lista_de_chamados(self, por_pagina):
+        """Saída esperada de 'Lista de chamados' pela LÓGICA DO JS do exemplo (dedupe por id, mapeamento, nulos/undefined)."""
+        vistos, unicos = {}, []
+        todos = []
+        p = 1
+        while True:
+            fatia = self.pagina(p, por_pagina)
+            todos += fatia
+            if len(fatia) < por_pagina:
+                break
+            p += 1
+        for t in todos:
+            if t["id"] not in vistos:
+                vistos[t["id"]] = len(unicos)
+                unicos.append(t)
+            else:
+                unicos[vistos[t["id"]]] = t
+        saida = []
+        for t in unicos:
+            item = {"ticketId": t["id"], "protocol": t.get("protocol"), "isOpen": t["isOpen"], "startedAt": t["startedAt"],
+                    "endedAt": t.get("endedAt"), "contato": (t.get("contact") or {}).get("name") if t.get("contact") else None,
+                    "departamento": t["department"]["name"] if t.get("department") else None,
+                    "atendenteDoChamado": t["user"]["name"] if t.get("user") else None,
+                    "totalInformadoPelaApi": len(self.chamados), "totalRecebido": len(unicos)}
+            if "protocol" not in t:
+                del item["protocol"]  # undefined no JS some do JSON
+            if "endedAt" not in t:
+                del item["endedAt"]
+            saida.append(item)
+        return saida
+
+
+@pytest.fixture
+def digisac(liberado):
+    return DigisacFalso(liberado)
+
+
+@pytest.fixture
+def sem_internet(monkeypatch):
+    """Rede de segurança: qualquer resolução de nome que não seja local falha (nunca internet, nem por engano do motor)."""
+    import socket
+
+    original = socket.getaddrinfo
+
+    def guardado(host, *a, **kw):
+        if host in ("127.0.0.1", "localhost", "::1", None):
+            return original(host, *a, **kw)
+        raise socket.gaierror(socket.EAI_NONAME, "sem internet nos testes")
+
+    monkeypatch.setattr(socket, "getaddrinfo", guardado)
