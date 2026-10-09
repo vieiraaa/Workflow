@@ -79,3 +79,22 @@ lacunas_m3:
       (8) Esquema não-http salvo no editor = pendência (GRF-04); alcançado por redirect na execução = bloqueado_ssrf.
       (9) Toast de fluxos:executar com pendências: "Este fluxo tem pendências. Corrija no editor antes de executar."
 
+motor_v2:
+  - id: SEG-17
+    texto: >
+      CÓDIGO ISOLADO (D-021/D-i): o JavaScript do nó Código roda num PROCESSO separado por execução de nó (Node.js com o
+      modelo de permissões ativo e nenhuma permissão concedida, ou QuickJS embutido — decisão D-i com prova do Revisor de
+      Segurança), sem rede, sem sistema de arquivos, sem variáveis de ambiente, sem child_process/worker/require/import,
+      com limite de CPU (5 s), memória (128 MB) e saída (5 MB); entrada e saída só por JSON pelo stdin/stdout. Nunca eval
+      ou vm no processo do Django. Falha do isolamento (ex.: conseguir ler um arquivo ou abrir socket) é achado CRÍTICO.
+  - id: SEG-18
+    texto: >
+      COFRE: credenciais cifradas em repouso (Fernet, chave só no ambiente, nunca no banco, no repo ou em log);
+      mascaradas por nome E por valor em entrada, saída, snapshot, export, erro e log; a tela nunca devolve o valor
+      salvo; testes usam chave de teste gerada na fixture.
+  - id: SEG-19
+    texto: >
+      IMPORTAÇÃO: JSON externo é dado não confiável — validação fechada (MV2-02), limite 2 MB, nó Código importado
+      desativado até revisão do Adm, segredos detectados substituídos por pendência (IMP-04), nenhum campo do arquivo
+      escolhe dono, setor, id ou status do fluxo criado.
+

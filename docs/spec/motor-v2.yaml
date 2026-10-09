@@ -1,0 +1,181 @@
+# M5 · Motor v2 (o "coração n8n"). Ids MV2-xx (motor), NOV-xx (nós), IMP-xx (importar/exportar), CRD-xx (credenciais),
+# EDV-xx (editor v2). Fonte: docs/ROADMAP-n8n.md §2–§5; decisões D-021..D-024. Meta concreta: importar e rodar
+# docs/spec/exemplos/n8n_chamados_do_dia.json (sanitizado) contra uma API Digisac FALSA local (nunca a real).
+
+motor:
+  - id: MV2-01
+    texto: >
+      ITENS. Todo nó recebe e devolve uma LISTA de itens [{"json": {...}}]. O gatilho manual produz 1 item
+      {"json": {"disparado_em": ISO, "executado_por": email}}. Por padrão o nó roda 1x POR ITEM de entrada;
+      com `executar_uma_vez: true` roda 1x com o primeiro item (equivale ao executeOnce do n8n). Nó sem itens de entrada
+      não roda (status "sem_itens") e não propaga nada. Limite: 10.000 itens por saída de nó (acima → erro "limite_itens").
+  - id: MV2-02
+    texto: >
+      GRAFO v2 (versao 2), schema FECHADO (GRF-09 continua valendo): {"versao": 2, "nos": [...], "arestas": [...],
+      "notas": [...], "dados_fixos": {}}. Nó: {"id", "tipo", "titulo" (único no fluxo, ≤80), "posicao": {"x","y"},
+      "config": {...por tipo}, "desativado": bool, "executar_uma_vez": bool, "em_erro": "parar"|"continuar"|
+      "saida_de_erro"}. Aresta: {"de", "saida": int ≥0, "para", "entrada": int ≥0}. Nota (sticky): {"id", "texto" (≤5000,
+      markdown simples), "posicao", "tamanho": {"l","a"}, "cor": "amarela"|"azul"|"verde"|"cinza"}. dados_fixos:
+      {"<id do nó>": [itens]} (pinData). Limites: 200 nós, 400 arestas, 100 notas, payload 2 MB.
+  - id: MV2-03
+    texto: >
+      MIGRAÇÃO v1→v2: grafos versao 1 são convertidos ao abrir/salvar (arestas ganham saida=0/entrada=0, nós ganham os
+      campos novos com padrão; `{{ anterior.x }}` vira `{{ $json.x }}` com o mesmo significado). Migration de dados
+      converte todos os fluxos existentes; execuções antigas continuam legíveis (o detalhe aceita snapshot v1 e v2).
+  - id: MV2-04
+    texto: >
+      ORDEM. Ciclos continuam proibidos (pendência); laço só pelo nó Repetir em lotes. Execução em ordem topológica;
+      empate por posição (y, depois x), igual ao executionOrder v1 do n8n: um ramo termina antes do próximo começar.
+      Nó com várias entradas (Juntar) espera todas as entradas que VÃO rodar; entrada cujo ramo não produziu itens conta
+      como lista vazia. Nó desativado repassa os itens da entrada 0 sem alterar. Pendências GRF-03 revisadas: mais de um
+      gatilho é permitido só no M6 (agora: exatamente um); nó sem caminho a partir do gatilho = pendência.
+  - id: MV2-05
+    texto: >
+      ERRO. `em_erro: parar` (padrão) encerra a execução com status erro (EXE-05). `continuar`: o nó com erro entrega os
+      itens de entrada adiante com {"json": {..., "erro": {"categoria","mensagem"}}} (continueRegularOutput do n8n).
+      `saida_de_erro`: o nó ganha uma saída extra (última) só com os itens que falharam (continueErrorOutput).
+  - id: MV2-06
+    texto: >
+      DADOS FIXOS (pinData): nó com dados_fixos não executa; entrega os itens fixos (marcado "fixo" no histórico).
+      "Executar este nó" no editor roda o fluxo até ele usando dados fixos/últimos dados dos anteriores (modo teste: não
+      grava execução oficial; gera execução marcada "teste" visível só para quem rodou).
+  - id: MV2-07
+    texto: >
+      HISTÓRICO v2: ExecucaoNo guarda, por nó, quantidade de itens de entrada e saída, os primeiros 50 itens de cada
+      (o resto conta como truncado), erro, duração, "fixo"/"desativado"/"sem_itens". Limite total gravado por execução 10 MB.
+      Detalhe (TEL-07) e desenho (EXE-15) mostram ramos e contagem de itens em cada aresta. Execução síncrona continua
+      com limite total de 60 s (EXE-13) até o M6.
+
+expressoes:
+  - id: MV2-10
+    texto: >
+      Qualquer campo de texto da config pode conter `{{ expr }}` (pode haver texto fora). Campo que COMEÇA com "=" é
+      inteiro expressão (convenção do n8n importado). A linguagem é um SUBCONJUNTO de expressões JavaScript avaliado por
+      interpretador PRÓPRIO em Python (sem eval/exec, sem Node): literais (número, string '…' "…" `…${}…`, true/false/
+      null, arrays, objetos), acesso a.b, a["b"], a[0], operadores + - * / % == === != !== < <= > >= && || ! ?? ?:,
+      chamadas SÓ de métodos/funções da lista branca (MV2-11). Proibido: atribuição, function/=>, new, this, laços,
+      acesso a __proto__/constructor/prototype. Erro de expressão → erro do nó categoria "expressao" com o trecho.
+      Limites: 2.000 caracteres por expressão, 10.000 passos de avaliação, resultado ≤ 1 MB.
+  - id: MV2-11
+    texto: >
+      VARIÁVEIS: $json (item atual), $input.item/.first()/.last()/.all(), $('Título do nó').item/.first()/.last()/.all()
+      (cada um devolve item; .json para o objeto); $now e $today (objeto data com .toISO(), .toFormat(fmt),
+      .plus({days,hours,minutes}), .minus(...), .startOf('day'|'month'), .toMillis(); fuso America/Sao_Paulo),
+      $execution.id, $workflow.name, $usuario.email, $parametros (vazio no M5; M7), $itemIndex, $pageCount e $response
+      (só dentro da paginação). FUNÇÕES em lista branca: String (toLowerCase, toUpperCase, trim, split, replace,
+      includes, startsWith, endsWith, slice, padStart, length), Array (length, join, includes, slice, indexOf; sem map/filter/reduce — use o nó Código),
+      Number(), String(), parseInt, parseFloat, Math.(round, floor, ceil, abs, min, max), JSON.stringify, JSON.parse,
+      Object.keys, Object.values, Boolean(), isNaN, encodeURIComponent. Inserção segura por contexto (PLH-04) continua.
+
+nos:
+  - id: NOV-01
+    texto: >
+      CATÁLOGO M5 (tipo · nome na tela · n8n): gatilho · Manual · manualTrigger | http · Requisição HTTP · httpRequest |
+      codigo · Código · code | editar_campos · Editar campos · set | filtrar · Filtrar · filter | se · Se · if |
+      escolher · Escolher · switch | juntar · Juntar · merge | ordenar · Ordenar · sort | limitar · Limitar · limit |
+      remover_duplicados · Remover duplicados · removeDuplicates | separar_lista · Separar lista em itens · splitOut |
+      agregar · Agregar · aggregate | resumir · Resumir · summarize | data_hora · Data e hora · dateTime |
+      repetir_em_lotes · Repetir em lotes · splitInBatches | parar_com_erro · Parar com erro · stopAndError |
+      sem_operacao · Sem operação · noOp | saida · Saída · (último nó). Nota do canvas não é nó (MV2-02).
+  - id: NOV-02
+    texto: >
+      CONDIÇÕES (Filtrar, Se, Escolher): lista de condições {"esquerda": expr, "operador", "direita": expr|null, "tipo":
+      "texto"|"numero"|"data"|"booleano"|"lista"|"objeto"} combinadas por "e"|"ou". Operadores: igual, diferente, maior,
+      maior_igual, menor, menor_igual, contem, nao_contem, comeca_com, termina_com, vazio, nao_vazio, regex (até 200
+      chars, timeout 50 ms), existe, nao_existe. Se: saída 0 = verdadeiro, 1 = falso. Escolher: até 10 regras (saídas
+      0..n-1) + saída "outros" opcional. Filtrar: só passa o que atende (opção "manter descartados" vira saída 1).
+  - id: NOV-03
+    texto: >
+      DADOS: Editar campos {modo: "manual"|"json", campos: [{nome (aceita caminho a.b), valor: expr, tipo}],
+      incluir_outros: bool}. Ordenar {campos: [{campo, ordem: asc|desc}]}. Limitar {quantidade, de: inicio|fim}.
+      Remover duplicados {comparar: todos|campos, campos: []}. Separar lista {campo: caminho da lista, incluir: nada|
+      campos_pai}. Agregar {modo: campos|todos, campos: [], saida: nome}. Resumir {agrupar_por: [], operacoes:
+      [{campo, op: contar|contar_unicos|somar|media|min|max|concatenar}]}. Data e hora {operacao: agora|formatar|somar|
+      subtrair|diferenca|inicio_de, campo, formato, quantidade, unidade, saida}.
+  - id: NOV-04
+    texto: >
+      FLUXO: Juntar {modo: "anexar" (todas as entradas em sequência) | "combinar_por_campo" {campo1, campo2, tipo:
+      dentro|esquerda|direita|externa} | "combinar_por_posicao" | "escolher_entrada" {entrada}}, entradas: 2..4.
+      Repetir em lotes {tamanho_lote}: saída 0 = "loop" (lote atual), saída 1 = "pronto" (todos os itens ao fim); o laço
+      volta por uma aresta para a entrada do próprio nó (única aresta de retorno permitida; máx. 1.000 voltas).
+      Parar com erro {mensagem: expr}. Sem operação: repassa.
+  - id: NOV-05
+    texto: >
+      HTTP v2 (estende SEG-01..16): {metodo, url, query: [{nome, valor}], headers: [{nome, valor}], corpo: {tipo: nenhum|
+      json|formulario|texto, conteudo}, credencial: nome|null, resposta: json|texto|automatica, paginacao: null | {modo:
+      "atualizar_parametro" {onde: query|corpo|header, nome, valor: expr com $pageCount} | "proxima_url" {url: expr com
+      $response}, parar_quando: "resposta_vazia" | "status" {codigos} | "expressao" {expr com $response},
+      limite_paginas (1..100, padrão 10), intervalo_ms (0..5000)}}. Cada página passa por SSRF/limites; a saída junta os
+      itens de todas as páginas (resposta lista → 1 item por elemento; objeto → 1 item). Erros SEG-10.
+  - id: NOV-06
+    texto: >
+      CÓDIGO (D-021: JavaScript, compatível com o node Code do n8n): {modo: "uma_vez_para_todos" | "uma_vez_por_item",
+      codigo (≤ 50.000 chars)}. API disponível: $input.all()/.first()/.last()/.item, $json (por item), items (legado),
+      $('Título').first()/.last()/.all()/.item, $now, $today (Date nativo), $execution.id, $workflow.name, $parametros,
+      console.log (capturado e exibido no detalhe, máx. 200 linhas). Retorno: array de {json} (objetos soltos são
+      embrulhados). Roda em runtime ISOLADO (SEG-17). Só Adm cria/edita nó Código (TI no M7). Limites: 5 s de CPU,
+      128 MB, saída 5 MB; estourou → erro categoria "codigo_limite".
+
+credenciais:
+  - id: CRD-01
+    texto: >
+      Cofre: model Credencial {nome (único, ≤80), tipo: bearer|header|basic|smtp, setor (null = global), dados cifrados
+      (Fernet; chave SÓ em CREDENCIAIS_CHAVE no ambiente; sem chave → app recusa salvar/usar credencial com erro claro),
+      criado_por, atualizado_em}. Tela própria (lista, criar, editar, excluir) só para Adm (TI no M7). O valor NUNCA é
+      exibido depois de salvo (campo vazio "manter atual"); trocar valor não revela o antigo.
+  - id: CRD-02
+    texto: >
+      Uso: nó HTTP escolhe `credencial` pelo NOME. Em runtime injeta Authorization: Bearer <v> (bearer), o header
+      configurado (header), Authorization: Basic (basic). O valor não entra no grafo, no snapshot, no histórico (entrada
+      mascarada também pelo VALOR literal, além do nome do header), no export, em log nem em mensagem de erro.
+      Credencial inexistente ou fora do setor do dono do fluxo → erro do nó categoria "credencial".
+
+importacao:
+  - id: IMP-01
+    texto: >
+      EXPORTAR nativo: arquivo .json {"formato": "construtor-workflows", "versao": 2, "fluxo": {nome, descricao},
+      "grafo": {...}, "credenciais_usadas": [nomes]} — nunca valores de credencial. Rota fluxos:exportar (pk, GET);
+      quem pode ver o fluxo pode exportar (refinado no M7).
+  - id: IMP-02
+    texto: >
+      IMPORTAR: rota fluxos:importar (POST multipart, ≤ 2 MB, só quem pode criar fluxo). Aceita o formato nativo e o do
+      n8n ({nodes, connections}). Cria um fluxo NOVO em rascunho no setor do usuário. Passa pela mesma validação fechada
+      (GRF-09/MV2-02). Mostra um RELATÓRIO de importação: nós importados, nós com ajuste necessário, nós sem equivalente
+      (viram "Sem operação" com nota "Não suportado: <tipo n8n>"), expressões não suportadas, segredos detectados.
+  - id: IMP-03
+    texto: >
+      MAPA n8n → nativo: tipos da NOV-01; parâmetros do httpRequest v4 (method, url, sendQuery/queryParameters,
+      sendHeaders/headerParameters, sendBody/bodyParameters/jsonBody, options.pagination → paginacao, options.response);
+      code v2 (mode, jsCode); executeOnce → executar_uma_vez; onError continueRegularOutput → em_erro continuar,
+      continueErrorOutput → saida_de_erro; disabled → desativado; notes/stickyNote → notas; pinData → dados_fixos;
+      connections.main[saida][i] → arestas. Expressões n8n (`={{ }}`) entram como estão (MV2-10 é compatível).
+  - id: IMP-04
+    texto: >
+      SEGURANÇA DA IMPORTAÇÃO: nó Código importado entra DESATIVADO até um Adm revisar e ativar (aviso no relatório).
+      Texto que parece segredo (JWT, Bearer <token>, chave de 32+ caracteres) gera alerta "mova para uma credencial" e é
+      SUBSTITUÍDO por "{{ $credencial }}" marcado como pendência — o valor original não é gravado.
+  - id: IMP-05
+    texto: >
+      EXPORTAR para n8n (melhor esforço): rota fluxos:exportar_n8n; só nós com equivalente; credenciais viram
+      referência vazia; relatório do que ficou de fora.
+  - id: IMP-06
+    texto: >
+      META DE ACEITE DO M5: importar docs/spec/exemplos/n8n_chamados_do_dia.json, criar a credencial "Digisac" (bearer
+      fictício), ativar os nós Código e executar contra uma API Digisac FALSA local (/api/v1/me, /api/v1/users,
+      /api/v1/tickets paginado) → a saída de "Lista de chamados" é idêntica à esperada pelo QA. Nada toca a internet.
+
+editor:
+  - id: EDV-01
+    texto: >
+      Paleta agrupada (Gatilhos, Ações, Dados, Fluxo, Saída) com busca. Nó com várias saídas mostra uma alça por saída
+      com rótulo (verdadeiro/falso, regras do Escolher, loop/pronto, erro); várias entradas idem.
+  - id: EDV-02
+    texto: >
+      Inspector com formulário por tipo (NOV-02..06), campo de expressão com destaque e PRÉVIA do valor usando os dados
+      da última execução de teste (ou "sem dados"); lista de variáveis disponíveis ($json, $('…') dos nós anteriores).
+      Nó Código com editor de texto monoespaçado (sem build; numeração de linhas, Tab).
+  - id: EDV-03
+    texto: >
+      Notas (sticky) arrastáveis e redimensionáveis; duplicar nó; copiar/colar seleção (JSON no grafo v2) entre fluxos;
+      desativar/ativar nó; fixar/limpar dados do nó; "Executar este nó" (MV2-06); botões Importar e Exportar na lista e
+      no editor; contagem de itens nas arestas após uma execução de teste.
