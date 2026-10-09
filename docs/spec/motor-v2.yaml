@@ -281,4 +281,11 @@ lacunas_parte_a:
       tipo errado = 400 de formato (MV2-02); valor fora da faixa ou chave obrigatória do modo ausente = pendência.
       Importação do n8n (IMP-03): options.pagination com um parâmetro mapeia para este formato; com vários parâmetros,
       só o primeiro entra e o relatório avisa.
+  - id: MV2-17
+    texto: >
+      Detalhes finais da parte B do T-051. Data e hora "diferenca" = campo2 − campo, COM sinal (positivo quando campo2 é
+      posterior), arredondado para baixo na unidade. Separar lista com caminho a.b e elemento não objeto → {<último
+      segmento do caminho>: elemento} (ex.: {"nums": 7}). Juntar combinar_por_campo: ordem de saída = ordem da entrada 0;
+      itens só da entrada 1 (direita/externa) vêm depois, na ordem dela. Editar campos modo json aceita texto template
+      ({{ }} resolvidos e o resultado parseado como JSON) além do valor tipado de um único {{ }}.
 
