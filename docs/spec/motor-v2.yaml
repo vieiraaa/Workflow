@@ -270,4 +270,15 @@ lacunas_parte_a:
       B10 REQUISIÇÕES GRAVADAS: ExecucaoNo.requisicoes = lista [{metodo, url, headers: [{nome, valor}], query, corpo,
       status}] (uma por requisição/página), mascarada por NOME (SEG-09) e por VALOR de credencial (CRD-02).
       Categorias novas: laco_excessivo.
+  - id: MV2-16
+    texto: >
+      FORMATO EXATO de config.paginacao do HTTP (fecha a lacuna da parte B; formato PLANO, proposta da QA aceita):
+      {"modo": "atualizar_parametro"|"proxima_url", "onde": "query"|"corpo"|"header" (atualizar_parametro), "nome": texto
+      (atualizar_parametro; em onde=corpo exige corpo.tipo json e "nome" é o caminho do campo, ex. a.b), "valor": expr com
+      $pageCount (atualizar_parametro), "url": expr com $response (proxima_url), "parar_quando": "resposta_vazia"|
+      "status"|"expressao", "codigos": [int] (parar_quando=status), "expressao": expr com $response (parar_quando=expressao;
+      verdadeiro = para), "limite_paginas": 1..100 (padrão 10), "intervalo_ms": 0..5000 (padrão 0)}. Chave desconhecida ou
+      tipo errado = 400 de formato (MV2-02); valor fora da faixa ou chave obrigatória do modo ausente = pendência.
+      Importação do n8n (IMP-03): options.pagination com um parâmetro mapeia para este formato; com vários parâmetros,
+      só o primeiro entra e o relatório avisa.
 
