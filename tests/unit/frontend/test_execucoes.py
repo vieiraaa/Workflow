@@ -154,3 +154,31 @@ def test_detalhe_de_teste_avisa_que_e_privado(cliente_coordenador, execucao_v2):
     execucao_v2.save()
     html = cliente_coordenador.get(reverse("execucoes:detalhe", kwargs={"pk": execucao_v2.pk})).content.decode()
     assert "Execução de teste" in html
+
+
+def test_detalhe_v2_mostra_resposta_http_com_status_e_corpo_escapado(cliente_coordenador, execucao_v2):
+    no = execucao_v2.nos.get(no_id="n2")
+    no.no_tipo = "http"
+    no.status = "erro"
+    no.erro_categoria = "http_5xx"
+    no.erro_mensagem = "Erro 500"
+    no.requisicoes = [{"metodo": "GET", "url": "https://api.exemplo.test/x", "status": 500, "resposta": {}}]
+    no.save()
+    from unittest import mock
+
+    from apps.execucoes import views
+
+    resposta = {"status": 500, "headers": [{"nome": "x-erro", "valor": "<i>1</i>"}], "corpo": "<script>alert(1)</script>", "truncado": True}
+    original = views.ExecucaoDetalheView._no_v2
+
+    def com_resposta(self, registro):
+        dados = original(self, registro)
+        if registro.no_id == "n2":
+            dados["resposta_http"] = resposta
+        return dados
+
+    with mock.patch.object(views.ExecucaoDetalheView, "_no_v2", com_resposta):
+        html = cliente_coordenador.get(reverse("execucoes:detalhe", kwargs={"pk": execucao_v2.pk})).content.decode()
+    assert "Resposta HTTP · 500" in html and 'data-estado="resposta_http"' in html
+    assert "<script>alert(1)</script>" not in html and "&lt;script&gt;" in html
+    assert "&lt;i&gt;1&lt;/i&gt;" in html and "Corpo truncado" in html

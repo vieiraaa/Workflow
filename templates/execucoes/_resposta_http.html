@@ -1,0 +1,14 @@
+{# resposta: {status, headers:[{nome,valor}], corpo (texto), truncado}. Já mascarada pelo servidor; tudo escapado. #}
+<div class="resposta-http" data-estado="resposta_http" data-status="{{ resposta.status }}">
+  {% if resposta.headers %}
+  <div class="grupo grupo--plano">
+    <h4 class="grupo__titulo">Cabeçalhos da resposta</h4>
+    {% for h in resposta.headers %}<div class="grupo__linha"><span class="no-exec__mono">{{ h.nome }}</span><span class="grupo__valor no-exec__mono">{{ h.valor }}</span></div>{% endfor %}
+  </div>
+  {% endif %}
+  {% if resposta.corpo %}
+  <h4 class="no-exec__rotulo">Corpo da resposta</h4>
+  {% include "componentes/bloco_codigo.html" with codigo=resposta.corpo %}
+  {% else %}<p class="texto-2 texto-sm">A resposta veio sem corpo.</p>{% endif %}
+  {% if resposta.truncado %}<p><span class="badge badge--erro">Corpo truncado</span> <span class="texto-2 texto-sm">Só o início (8 KB) foi guardado.</span></p>{% endif %}
+</div>

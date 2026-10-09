@@ -36,3 +36,4 @@ details[open] > .fluxo-exec__cab .icone { transform: rotate(180deg); }
 .no-exec__log, .no-exec__lista { margin: 0; padding: var(--sp-3); background: var(--fill); border-radius: var(--r-m); font-family: var(--font-mono); font-size: var(--text-sm); white-space: pre-wrap; overflow-wrap: anywhere; }
 .no-exec__lista { list-style: none; font-family: inherit; display: flex; flex-direction: column; gap: var(--sp-1); }
 .fluxo-exec__ligacoes { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); }
+.no-exec__req { display: flex; flex-direction: column; margin-top: var(--sp-1); color: var(--text-2); }

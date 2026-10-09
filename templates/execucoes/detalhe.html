@@ -93,11 +93,18 @@
         <h3 class="no-exec__rotulo">Entrada</h3>
         {% include "componentes/bloco_codigo.html" with codigo=no.entrada_json %}
         {% endif %}
+        {% if no.itens_saida is None %}
         {% if no.http_status or no.saida_json %}
         <h3 class="no-exec__rotulo">Saída{% if no.http_status %} · HTTP {{ no.http_status }}{% endif %}</h3>
         {% endif %}
+        {% elif no.resposta_http %}
+        <h3 class="no-exec__rotulo" data-resposta-http>Resposta HTTP · {{ no.resposta_http.status|default:"—" }}</h3>
+        {% elif no.saida_json %}
+        <h3 class="no-exec__rotulo">Itens de saída</h3>
+        {% endif %}
         {% if no.saidas_contagem %}<p class="texto-2 texto-sm" data-saidas-contagem>Itens por saída: {% for n in no.saidas_contagem %}{{ n }}{% if not forloop.last %} · {% endif %}{% endfor %}</p>{% endif %}
-        {% if no.headers_saida %}
+        {% if no.resposta_http %}{% include "execucoes/_resposta_http.html" with resposta=no.resposta_http %}
+        {% elif no.headers_saida %}
         <div class="grupo grupo--plano">
           <h4 class="grupo__titulo">Cabeçalhos da resposta</h4>
           {% for h in no.headers_saida %}<div class="grupo__linha"><span class="no-exec__mono">{{ h.nome }}</span><span class="grupo__valor no-exec__mono">{{ h.valor }}</span></div>{% endfor %}
@@ -106,16 +113,20 @@
         {% if no.truncado %}<p><span class="badge badge--erro">{% if no.itens_saida is None %}Resposta truncada{% else %}Truncado{% endif %}</span> <span class="texto-2 texto-sm">{% if no.itens_saida is None %}O corpo passou do limite e foi cortado.{% else %}Só os primeiros 50 itens foram guardados.{% endif %}</span></p>{% endif %}
         {% if no.requisicoes %}
         <h4 class="no-exec__rotulo">Requisições ({{ no.requisicoes|length }})</h4>
-        <ul class="no-exec__lista texto-sm">{% for r in no.requisicoes %}<li><span class="no-exec__mono">{{ r.metodo }} {{ r.url }}</span> · {{ r.status|default:"—" }}</li>{% endfor %}</ul>
+        <ul class="no-exec__lista texto-sm">{% for r in no.requisicoes %}<li><span class="no-exec__mono">{{ r.metodo }} {{ r.url }}</span> · {{ r.status|default:"—" }}{% if r.headers or r.query %}
+          <span class="no-exec__req">{% for h in r.headers %}<span class="no-exec__mono" data-req-header>{{ h.nome }}: {{ h.valor }}</span>{% endfor %}{% for q in r.query %}<span class="no-exec__mono" data-req-query>{{ q.nome }}={{ q.valor }}</span>{% endfor %}</span>{% endif %}</li>{% endfor %}</ul>
         {% endif %}
         {% if no.logs %}
         <h4 class="no-exec__rotulo">Console do código</h4>
         <pre class="no-exec__log">{% for l in no.logs %}{{ l }}
 {% endfor %}</pre>
         {% endif %}
-        {% if no.corpo_texto %}
+        {% if no.itens_saida is None and no.corpo_texto %}
         <h4 class="no-exec__rotulo">Corpo da resposta</h4>
         {% include "componentes/bloco_codigo.html" with codigo=no.corpo_texto %}
+        {% elif no.resposta_http and no.saida_json %}
+        <h4 class="no-exec__rotulo">Itens de saída</h4>
+        {% include "componentes/bloco_codigo.html" with codigo=no.saida_json %}
         {% elif no.saida_json %}
         {% include "componentes/bloco_codigo.html" with codigo=no.saida_json %}
         {% endif %}
