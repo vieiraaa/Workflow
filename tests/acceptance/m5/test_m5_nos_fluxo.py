@@ -1,7 +1,5 @@
 """Aceite M5 parte B: nós de fluxo (NOV-04: Juntar, Repetir em lotes, Parar com erro, Sem operação). MV2-15 B4, B5."""
 
-import json
-
 import pytest
 
 pytestmark = [pytest.mark.django_db, pytest.mark.modulo("m5")]
@@ -29,10 +27,6 @@ def juntar(executar, cliente_adm, h, no, jsons):
     return _j
 
 
-def _ms(itens):
-    return sorted(json.dumps(i, sort_keys=True) for i in itens)
-
-
 M1 = {"id": 2, "a": "y", "k": 2, "b": "Y", "v": "da-B"}
 
 
@@ -45,7 +39,7 @@ M1 = {"id": 2, "a": "y", "k": 2, "b": "Y", "v": "da-B"}
 def test_juntar_combinar_por_campo(tipo, esperado, juntar):
     """NOV-04/B4: dentro/esquerda/direita/externa; mescla {**entrada0, **entrada1} (a entrada 1 vence)."""
     _, s = juntar({"modo": "combinar_por_campo", "campo1": "id", "campo2": "k", "tipo": tipo}, A, B)
-    assert _ms(s) == _ms(esperado)
+    assert s == esperado  # MV2-17: ordem da entrada 0; só-da-direita depois, na ordem da entrada 1
 
 
 def test_juntar_combinar_por_posicao_ate_o_menor(juntar):

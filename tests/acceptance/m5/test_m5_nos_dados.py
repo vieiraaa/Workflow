@@ -98,7 +98,7 @@ def test_separar_lista_de_objetos_com_e_sem_campos_do_pai(rodar_no):
 def test_separar_lista_com_caminho_elemento_simples_e_vazia(rodar_no):
     """NOV-03/B9: caminho a.b; elemento não objeto vira {campo: elemento}; lista vazia = 0 itens."""
     _, (s,) = rodar_no("separar_lista", {"campo": "d.nums", "incluir": "nada"}, [{"d": {"nums": [7, 8]}}])
-    assert s == [{"d.nums": 7}, {"d.nums": 8}] or s == [{"nums": 7}, {"nums": 8}]
+    assert s == [{"nums": 7}, {"nums": 8}]
     e, (s,) = rodar_no("separar_lista", {"campo": "itens", "incluir": "nada"}, [{"itens": []}])
     assert e.status == "sucesso" and s == []
 
@@ -184,10 +184,13 @@ def test_data_hora_inicio_de(un, esperado, rodar_no):
 
 
 def test_data_hora_diferenca_em_unidade(rodar_no):
-    """NOV-03/B3: diferença entre campo e campo2, número na unidade (módulo; o sinal não é especificado)."""
+    """NOV-03/MV2-17: diferença = campo2 − campo COM sinal, arredondada para baixo na unidade."""
     ent = {"d": "2026-10-09T12:00:00-03:00", "d2": "2026-10-07T12:00:00-03:00"}
-    assert abs(_dh(rodar_no, ent, operacao="diferenca", campo2="d2", unidade="dias")["r"]) == 2
-    assert abs(_dh(rodar_no, ent, operacao="diferenca", campo2="d2", unidade="horas")["r"]) == 48
+    assert _dh(rodar_no, ent, operacao="diferenca", campo2="d2", unidade="dias")["r"] == -2
+    assert _dh(rodar_no, ent, operacao="diferenca", campo2="d2", unidade="horas")["r"] == -48
+    ent = {"d": "2026-10-07T12:00:00-03:00", "d2": "2026-10-09T18:00:00-03:00"}
+    assert _dh(rodar_no, ent, operacao="diferenca", campo2="d2", unidade="dias")["r"] == 2
+    assert _dh(rodar_no, ent, operacao="diferenca", campo2="d2", unidade="horas")["r"] == 54
 
 
 def test_data_hora_agora_e_saida_vazia_sobrescreve(rodar_no):
