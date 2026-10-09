@@ -25,3 +25,4 @@
 - D-023 · 09/10 · Papéis Gerente e TI separados, mantendo o Adm (divisão proposta no ROADMAP §4, a confirmar).
 - D-024 · 09/10 · Ordem: M5 Motor v2 completo → M6 segundo plano/gatilhos → M7 Funções → M8 Digisac/CSLog + painel.
 - D-025 · 09/10 · Expressões v2 (T-053): aceitam também optional chaining `?.`; String.replace só com texto (sem regex); undefined/NaN/Infinity viram null ao serializar em JSON.
+- D-026 · 09/10 · Usuário autorizou internet SÓ para o pip/PyPI instalar 'cryptography' (cofre Fernet, T-054); app e testes seguem sem internet. Atalaia trocou para Opus 4.8 nesta sessão (filtros do Opus 5.5 barraram o teste defensivo de isolamento), sem mudar a configuração global.
