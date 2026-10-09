@@ -147,3 +147,10 @@ def test_detalhe_v2_mostra_itens_ramos_e_estados(cliente_coordenador, execucao_v
     assert 'id="nos-execucao"' in html and 'id="grafo-execucao"' in html
     assert "<i>x</i>" not in html
 
+
+
+def test_detalhe_de_teste_avisa_que_e_privado(cliente_coordenador, execucao_v2):
+    execucao_v2.teste = True
+    execucao_v2.save()
+    html = cliente_coordenador.get(reverse("execucoes:detalhe", kwargs={"pk": execucao_v2.pk})).content.decode()
+    assert "Execução de teste" in html
