@@ -129,3 +129,42 @@ telas:
     papel: adm
     estados: [padrao, erro_validacao]
     regras: [SET-02]
+  # --- m5 · Motor v2
+  - id: TEL-18
+    modulo: m5
+    nome: Credenciais (lista)
+    rota: credenciais:lista
+    papel: adm
+    estados: [vazio, com_dados]
+    regras: [CRD-01]
+  - id: TEL-19
+    modulo: m5
+    nome: Credencial (formulário)
+    rota: credenciais:nova
+    papel: adm
+    estados: [padrao, erro_validacao]
+    regras: [CRD-01]
+  - id: TEL-20
+    modulo: m5
+    nome: Credencial (editar, valor oculto)
+    rota: credenciais:editar
+    kwargs: {pk: credencial_demo}
+    papel: adm
+    estados: [padrao]
+    regras: [CRD-01]
+  - id: TEL-21
+    modulo: m5
+    nome: Editor v2
+    rota: fluxos:editor
+    kwargs: {pk: fluxo_v2_demo}
+    papel: adm
+    estados: [com_ramos, inspector_http_paginacao, inspector_codigo, relatorio_importacao, pendencias_v2]
+    regras: [EDV-01, EDV-02, EDV-03, IMP-02, MV2-14]
+  - id: TEL-22
+    modulo: m5
+    nome: Execução v2 (detalhe com itens e ramos)
+    rota: execucoes:detalhe
+    kwargs: {pk: execucao_v2_demo}
+    papel: adm
+    estados: [sucesso_com_ramos, erro_continuar, teste]
+    regras: [MV2-07, MV2-12, MV2-14, EXE-15]
