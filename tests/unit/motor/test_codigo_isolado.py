@@ -77,8 +77,9 @@ def test_api_nov06_por_item_e_console():
     saida = executar_codigo(
         codigo, [{"json": {"n": 1}}, {"json": {"n": 2}}], modo="uma_vez_por_item", contexto=CONTEXTO
     )
-    assert [i["json"]["n"] for i in saida["itens"]] == [2, 4]
-    assert saida["itens"][0]["json"]["exec"] == 7 and saida["itens"][0]["json"]["wf"] == "Chamados"
+    itens = [i for r in saida["por_item"] for i in r["itens"]]
+    assert [i["json"]["n"] for i in itens] == [2, 4]
+    assert itens[0]["json"]["exec"] == 7 and itens[0]["json"]["wf"] == "Chamados"
     assert saida["logs"] == ["oi 1", "oi 2"]
 
 

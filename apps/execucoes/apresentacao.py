@@ -22,6 +22,7 @@ ROTULOS_ERRO = {
     "parado": "Parado pelo fluxo",
     "paginacao": "Erro na paginação",
     "laco_excessivo": "Laço excessivo",
+    "codigo_indisponivel": "Código indisponível neste servidor",
 }
 ROTULOS_NO = {
     "sucesso": "Sucesso",

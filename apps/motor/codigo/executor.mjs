@@ -17,6 +17,7 @@ for (const nome of ["fetch", "WebSocket", "EventSource", "XMLHttpRequest", "Requ
 
 const PRELUDIO = `
 "use strict";
+delete globalThis.WebAssembly;
 (function () {
   const __dados = JSON.parse(__JSON__);
   const __linhas = [];
@@ -55,21 +56,30 @@ const PRELUDIO = `
     })($input, $, $json, items, $now, $today, $execution, $workflow, $parametros, console);
   };
   const normalizar = (r) => {
-    if (r === undefined || r === null) return [];
+    if (r === undefined || r === null) throw new Error("O código deve devolver (return) um array ou um objeto.");
     if (typeof r.then === "function") throw new Error("Código assíncrono (Promise/await/import) não é suportado.");
     const l = Array.isArray(r) ? r : [r];
     return l.map((x) => {
       if (x === null || typeof x !== "object" || Array.isArray(x)) throw new Error("O código deve devolver objetos ou {json: ...}.");
-      return clone(Object.prototype.hasOwnProperty.call(x, "json") && x.json !== null && typeof x.json === "object" ? { json: x.json } : { json: x });
+      if (Object.prototype.hasOwnProperty.call(x, "json")) {
+        if (x.json === null || typeof x.json !== "object" || Array.isArray(x.json)) throw new Error("O campo json de cada item deve ser um objeto.");
+        return clone({ json: x.json });
+      }
+      return clone({ json: x });
     });
   };
-  let saida = [];
   if (__dados.modo === "uma_vez_por_item") {
-    for (let i = 0; i < __dados.itens.length; i++) saida.push(...normalizar(executar(i)));
-  } else {
-    saida = normalizar(executar(0));
+    const porItem = [];
+    for (let i = 0; i < __dados.itens.length; i++) {
+      try {
+        porItem.push({ itens: normalizar(executar(i)) });
+      } catch (e) {
+        porItem.push({ erro: String((e && e.message) || e).slice(0, 500) });
+      }
+    }
+    return JSON.stringify({ por_item: porItem, logs: __linhas });
   }
-  return JSON.stringify({ itens: saida, logs: __linhas });
+  return JSON.stringify({ itens: normalizar(executar(0)), logs: __linhas });
 })()
 `;
 

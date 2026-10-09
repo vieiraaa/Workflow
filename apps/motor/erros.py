@@ -8,6 +8,8 @@ CATEGORIAS_NOVAS = (
     "limite_itens",
     "parado",
     "paginacao",
+    "laco_excessivo",
+    "codigo_indisponivel",
 )
 
 

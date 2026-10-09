@@ -5,11 +5,11 @@ limitados, entrada/saída só JSON por stdin/stdout. Nunca eval/vm no processo d
 """
 
 import json
-import os
-import shutil
 import subprocess
 import time
 from pathlib import Path
+
+from . import isolamento
 
 RUNNER = Path(__file__).with_name("executor.mjs")
 LIMITE_CODIGO = 50_000
@@ -27,17 +27,39 @@ class CodigoErro(Exception):
         self.mensagem = mensagem
 
 
-def _node():
-    caminho = os.environ.get("NODE_BIN") or shutil.which("node")
-    if not caminho:
-        raise CodigoErro("codigo", "Runtime do nó Código indisponível (Node.js não encontrado).")
-    return caminho
+def _comando():
+    """Comando do runtime DENTRO da camada de rede do SO (SEG-20); falha fechada sem ela."""
+    node = isolamento.node_real()
+    if not node:
+        raise CodigoErro(
+            "codigo_indisponivel", "Runtime do nó Código indisponível (Node.js não encontrado)."
+        )
+    argv = [
+        node,
+        "--permission",
+        f"--allow-fs-read={RUNNER}",  # só o próprio runner, leitura
+        f"--max-old-space-size={LIMITE_MEMORIA_MB}",
+        "--disallow-code-generation-from-strings",
+        str(RUNNER),
+    ]
+    envolvido = isolamento.comando(argv)
+    if envolvido is None:
+        raise CodigoErro("codigo_indisponivel", isolamento.MSG_INDISPONIVEL)
+    return envolvido
 
 
 def executar_codigo(
     codigo, itens, modo="uma_vez_para_todos", nos=None, contexto=None, cpu_s=LIMITE_CPU_S
 ):
-    """Roda `codigo` e devolve `{"itens": [{"json": ...}], "logs": [...], "duracao_ms": int}`."""
+    """Roda `codigo` no runtime isolado. Devolve, conforme o modo:
+
+    - `uma_vez_para_todos`: `{"itens": [{"json": ...}], "logs": [...], "duracao_ms": int}`;
+    - `uma_vez_por_item`: `{"por_item": [{"itens": [...]} | {"erro": mensagem}], "logs": [...],
+      "duracao_ms": int}` (uma entrada por item de entrada, na ordem; falha de um item não impede
+      os outros).
+
+    Falha do código inteiro: `CodigoErro` (`codigo`, `codigo_limite` ou `codigo_indisponivel`).
+    """
     if len(codigo) > LIMITE_CODIGO:
         raise CodigoErro("codigo", "O código excede 50.000 caracteres.")
     contexto = {
@@ -57,15 +79,7 @@ def executar_codigo(
             "timeoutMs": int(cpu_s * 1000),
         }
     ).encode()
-    comando = [
-        _node(),
-        "--permission",
-        f"--max-old-space-size={LIMITE_MEMORIA_MB}",
-        "--disallow-code-generation-from-strings",
-        str(RUNNER),
-    ]
-    # --permission sem --allow-fs-read bloqueia até ler o próprio runner: libera SÓ ele, leitura.
-    comando.insert(2, f"--allow-fs-read={RUNNER}")
+    comando = _comando()
     inicio = time.monotonic()
     try:
         proc = subprocess.run(  # noqa: S603 - lista de argumentos, sem shell
@@ -79,6 +93,8 @@ def executar_codigo(
         )
     except subprocess.TimeoutExpired:
         raise CodigoErro("codigo_limite", "O código excedeu o tempo limite.") from None
+    except OSError:
+        raise CodigoErro("codigo_indisponivel", isolamento.MSG_INDISPONIVEL) from None
     duracao = int((time.monotonic() - inicio) * 1000)
     if len(proc.stdout) > LIMITE_SAIDA:
         raise CodigoErro("codigo_limite", "A saída do código excedeu 5 MB.")
