@@ -107,6 +107,24 @@ ENUMS_CONFIG = {
 }
 
 CHAVES_CORPO = {"tipo", "conteudo"}
+# MV2-16: formato plano de config.paginacao do HTTP.
+ESQUEMA_PAGINACAO = {
+    "modo": "texto",
+    "onde": "texto",
+    "nome": "texto",
+    "valor": "texto",
+    "url": "texto",
+    "parar_quando": "texto",
+    "codigos": "lista",
+    "expressao": "texto",
+    "limite_paginas": "int",
+    "intervalo_ms": "int",
+}
+ENUMS_PAGINACAO = {
+    "modo": ("atualizar_parametro", "proxima_url"),
+    "onde": ("query", "corpo", "header"),
+    "parar_quando": ("resposta_vazia", "status", "expressao"),
+}
 TIPOS_DE_CORPO = ("nenhum", "json", "formulario", "texto")
 EM_ERRO = ("parar", "continuar", "saida_de_erro")
 CORES_NOTA = ("amarela", "azul", "verde", "cinza")

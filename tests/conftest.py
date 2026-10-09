@@ -103,3 +103,12 @@ def cliente_base(usuario_base):
 @pytest.fixture
 def cliente_sem_papel(usuario_sem_papel):
     return _cliente_logado(usuario_sem_papel)
+
+
+@pytest.fixture
+def chave_credenciais(settings):
+    """Chave Fernet de teste gerada na hora (SEG-18): nunca uma chave real."""
+    from cryptography.fernet import Fernet
+
+    settings.CREDENCIAIS_CHAVE = Fernet.generate_key().decode()
+    return settings.CREDENCIAIS_CHAVE

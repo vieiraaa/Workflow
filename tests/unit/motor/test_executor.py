@@ -139,7 +139,7 @@ def test_crlf_de_placeholder_em_header_ou_query_e_recusado_sem_enviar(
             usuario_coordenador, _cadeia(_http(f"{liberado.base}/valores"), config)
         )
         h2 = _nos(execucao)["h2"]
-        assert h2.erro_categoria == "expressao" and execucao.status == "erro"
+        assert h2.erro_categoria == "placeholder" and execucao.status == "erro"
         assert len(liberado.requisicoes) == antes + 1  # só o /valores saiu
 
 

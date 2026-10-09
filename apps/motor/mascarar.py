@@ -131,6 +131,12 @@ def _variantes(segredos):
     return sorted((v for v in achadas if v), key=len, reverse=True)
 
 
+def ocultar_em_texto(texto, segredos):
+    """`texto` com qualquer ocorrência dos `segredos` (crus, JSON-escapados ou percent-encoded)
+    trocada por `••••`."""
+    return _limpar_texto(texto, _variantes(segredos)) if texto and segredos else texto
+
+
 def mascarar_itens(itens, segredos=()):
     """Cópia dos itens para gravar/exibir: dicts `headers` com nomes sensíveis mascarados e
     qualquer ocorrência dos `segredos` (valores de credencial etc.) trocada por `••••`."""

@@ -247,15 +247,22 @@ def sanear_texto(texto):
     return re.sub("[\ud800-\udfff\x00]", "\ufffd", texto)
 
 
-def _decodificar_corpo(bruto, content_type):
+def _texto_do_corpo(bruto, content_type):
     charset = "utf-8"
     achado = re.search(r"charset=([\w.-]+)", content_type or "", re.IGNORECASE)
     if achado:
         charset = achado.group(1)
     try:
-        texto = bruto.decode(charset, errors="replace")
+        return bruto.decode(charset, errors="replace")
     except LookupError:
-        texto = bruto.decode("utf-8", errors="replace")
+        return bruto.decode("utf-8", errors="replace")
+
+
+def _decodificar_corpo(bruto, content_type):
+    return _interpretar_corpo(_texto_do_corpo(bruto, content_type), content_type)
+
+
+def _interpretar_corpo(texto, content_type):
     parece_json = "json" in (content_type or "").lower() or texto.lstrip()[:1] in ("{", "[")
     if parece_json:
         try:
@@ -518,10 +525,13 @@ def _seguir(cliente, metodo, url, headers, query, corpo, limite_tempo):
                 bruto, truncado = _ler_limitado(resposta, limite_tempo)
             except httpx.HTTPError as erro:
                 raise _erro_de_transporte(erro) from None
+            tipo = resposta.headers.get("content-type")
+            texto = _texto_do_corpo(bruto, tipo)
             return {
                 "status": resposta.status_code,
                 "headers": _headers_da_resposta(resposta),
-                "corpo": _decodificar_corpo(bruto, resposta.headers.get("content-type")),
+                "corpo": _interpretar_corpo(texto, tipo),
+                "texto": sanear_texto(texto),
                 "truncado": truncado,
             }
         finally:

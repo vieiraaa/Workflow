@@ -45,8 +45,9 @@ class _Parar(Exception):
 class Contexto:
     """O que os nós enxergam da execução em andamento."""
 
-    def __init__(self, execucao_obj, usuario, fluxo_nome, prazo, fixos):
+    def __init__(self, execucao_obj, usuario, fluxo_nome, prazo, fixos, setor_id=None):
         self.usuario = usuario
+        self.setor_id = setor_id  # setor do fluxo: limita as credenciais visíveis (CRD-02)
         self.execucao = execucao_obj
         self.fluxo_nome = fluxo_nome
         self.resultados = {}  # título do nó → itens da saída 0 do último run
@@ -77,6 +78,10 @@ class Contexto:
         """Requisição resolvida pronta para gravar (SEG-09 por nome + SEG-18 por valor)."""
         registro = mascarar.mascarar_entrada_http(resolvido)
         return mascarar.ocultar_valores(registro, self.segredos)
+
+    def adicionar_segredos(self, valores):
+        """Valores de credencial a mascarar por VALOR em tudo que é gravado (SEG-18)."""
+        self.segredos |= {v for v in valores if isinstance(v, str) and len(v) >= 4}
 
     def diagnostico(self, falha):
         self._diagnosticos.append(falha)
@@ -127,6 +132,7 @@ class _Execucao:
             fluxo.nome,
             time.monotonic() + float(settings.MOTOR_TIMEOUT_EXECUCAO),
             grafo.get("dados_fixos") or {},
+            setor_id=fluxo.setor_id,
         )
         self.ordem = 0
         self.bytes_gravados = 0
@@ -208,7 +214,9 @@ class _Execucao:
             "logs": list(resultado.logs)[:200] if resultado else [],
             "requisicoes": requisicoes,
             "erro_categoria": falha.categoria if falha else None,
-            "erro_mensagem": falha.mensagem if falha else "",
+            "erro_mensagem": mascarar.ocultar_em_texto(falha.mensagem, self.ctx.segredos)
+            if falha
+            else "",
             "duracao_ms": duracao_ms,
         }
         self.ordem += 1
@@ -374,7 +382,8 @@ class _Execucao:
             execucao.status = Execucao.SUCESSO
         else:
             execucao.status = Execucao.ERRO
-            execucao.erro_resumo = f"{parada.no['titulo']}: {parada.falha.mensagem}"[:500]
+            resumo = f"{parada.no['titulo']}: {parada.falha.mensagem}"
+            execucao.erro_resumo = mascarar.ocultar_em_texto(resumo, self.ctx.segredos)[:500]
         execucao.save(update_fields=["status", "finalizada_em", "erro_resumo", "arestas"])
         return execucao
 

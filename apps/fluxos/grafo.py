@@ -160,6 +160,19 @@ def _formato_pares(config, campo, onde):
     return erros
 
 
+def _formato_paginacao(paginacao, onde):
+    erros = _chaves_desconhecidas(paginacao, set(catalogo.ESQUEMA_PAGINACAO), onde)
+    for campo, esperado in catalogo.ESQUEMA_PAGINACAO.items():
+        if campo not in paginacao:
+            continue
+        valor = paginacao[campo]
+        if not _tipo_ok(valor, esperado):
+            erros.append(_erro(f"{onde}.{campo}", f"'{campo}' tem um tipo inválido."))
+        elif campo == "codigos" and not all(_tipo_ok(c, "int") for c in valor):
+            erros.append(_erro(f"{onde}.codigos", "'codigos' deve ser uma lista de inteiros."))
+    return erros
+
+
 def _formato_config(tipo, config, onde):
     esquema = catalogo.ESQUEMA_CONFIG[tipo]
     erros = _chaves_desconhecidas(config, set(esquema), f"{onde}.config")
@@ -174,6 +187,8 @@ def _formato_config(tipo, config, onde):
         if permitidos and valor not in permitidos:
             erros.append(_erro(f"{onde}.config.{campo}", f"Valor inválido em '{campo}'."))
     if tipo == "http" and not erros:
+        if config.get("paginacao") is not None:
+            erros += _formato_paginacao(config["paginacao"], f"{onde}.config.paginacao")
         for campo in ("headers", "query"):
             erros += _formato_pares(config, campo, f"{onde}.config")
         corpo = config.get("corpo")
@@ -374,6 +389,8 @@ def _pendencias_url(no_id, url):
         return [_pendencia(no_id, "url", "Informe a URL.")]
     if len(url) > MAX_URL:
         return [_pendencia(no_id, "url", f"A URL pode ter no máximo {MAX_URL} caracteres.")]
+    if url.lstrip().startswith(("{{", "=")):
+        return []  # MV2-19: a expressão no início fornece esquema e host; o executor valida
     try:
         partes = urlsplit(url)
         host = partes.netloc.rpartition("@")[2]
@@ -420,11 +437,54 @@ def _pendencias_corpo(no_id, metodo, corpo):
     if len(conteudo.encode("utf-8")) > MAX_CORPO_BYTES:
         return [_pendencia(no_id, "corpo", "O corpo pode ter no máximo 100 KB.")]
     if tipo == "json" and not conteudo.lstrip().startswith("="):
-        try:
-            json.loads(conteudo)
+        try:  # cada {{ expr }} vale como um valor qualquer (resolvido só na execução)
+            json.loads(re.sub(r"\{\{.*?\}\}", "0", conteudo, flags=re.DOTALL))
         except ValueError:
             return [_pendencia(no_id, "corpo", "O corpo precisa ser um JSON válido.")]
     return []
+
+
+def _pendencias_paginacao(no_id, config):
+    paginacao = config.get("paginacao")
+    if not paginacao:
+        return []
+    modo = paginacao.get("modo")
+    faltando = []
+    if modo == "atualizar_parametro":
+        faltando = [c for c in ("onde", "nome", "valor") if not str(paginacao.get(c, "")).strip()]
+    elif modo == "proxima_url":
+        faltando = [c for c in ("url",) if not str(paginacao.get(c, "")).strip()]
+    else:
+        faltando = ["modo"]
+    parar = paginacao.get("parar_quando")
+    if parar is None:
+        faltando.append("parar_quando")
+    elif parar == "status" and not paginacao.get("codigos"):
+        faltando.append("codigos")
+    elif parar == "expressao" and not str(paginacao.get("expressao", "")).strip():
+        faltando.append("expressao")
+    pendencias = [
+        _pendencia(no_id, f"paginacao.{c}", f"Informe '{c}' na paginação.") for c in faltando
+    ]
+    for campo, permitidos in catalogo.ENUMS_PAGINACAO.items():
+        if campo in paginacao and paginacao[campo] not in permitidos:
+            pendencias.append(
+                _pendencia(no_id, f"paginacao.{campo}", f"Valor inválido em '{campo}'.")
+            )
+    limite, intervalo = paginacao.get("limite_paginas", 10), paginacao.get("intervalo_ms", 0)
+    if not 1 <= limite <= 100:
+        pendencias.append(
+            _pendencia(no_id, "paginacao.limite_paginas", "O limite de páginas vai de 1 a 100.")
+        )
+    if not 0 <= intervalo <= 5000:
+        pendencias.append(
+            _pendencia(no_id, "paginacao.intervalo_ms", "O intervalo vai de 0 a 5000 ms.")
+        )
+    if paginacao.get("onde") == "corpo" and _corpo(config).get("tipo") != "json":
+        pendencias.append(
+            _pendencia(no_id, "paginacao.onde", "Paginar pelo corpo exige corpo do tipo JSON.")
+        )
+    return pendencias
 
 
 def _pendencias_http(no):
@@ -439,6 +499,7 @@ def _pendencias_http(no):
     pendencias += _pendencias_pares(no_id, config, "headers", "cabeçalhos")
     pendencias += _pendencias_pares(no_id, config, "query", "parâmetros de consulta")
     pendencias += _pendencias_corpo(no_id, metodo, _corpo(config))
+    pendencias += _pendencias_paginacao(no_id, config)
     return pendencias
 
 

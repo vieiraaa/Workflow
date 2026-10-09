@@ -32,13 +32,19 @@ class _Handler(BaseHTTPRequestHandler):
             {
                 "metodo": self.command,
                 "path": self.path,
+                "query": parse_qs(partes.query),
                 "headers": {k.lower(): v for k, v in self.headers.items()},
                 "corpo": corpo.decode("utf-8", "replace"),
             }
         )
         json_h = {"Content-Type": "application/json"}
         caminho = partes.path
-        if caminho == "/ok":
+        if caminho in estado.rotas:  # rotas dinâmicas do teste: callable(req) -> (status, obj, hs)
+            req = {**estado.requisicoes[-1], "query": parse_qs(partes.query), "rota": caminho}
+            status, obj, extras = estado.rotas[caminho](req)
+            dados = obj if isinstance(obj, bytes) else json.dumps(obj).encode()
+            self._enviar(status, dados, {**json_h, **(extras or {})})
+        elif caminho == "/ok":
             self._enviar(200, b'{"ok": true}', json_h)
         elif caminho == "/valores":
             self._enviar(200, json.dumps({"crlf": "a\r\nInjetado: 1", "v": "x"}).encode(), json_h)
@@ -96,6 +102,7 @@ class _Handler(BaseHTTPRequestHandler):
 class ServidorLocal:
     def __init__(self):
         self.requisicoes = []
+        self.rotas = {}
         self.codigo_redirect = 302
         self._httpd = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
         self._httpd.estado = self
