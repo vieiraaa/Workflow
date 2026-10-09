@@ -224,4 +224,21 @@ lacunas_parte_a:
       smtp), header_nome (header), host, porta, tls (smtp). Importação: POST fluxos:importar → redirect para
       fluxos:editor do fluxo novo + toast "Fluxo importado com N avisos."; o relatório fica gravado no fluxo
       (relatorio_importacao, JSON) e aparece num painel do editor com data-relatorio-importacao, até o usuário dispensar.
+  - id: MV2-14
+    texto: >
+      Fecha as lacunas novas da parte A do T-051. (1) Migração do corpo HTTP v1: string vazia → {"tipo": "nenhum",
+      "conteudo": ""}; string não vazia → {"tipo": "json", "conteudo": <a mesma string>}. (2) $pageCount e $response fora
+      da paginação = undefined (acessar propriedade deles = erro "expressao", MV2-12 L8d). (3) fluxos:executar_no:
+      com Accept: application/json → 200 {"ok": true, "execucao": pk, "url_detalhe": "..."}; sem → redirect para
+      execucoes:detalhe da execução de teste. Execução de teste: detalhe 200 só para o autor, 404 para qualquer outro
+      (inclusive Adm); nunca aparece em execucoes:lista, na Home nem nas contagens. (5) Contagem nas arestas: o
+      grafo_execucao do detalhe (EXE-15) ganha "itens" (int) em cada aresta, e o desenho mostra o número com
+      data-itens="<n>". (6) Mensagens das pendências v2: "O fluxo precisa de exatamente um gatilho." · "Este nó não está
+      ligado ao gatilho." · "O fluxo tem um ciclo." · "O gatilho não pode ter entrada." · "A Saída não pode ter ligações
+      de saída." · "Já existe um nó com o título \"<título>\"." · "Ligação para uma saída que este nó não tem." ·
+      "Dados fixos de um nó que não existe.". (7) CHAVES DE CONFIG: Se e Filtrar {"condicoes": [...], "combinar": "e"|"ou"};
+      Filtrar também {"manter_descartados": bool}; Escolher {"regras": [{"condicoes": [...], "combinar": "e"|"ou",
+      "rotulo": texto}], "saida_outros": bool}; Juntar {"modo", "entradas": 2..4, e conforme o modo "campo1", "campo2",
+      "tipo" ou "entrada"}; Editar campos {"modo", "campos", "incluir_outros"}. (4) Limites de 10 MB gravados e 10.000 passos
+      ficam como salvaguarda interna, sem teste de aceite.
 
