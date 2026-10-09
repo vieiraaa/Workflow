@@ -4,6 +4,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
+from .forms_setores import campo_setor, escolhas_setor, setor_escolhido
 from .models import Usuario
 from .permissoes import papeis
 from .sessoes import encerrar_sessoes
@@ -11,6 +12,7 @@ from .sessoes import encerrar_sessoes
 MSG_EMAIL_DUPLICADO = "Já existe um usuário com este e-mail."
 MSG_SENHAS_DIFERENTES = "As senhas não conferem."
 MSG_ULTIMO_ADM = "É preciso manter pelo menos um administrador ativo."
+MSG_SETOR_OBRIGATORIO = "Escolha um setor."
 MSG_AUTOPROTECAO = "Você não pode desativar a si mesmo nem remover o seu papel de administrador."
 
 
@@ -53,18 +55,35 @@ class _ComSenha(forms.Form):
         return dados
 
 
+def _exigir_setor(form, dados):
+    """SET-03: setor obrigatório para papel ≠ adm."""
+    if dados.get("papel") and dados["papel"] != "adm" and not dados.get("setor"):
+        if "setor" not in form.errors:
+            form.add_error("setor", MSG_SETOR_OBRIGATORIO)
+
+
 class UsuarioNovoForm(_ComSenha):
-    """Campos POST: nome, email, papel (id), senha, confirmacao (USR-13)."""
+    """Campos POST: nome, email, papel (id), setor (id), senha, confirmacao (USR-13, SET-03)."""
 
     campo_senha = "senha"
 
     nome = forms.CharField(label="Nome", max_length=120)
     email = forms.EmailField(label="E-mail", max_length=254)
     papel = _campo_papel()
+    setor = campo_setor()
     senha = forms.CharField(label="Senha", widget=forms.PasswordInput(render_value=False))
     confirmacao = forms.CharField(
         label="Confirmação da senha", widget=forms.PasswordInput(render_value=False)
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["setor"].choices = escolhas_setor("Sem setor")
+
+    def clean(self):
+        dados = super().clean()
+        _exigir_setor(self, dados)
+        return dados
 
     def clean_email(self):
         email = self.cleaned_data["email"].strip().lower()
@@ -81,24 +100,29 @@ class UsuarioNovoForm(_ComSenha):
         dados = self.cleaned_data
         with transaction.atomic():
             usuario = Usuario.objects.create_user(
-                email=dados["email"], password=dados["senha"], nome=dados["nome"]
+                email=dados["email"],
+                password=dados["senha"],
+                nome=dados["nome"],
+                setor=setor_escolhido(dados.get("setor")),
             )
             usuario.groups.set([Group.objects.get(name=_grupo_do_papel(dados["papel"]))])
         return usuario
 
 
 class UsuarioEditarForm(forms.Form):
-    """Campos POST: nome, email, papel (id), ativo (checkbox). Não mexe em senha (USR-06)."""
+    """Campos POST: nome, email, papel (id), setor (id), ativo (checkbox). Sem senha (USR-06)."""
 
     nome = forms.CharField(label="Nome", max_length=120)
     email = forms.EmailField(label="E-mail", max_length=254)
     papel = _campo_papel()
+    setor = campo_setor()
     ativo = forms.BooleanField(label="Ativo", required=False)
 
     def __init__(self, *args, instance, editor, **kwargs):
         super().__init__(*args, **kwargs)
         self.instance = instance
         self.editor = editor
+        self.fields["setor"].choices = escolhas_setor("Sem setor", instance.setor_id)
 
     @classmethod
     def valores_iniciais(cls, usuario):
@@ -108,6 +132,7 @@ class UsuarioEditarForm(forms.Form):
             "nome": usuario.nome,
             "email": usuario.email,
             "papel": papel_de(usuario) or "",
+            "setor": str(usuario.setor_id) if usuario.setor_id else "",
             "ativo": usuario.is_active,
         }
 
@@ -121,6 +146,7 @@ class UsuarioEditarForm(forms.Form):
         dados = super().clean()
         if "papel" not in dados:
             return dados
+        _exigir_setor(self, dados)
         papel, ativo = dados["papel"], dados.get("ativo", False)
         # Erro junto do campo: desativação → `ativo`; mudança de papel → `papel`.
         campo_do_erro = "ativo" if not ativo else "papel"
@@ -144,6 +170,7 @@ class UsuarioEditarForm(forms.Form):
         usuario.email = dados["email"]
         foi_desativado = usuario.is_active and not dados["ativo"]
         usuario.is_active = dados["ativo"]
+        usuario.setor = setor_escolhido(dados.get("setor"))
         usuario.save()
         if foi_desativado:
             encerrar_sessoes(usuario)

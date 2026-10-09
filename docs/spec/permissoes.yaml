@@ -1,21 +1,29 @@
 # Matriz de permissões. Ids PRM-xx. O motor apps/contas/permissoes.py LÊ este arquivo
 # (pode(usuario, acao, objeto=None) e escopo(usuario, qs)); nenhuma view repete a regra.
 #
+# M4 (SET-06): para o Coordenador, 'todos' em fluxos/execuções passa a significar 'setor' (só o setor dele);
+# para o Base, fluxos 'ativos' = ativos do setor dele. A Home (HOM-01) segue o mesmo escopo.
+#
 # Escopos:
 #   todos    -> qualquer objeto
 #   ativos   -> só fluxos com status=ativo
 #   proprias -> só execuções com executado_por = usuario
+#   setor    -> só objetos do setor do usuário (M4); usuário sem setor → nada
+#   ativos_do_setor -> fluxos ativos do setor do usuário (M4)
+#   Adm (todos) vê tudo COM OU SEM setor.
 #   nenhum   -> negado
 # Anônimo: toda rota exceto `login` redireciona para login (302 com ?next=).
 
 acoes:
   usuarios.gerenciar:   {adm: todos,  coordenador: nenhum, base: nenhum}   # listar, criar, editar, desativar, redefinir senha
-  fluxos.ver:           {adm: todos,  coordenador: todos,  base: ativos}   # lista de fluxos
-  fluxos.criar:         {adm: todos,  coordenador: todos,  base: nenhum}
-  fluxos.editar:        {adm: todos,  coordenador: todos,  base: nenhum}   # inclui abrir o editor, salvar grafo, ativar/desativar
-  fluxos.excluir:       {adm: todos,  coordenador: todos,  base: nenhum}
-  fluxos.executar:      {adm: todos,  coordenador: todos,  base: ativos}
-  execucoes.ver:        {adm: todos,  coordenador: todos,  base: proprias} # lista e detalhe, inclusive saídas por nó
+  fluxos.ver:           {adm: todos,  coordenador: setor,  base: ativos_do_setor}   # lista de fluxos
+  fluxos.criar:         {adm: todos,  coordenador: setor,  base: nenhum}
+  fluxos.editar:        {adm: todos,  coordenador: setor,  base: nenhum}   # inclui abrir o editor, salvar grafo, ativar/desativar
+  fluxos.excluir:       {adm: todos,  coordenador: setor,  base: nenhum}
+  fluxos.executar:      {adm: todos,  coordenador: setor,  base: ativos_do_setor}
+  execucoes.ver:        {adm: todos,  coordenador: setor,  base: proprias} # lista e detalhe, inclusive saídas por nó
+  inicio.ver:           {adm: todos,  coordenador: setor,  base: proprias}   # Home (HOM-01), mesmo escopo
+  setores.gerenciar:    {adm: todos,  coordenador: nenhum, base: nenhum}     # SET-02
   conta.trocar_senha:   {adm: todos,  coordenador: todos,  base: todos}    # a própria senha (sem papel: 403, USR-15)
 
 regras:
@@ -41,7 +49,8 @@ regras:
       Menu da sidebar por papel — Adm: Fluxos, Execuções, Usuários · Coordenador: Fluxos, Execuções · Base: Fluxos, Execuções.
   - id: PRM-07
     texto: >
-      Rota `inicio` redireciona para `fluxos:lista` (todos os papéis com acesso); usuário sem papel vê a tela "sem acesso" (403).
+      (Revisado no M4, HOM-01) Rota `inicio` é a Home para todos os papéis, no escopo SET-06; usuário sem papel vê a tela
+      "sem acesso" (403).
   - id: PRM-08
     texto: >
       Toda mutação é POST com CSRF válido; GET em rota de mutação retorna 405 ou não altera nada.

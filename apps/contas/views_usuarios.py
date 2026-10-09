@@ -12,6 +12,7 @@ from django.views.generic import TemplateView
 
 from apps.nucleo.entrada import limpar_texto
 
+from .forms_setores import escolhas_setor
 from .forms_usuarios import (
     RedefinirSenhaForm,
     TrocarSenhaForm,
@@ -50,6 +51,8 @@ class UsuarioListaView(PermissaoMixin, TemplateView):
       criado_em, url_editar}; `page_obj` (Page, 25 por página) p/ `componentes/paginacao.html`
     - `consulta`: querystring dos filtros já codificada com "&" no fim (para a paginação)
     - `q`, `ordem` (str), `papel_atual` ("" = Todos), `ativo_atual` ("", "1" ou "0")
+    - SET-03: cada linha traz `setor_nome` ("" sem setor); `setor_atual` ("" ou id) e
+      `opcoes_setor` [{id, nome, selecionado}] e `filtros_setor` [{rotulo, url, ativo}] (segmentado)
     - `filtros_papel`, `filtros_status`: opções {rotulo, url, ativo} (segmentado.html)
     - `ordenacoes`: {nome, email, criado_em} -> {url, sentido ('asc'|'desc'|'')} dos cabeçalhos
     - `total`: nº de usuários no filtro; `url_novo`: rota de criação
@@ -63,7 +66,9 @@ class UsuarioListaView(PermissaoMixin, TemplateView):
         grupos_por_id = {p["id"]: p["grupo"] for p in papeis()}
         papel = get.get("papel", "")
         ativo = get.get("ativo", "")
+        setor = get.get("setor", "")
         return {
+            "setor": setor if setor.isascii() and setor.isdigit() else "",
             "q": limpar_texto(get.get("q", "")),
             "papel": papel if papel in grupos_por_id else "",
             "ativo": ativo if ativo in ("1", "0") else "",
@@ -79,7 +84,9 @@ class UsuarioListaView(PermissaoMixin, TemplateView):
         return urlencode(itens)
 
     def _queryset(self, parametros, grupos_por_id):
-        qs = Usuario.objects.prefetch_related("groups")
+        qs = Usuario.objects.select_related("setor").prefetch_related("groups")
+        if parametros["setor"]:
+            qs = qs.filter(setor_id=int(parametros["setor"]))
         if parametros["q"]:
             qs = qs.filter(Q(nome__icontains=parametros["q"]) | Q(email__icontains=parametros["q"]))
         if parametros["papel"]:
@@ -116,6 +123,7 @@ class UsuarioListaView(PermissaoMixin, TemplateView):
                     "papel_id": papel_id,
                     "papel_rotulo": rotulos.get(papel_id, "Sem papel"),
                     "ativo": usuario.is_active,
+                    "setor_nome": usuario.setor.nome if usuario.setor_id else "",
                     "criado_em": usuario.criado_em,
                     "url_editar": _url_editar(usuario),
                 }
@@ -134,6 +142,10 @@ class UsuarioListaView(PermissaoMixin, TemplateView):
             proxima = f"-{campo}" if sentido == "asc" else campo
             ordens[campo] = {"url": url(ordem=proxima), "sentido": sentido}
         url_novo = reverse("contas:usuario_novo")
+        opcoes_setor = [
+            {"id": valor, "nome": nome, "selecionado": valor == parametros["setor"]}
+            for valor, nome in escolhas_setor("Todos os setores")[1:]
+        ]
         contexto.update(
             usuarios=linhas,
             page_obj=pagina,
@@ -144,6 +156,15 @@ class UsuarioListaView(PermissaoMixin, TemplateView):
             ordem=parametros["ordem"],
             papel_atual=parametros["papel"],
             ativo_atual=parametros["ativo"],
+            setor_atual=parametros["setor"],
+            opcoes_setor=opcoes_setor,
+            filtros_setor=[
+                {"rotulo": "Todos", "url": url(setor=""), "ativo": not parametros["setor"]}
+            ]
+            + [
+                {"rotulo": o["nome"], "url": url(setor=o["id"]), "ativo": o["selecionado"]}
+                for o in opcoes_setor
+            ],
             filtros_papel=[
                 {"rotulo": "Todos", "url": url(papel=""), "ativo": not parametros["papel"]}
             ]

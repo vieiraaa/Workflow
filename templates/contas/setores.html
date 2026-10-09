@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block titulo %}Setores · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}Setores{% endblock %}
+{% block acoes %}{% if url_novo %}{% include "componentes/botao.html" with rotulo="Novo setor" icone="plus" variante="primario" href=url_novo %}{% endif %}{% endblock %}
+{% block conteudo %}
+<div class="card card--semrecuo">
+  {% if setores %}
+  <div class="tabela-rolagem"><table class="tabela">
+    <thead><tr>
+      <th scope="col">Nome</th>
+      <th scope="col">Status</th>
+      <th scope="col">Criado em</th>
+      <th scope="col"><span class="sr-only">Ações</span></th>
+    </tr></thead>
+    <tbody>
+      {% for s in setores %}
+      <tr class="tabela__linha"{% if s.url_editar %} data-href="{{ s.url_editar }}"{% endif %}>
+        <td class="tabela__principal">{% if s.url_editar %}<a class="tabela__link" href="{{ s.url_editar }}">{{ s.nome }}</a>{% else %}{{ s.nome }}{% endif %}</td>
+        <td class="tabela__status">{% if s.ativo %}{% include "componentes/badge_status.html" with status="ativo" rotulo="Ativo" %}{% else %}{% include "componentes/badge_status.html" with status="rascunho" rotulo="Inativo" %}{% endif %}</td>
+        <td class="tabela__extra texto-2">{{ s.criado_em|date:"d/m/Y" }}</td>
+        <td class="tabela__acoes">{% if s.url_editar %}<span class="tabela__editar">{% include "componentes/botao.html" with variante="icone" icone="pencil" href=s.url_editar rotulo_acessivel="Editar setor" %}</span><span class="tabela__chevron">{% include "componentes/icone.html" with nome="chevron-right" %}</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  {% include "componentes/vazio.html" with icone="layers" titulo="Nenhum setor cadastrado" texto="Crie o primeiro setor para organizar usuários, fluxos e execuções." acao_rotulo="Novo setor" acao_url=url_novo %}
+  {% endif %}
+</div>
+{% endblock %}

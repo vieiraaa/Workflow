@@ -15,15 +15,14 @@ def test_login_get_anonimo_ok_sem_shell():
 
 @pytest.mark.modulo("m1")
 @pytest.mark.parametrize("papel", ["Adm", "Coordenador", "Base"])
-def test_login_valido_redireciona_para_inicio_e_fluxos(client, fabrica_usuario, papel, senha_padrao):
-    """PRM-07: login válido entra na sessão; `inicio` leva a `fluxos:lista`."""
+def test_login_valido_entra_e_inicio_e_a_home(client, fabrica_usuario, papel, senha_padrao):
+    """PRM-07 (revisado no M4, HOM-01): login válido entra na sessão; `inicio` é a Home (200), sem redirect."""
     u = fabrica_usuario(papel=papel)
     r = client.post(reverse("login"), {"username": u.email, "password": senha_padrao})
     assert r.status_code == 302
     assert "_auth_user_id" in client.session
     r2 = client.get(reverse("inicio"))
-    assert r2.status_code == 302
-    assert r2.url == reverse("fluxos:lista")
+    assert r2.status_code == 200
 
 
 @pytest.mark.modulo("m1")

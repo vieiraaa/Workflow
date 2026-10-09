@@ -1,0 +1,14 @@
+{# form (nome, ativo), url_lista, rotulo_envio. Usado por setor_novo e setor_editar. #}
+<section class="card card--formulario">
+  <form class="formulario" method="post" novalidate>
+    {% csrf_token %}
+    {% include "componentes/alerta.html" with erros=form.non_field_errors estado="erro_validacao" %}
+    {% include "componentes/campo.html" with campo=form.nome %}
+    {% include "componentes/toggle.html" with nome="ativo" rotulo="Setor ativo" marcado=form.ativo.value erros=form.ativo.errors %}
+    <p class="campo__ajuda">Setores não são excluídos, para preservar o histórico. Desativar impede novos vínculos.</p>
+    <div class="formulario__acoes">
+      {% include "componentes/botao.html" with rotulo="Cancelar" href=url_lista %}
+      <button class="botao botao--primario" type="submit" data-carregando>{{ rotulo_envio }}</button>
+    </div>
+  </form>
+</section>

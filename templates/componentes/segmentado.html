@@ -1,4 +1,4 @@
 {# opcoes: lista de {rotulo, url, ativo} #}
-<nav class="segmentado" aria-label="Filtro">
+<nav class="segmentado" aria-label="{{ rotulo_acessivel|default:'Filtro' }}">
   {% for opcao in opcoes %}<a class="segmentado__opcao" href="{{ opcao.url }}" aria-current="{% if opcao.ativo %}true{% else %}false{% endif %}">{{ opcao.rotulo }}</a>{% endfor %}
 </nav>

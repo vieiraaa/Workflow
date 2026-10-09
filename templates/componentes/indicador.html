@@ -1,0 +1,13 @@
+{# Cartão de indicador. item: {chave, rotulo, valor (texto), valor_cru, variacao: None|{texto, valor (int ou vazio), sentido: alta|queda|igual, bom: True|False|None}, dependente_periodo}. #}
+<div class="indicador" data-indicador="{{ item.chave }}" data-valor="{{ item.valor_cru }}"{% if item.variacao %} data-variacao="{{ item.variacao.valor }}"{% endif %}>
+  <p class="indicador__rotulo">{{ item.rotulo }}</p>
+  <p class="indicador__valor">{{ item.valor }}</p>
+  {% if item.variacao %}
+  <p class="indicador__variacao indicador__variacao--{% if item.variacao.bom is True %}bom{% elif item.variacao.bom is False %}ruim{% else %}neutra{% endif %}">
+    {% if item.variacao.sentido == "alta" %}{% include "componentes/icone.html" with nome="arrow-up" tamanho=16 %}{% elif item.variacao.sentido == "queda" %}{% include "componentes/icone.html" with nome="arrow-down" tamanho=16 %}{% else %}{% include "componentes/icone.html" with nome="minus" tamanho=16 %}{% endif %}
+    <span>{{ item.variacao.texto }}</span><span class="indicador__comparacao">vs. período anterior</span>
+  </p>
+  {% elif not item.dependente_periodo %}
+  <p class="indicador__variacao indicador__variacao--neutra"><span class="indicador__comparacao">Situação atual</span></p>
+  {% endif %}
+</div>

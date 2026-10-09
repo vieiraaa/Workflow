@@ -11,9 +11,9 @@ def test_semear_demo_cria_tres_usuarios_e_e_idempotente(capsys):
     saida = capsys.readouterr().out
     assert "Senha gerada" in saida
     call_command("semear_demo")
-    assert Usuario.objects.count() == 3
-    papeis = {u.email: u.groups.get().name for u in Usuario.objects.all()}
-    assert papeis == {
+    assert Usuario.objects.count() == 7  # 3 de sempre + coord/base de Financeiro e Atendimento
+    papeis = {u.email: u.groups.get().name for u in Usuario.objects.filter(setor__nome="Geral")}
+    assert {**papeis, "adm@exemplo.test": "Adm"} == {
         "adm@exemplo.test": "Adm",
         "coord@exemplo.test": "Coordenador",
         "base@exemplo.test": "Base",

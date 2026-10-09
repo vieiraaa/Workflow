@@ -1,0 +1,10 @@
+id: T-041
+titulo: M4 · Setor no modelo e escopo por setor no motor (sistema inteiro)
+dono: Forja (back)
+skills: [backend]
+regras: [SET-01, SET-04, SET-05, SET-06, PRM-03, PRM-04]
+objetivo: >
+  Model Setor; FKs em Usuario, Fluxo, Execucao (com índices (setor, iniciada_em) e (status, iniciada_em));
+  migration de dados "Geral"; escopo 'setor' no motor de permissões lido da spec; aplicar em listas, detalhes,
+  editor, salvar, executar; executor grava Execucao.setor = fluxo.setor. Testes de unidade + IDOR cross-setor.
+arquivos: [apps/, tests/unit/]

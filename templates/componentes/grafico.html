@@ -1,0 +1,32 @@
+{# Gráfico acessível com tabela de dados. id, id_dados (id do json_script, ex.: home-serie), titulo, tipo: empilhado|barras, dados (lista de dicts), vazio_texto, unidade (coluna de total, só em barras). #}
+<section class="card grafico" data-grafico data-tipo="{{ tipo }}" data-dados="{{ id_dados }}" aria-labelledby="{{ id }}-titulo">
+  <div class="grafico__cabecalho">
+    <h2 class="grafico__titulo" id="{{ id }}-titulo">{{ titulo }}</h2>
+    {% if tipo == "empilhado" %}<ul class="legenda" aria-label="Legenda"><li><span class="legenda__marca legenda__marca--sucesso"></span>Sucesso</li><li><span class="legenda__marca legenda__marca--erro"></span>Erro</li></ul>{% endif %}
+  </div>
+  {% if dados %}
+  {% if tipo == "empilhado" %}
+  <div class="grafico__area" data-grafico-area></div>
+  {% else %}
+  <ul class="barras">{% for d in dados %}<li class="barras__item"><span class="barras__rotulo">{% firstof d.rotulo d.setor %}</span><span class="barras__trilho"><span class="barras__barra" data-valor="{{ d.total }}"></span></span><span class="barras__valor">{{ d.total }}</span></li>{% endfor %}</ul>
+  {% endif %}
+  {% else %}
+  <p class="grafico__vazio texto-2">{{ vazio_texto|default:"Sem dados no período." }}</p>
+  {% endif %}
+  {{ dados|json_script:id_dados }}
+  {% if dados %}
+  <details class="grafico__dados">
+    <summary>Ver dados</summary>
+    <div class="tabela-rolagem"><table class="tabela tabela--compacta">
+      <caption class="sr-only">{{ titulo }}</caption>
+      {% if tipo == "empilhado" %}
+      <thead><tr><th scope="col">Intervalo</th><th scope="col">Sucesso</th><th scope="col">Erro</th></tr></thead>
+      <tbody>{% for d in dados %}<tr><th scope="row">{{ d.rotulo }}</th><td>{{ d.sucesso }}</td><td>{{ d.erro }}</td></tr>{% endfor %}</tbody>
+      {% else %}
+      <thead><tr><th scope="col">Categoria</th><th scope="col">{{ unidade|default:"Total" }}</th></tr></thead>
+      <tbody>{% for d in dados %}<tr><th scope="row">{% firstof d.rotulo d.setor %}</th><td>{{ d.total }}</td></tr>{% endfor %}</tbody>
+      {% endif %}
+    </table></div>
+  </details>
+  {% endif %}
+</section>

@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser, UserManager
 from django.db import models
+from django.db.models.functions import Lower
 
 
 class UsuarioManager(UserManager):
@@ -31,12 +32,39 @@ class UsuarioManager(UserManager):
         return self.create_user(email, password, **extra_fields)
 
 
+class Setor(models.Model):
+    """Setor da organização (SET-01..06). Nunca é excluído: preserva o histórico; só se desativa."""
+
+    nome = models.CharField("nome", max_length=80)
+    ativo = models.BooleanField("ativo", default=True)
+    criado_em = models.DateTimeField("criado em", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "setor"
+        verbose_name_plural = "setores"
+        ordering = ["nome"]
+        constraints = [
+            models.UniqueConstraint(Lower("nome"), name="setor_nome_unico_ci"),
+        ]
+
+    def __str__(self):
+        return self.nome
+
+
 class Usuario(AbstractUser):
     """Usuário do produto: login por e-mail único. O papel vem de um Group (ver permissoes.py)."""
 
     username = None
     email = models.EmailField("e-mail", unique=True)
     nome = models.CharField("nome", max_length=120)
+    setor = models.ForeignKey(
+        Setor,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="usuarios",
+        verbose_name="setor",
+    )
     criado_em = models.DateTimeField("criado em", auto_now_add=True)
 
     USERNAME_FIELD = "email"

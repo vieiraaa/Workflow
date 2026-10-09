@@ -1,0 +1,46 @@
+# M4 · Setores e escopo por setor (decisão do usuário em 08/10/2026: Coordenador = Gestor do setor; vale no sistema inteiro).
+modelo:
+  Setor:
+    nome:   {tipo: texto, obrigatorio: true, max: 80, unico: true (sem diferenciar maiúsculas)}
+    ativo:  {tipo: booleano, padrao: true}
+    criado_em: {tipo: datahora, auto: true}
+  Usuario.setor:   {tipo: FK Setor, obrigatorio: para Coordenador e Base; opcional para Adm}
+  Fluxo.setor:     {tipo: FK Setor, regra: SET-04}
+  Execucao.setor:  {tipo: FK Setor, regra: SET-05}
+
+regras:
+  - id: SET-01
+    texto: >
+      Migration de dados cria o setor "Geral" e vincula a ele todos os usuários, fluxos e execuções existentes (nada
+      fica sem setor). Usuário sem setor (só Adm pode) não é escopo de nenhum gestor.
+  - id: SET-02
+    texto: >
+      Gestão de setores (TEL-14 lista, TEL-15 formulário) só para Adm: criar, renomear, ativar/desativar. Rotas
+      contas:setores, contas:setor_novo, contas:setor_editar (kwarg pk). Campos `nome`, `ativo`. Nome duplicado →
+      "Já existe um setor com este nome." Setor não é excluído (preserva histórico); desativar impede novos vínculos.
+  - id: SET-03
+    texto: >
+      Formulários de usuário (USR-04/06) ganham o campo `setor` (id do setor). Obrigatório se papel ≠ adm →
+      "Escolha um setor." Setor inativo ou inexistente → "Setor inválido." Lista de usuários (USR-01) ganha coluna
+      Setor e filtro ?setor=<id>.
+  - id: SET-04
+    texto: >
+      Fluxo.setor = setor do dono no momento da criação. Só o Adm pode mudar o setor de um fluxo (campo `setor` no
+      formulário de edição, visível só ao Adm). Mudar o setor do usuário depois NÃO move os fluxos dele.
+  - id: SET-05
+    texto: >
+      Execucao.setor = setor do fluxo no momento da execução (snapshot, como o grafo — EXE-03). Mover o fluxo depois
+      não move execuções antigas.
+  - id: SET-06
+    texto: >
+      Escopo por papel no SISTEMA INTEIRO (motor de permissão, listas, detalhes, Home, contagens):
+      Adm = tudo; Coordenador (gestor) = só o setor dele (fluxos do setor; execuções do setor); Base = fluxos ATIVOS
+      do setor dele (para executar) e só as execuções que ELE executou. Fora do escopo = 404 (PRM-03), inclusive para
+      Coordenador acessando fluxo/execução de outro setor.
+  - id: SET-07
+    texto: >
+      Lacunas do T-045. (b) Coordenador ou Base SEM setor (estado inválido que só um Adm pode produzir): acessam as telas
+      com 200 e listas/Home vazias, nunca 500 (comportamento atual, coberto por teste). (a) Gestor de setor DESATIVADO
+      criando fluxo: DECISÃO PENDENTE DO USUÁRIO (hoje o fluxo é criado no setor desativado; alternativa: recusar com
+      "Seu setor está desativado. Fale com o administrador."). Registrado no PR do M4.
+

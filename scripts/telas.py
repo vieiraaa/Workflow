@@ -44,13 +44,21 @@ def _limpar_dados_de_telas():
     Fluxo.objects.all().delete()
 
 
+def _apagar_usuarios_e_setores():
+    from apps.contas.models import Setor, Usuario
+
+    Usuario.objects.all().delete()
+    Setor.objects.all().delete()
+
+
 def _usuarios():
     from django.contrib.auth.models import Group
 
-    from apps.contas.models import Usuario
+    from apps.contas.models import Setor, Usuario
 
     _limpar_dados_de_telas()
-    Usuario.objects.all().delete()
+    _apagar_usuarios_e_setores()
+    geral = Setor.objects.create(nome="Geral")
     for nome in ("Adm", "Coordenador", "Base"):
         Group.objects.get_or_create(name=nome)
     criados = {}
@@ -60,7 +68,9 @@ def _usuarios():
         ("base", "base@exemplo.test", "Bia Base", "Base"),
         ("sem_papel", "sem@exemplo.test", "Sem Papel", None),
     ):
-        usuario = Usuario.objects.create_user(email=email, password=SENHA, nome=nome)
+        usuario = Usuario.objects.create_user(
+            email=email, password=SENHA, nome=nome, setor=geral if grupo else None
+        )
         if grupo:
             usuario.groups.add(Group.objects.get(name=grupo))
         criados[chave] = usuario
@@ -109,17 +119,36 @@ def _erro_trocar_senha(page, base):
     _enviar(page, "", {"senha_atual": "errada", "nova_senha": "curta", "confirmacao": "diferente"})
 
 
+def _setores_demo(usuarios):
+    from apps.contas.models import Setor
+
+    for nome, ativo in (("Financeiro", True), ("Atendimento", True), ("Jurídico", False)):
+        Setor.objects.create(nome=nome, ativo=ativo)
+
+
+def _historico(usuarios):
+    from apps.fluxos.demo import _semear_historico
+
+    _semear_historico()
+
+
+def _erro_setor(page, base):
+    _enviar(page, "", {"nome": "Geral"})  # nome já existente (sem diferenciar maiúsculas)
+
+
 def _usuarios_extras(quantidade):
     from django.contrib.auth.models import Group
 
-    from apps.contas.models import Usuario
+    from apps.contas.models import Setor, Usuario
 
+    geral = Setor.objects.get(nome="Geral")
     grupos = ["Adm", "Coordenador", "Base"]
     for i in range(quantidade):
         usuario = Usuario.objects.create_user(
             email=f"pessoa{i:02d}@exemplo.test",
             password=SENHA,
             nome=f"Pessoa Fictícia {i:02d}",
+            setor=geral,
             is_active=i % 5 != 0,
         )
         usuario.groups.add(Group.objects.get(name=grupos[i % 3]))
@@ -249,6 +278,16 @@ PREPARADORES = {
     ("TEL-07", "sucesso"): (_execucao_demo("sucesso"), None),
     ("TEL-07", "erro_http"): (_execucao_demo("erro_http"), None),
     ("TEL-07", "bloqueado_ssrf"): (_execucao_demo("bloqueado_ssrf"), None),
+    ("TEL-13", "vazio"): (None, None),
+    ("TEL-13", "com_dados_7d"): (_historico, None, "?periodo=7d"),
+    ("TEL-13", "com_dados_24h"): (_historico, None, "?periodo=24h"),
+    ("TEL-13", "com_dados_1a"): (_historico, None, "?periodo=1a"),
+    ("TEL-16", "com_dados_7d"): (_historico, None, "?periodo=7d"),
+    ("TEL-17", "vazio"): (None, None),
+    ("TEL-17", "com_dados_7d"): (_historico, None, "?periodo=7d"),
+    ("TEL-14", "com_dados"): (_setores_demo, None),
+    ("TEL-15", "padrao"): (None, None),
+    ("TEL-15", "erro_validacao"): (None, _erro_setor),
     ("TEL-08", "padrao"): (None, None),
     ("TEL-08", "erro_validacao"): (None, _erro_trocar_senha),
 }
@@ -315,8 +354,24 @@ def _apagar_banco():
         admin.execute(f'DROP DATABASE IF EXISTS "{_BANCO_TELAS}" WITH (FORCE)')
 
 
+ESPERA_SERVIDOR = 60  # segundos; a máquina pode estar ocupada com a suíte ou com o demo
+
+
+def _ultimas_linhas(arquivo, quantidade=15):
+    try:
+        linhas = Path(arquivo).read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return "(sem saída do servidor)"
+    return "\n".join(linhas[-quantidade:]) or "(sem saída do servidor)"
+
+
 def _subir_servidor():
+    import tempfile
+
     porta = _porta_livre()
+    log = tempfile.NamedTemporaryFile(  # noqa: SIM115 - fica aberto enquanto o servidor roda
+        prefix="telas_runserver_", suffix=".log", delete=False
+    )
     proc = subprocess.Popen(
         [
             sys.executable,
@@ -329,17 +384,28 @@ def _subir_servidor():
         cwd=RAIZ,
         env={**os.environ, "DJANGO_SETTINGS_MODULE": "config.settings.teste"},
         stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stderr=log,
     )
     base = f"http://127.0.0.1:{porta}"
-    for _ in range(100):
+    limite = time.monotonic() + ESPERA_SERVIDOR
+    pausa = 0.2
+    while time.monotonic() < limite:
+        if proc.poll() is not None:  # morreu ao subir: erro de código/configuração
+            raise RuntimeError(
+                "Servidor local falhou ao iniciar. Últimas linhas do runserver:\n"
+                + _ultimas_linhas(log.name)
+            )
         try:
-            urllib.request.urlopen(base + "/entrar/", timeout=1)  # noqa: S310
+            urllib.request.urlopen(base + "/entrar/", timeout=2)  # noqa: S310
             return proc, base
         except Exception:  # noqa: BLE001 - servidor ainda subindo
-            time.sleep(0.2)
+            time.sleep(pausa)
+            pausa = min(pausa * 1.5, 2.0)
     proc.terminate()
-    raise RuntimeError("Servidor local não subiu.")
+    raise RuntimeError(
+        f"Servidor local não subiu em {ESPERA_SERVIDOR} s (tempo esgotado). "
+        "Últimas linhas do runserver:\n" + _ultimas_linhas(log.name)
+    )
 
 
 def _cookie_de_sessao(usuario):

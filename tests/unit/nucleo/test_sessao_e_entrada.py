@@ -48,6 +48,7 @@ def test_desativar_pela_edicao_encerra_sessoes_do_alvo(cliente_adm, usuario_coor
             "nome": usuario_coordenador.nome,
             "email": usuario_coordenador.email,
             "papel": "coordenador",
+            "setor": str(usuario_coordenador.setor_id),
         },
     )
     assert not Session.objects.filter(pk=alvo.session.session_key).exists()

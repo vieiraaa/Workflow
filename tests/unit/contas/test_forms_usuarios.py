@@ -11,6 +11,7 @@ from apps.contas.forms_usuarios import (
     UsuarioEditarForm,
     UsuarioNovoForm,
 )
+from apps.contas.models import Setor
 from tests.conftest import SENHA_TESTE, criar_usuario
 
 pytestmark = [pytest.mark.modulo("m1"), pytest.mark.django_db]
@@ -21,6 +22,7 @@ def _novo(**sobrescritas):
         "nome": "Maria",
         "email": "maria@exemplo.test",
         "papel": "base",
+        "setor": str(Setor.objects.get_or_create(nome="Geral")[0].pk),
         "senha": SENHA_TESTE,
         "confirmacao": SENHA_TESTE,
     }

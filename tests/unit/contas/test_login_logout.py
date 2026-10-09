@@ -61,10 +61,11 @@ def test_inicio_exige_login(cliente_anonimo):
 
 
 @pytest.mark.parametrize("cliente", CLIENTES)
-def test_inicio_logado_com_papel_vai_para_fluxos(request, cliente):
+def test_inicio_logado_com_papel_e_a_home(request, cliente):
+    """PRM-07 revisado (M4): `inicio` é a Home, sem redirect."""
     resposta = request.getfixturevalue(cliente).get(reverse("inicio"))
-    assert resposta.status_code == 302
-    assert resposta.url == reverse("fluxos:lista")
+    assert resposta.status_code == 200
+    assert "inicio/inicio.html" in [t.name for t in resposta.templates]
 
 
 def test_inicio_sem_papel_403_do_produto(cliente_sem_papel):

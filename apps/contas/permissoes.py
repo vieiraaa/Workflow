@@ -19,6 +19,8 @@ NENHUM = "nenhum"
 TODOS = "todos"
 ATIVOS = "ativos"
 PROPRIAS = "proprias"
+SETOR = "setor"
+ATIVOS_DO_SETOR = "ativos_do_setor"
 
 # Modelo (app_label.model) -> ação de leitura usada por escopo() quando `acao` não é informada.
 ACAO_DE_LEITURA = {
@@ -64,12 +66,25 @@ def _escopo_da_acao(usuario, acao):
     return acoes[acao].get(papel, NENHUM) if papel else NENHUM
 
 
+def _tem_setor(modelo):
+    meta = getattr(modelo, "_meta", None)
+    return meta is not None and any(campo.name == "setor" for campo in meta.get_fields())
+
+
+def _do_setor(usuario, objeto):
+    return usuario.setor_id is not None and getattr(objeto, "setor_id", None) == usuario.setor_id
+
+
 def pode(usuario, acao, objeto=None):
     escopo_da_acao = _escopo_da_acao(usuario, acao)
     if escopo_da_acao == NENHUM:
         return False
     if objeto is None or escopo_da_acao == TODOS:
         return True
+    if escopo_da_acao == SETOR:
+        return _do_setor(usuario, objeto)
+    if escopo_da_acao == ATIVOS_DO_SETOR:
+        return getattr(objeto, "status", None) == "ativo" and _do_setor(usuario, objeto)
     if escopo_da_acao == ATIVOS:
         return getattr(objeto, "status", None) == "ativo"
     if escopo_da_acao == PROPRIAS:
@@ -83,6 +98,11 @@ def escopo(usuario, qs, acao=None):
     escopo_da_acao = _escopo_da_acao(usuario, acao)
     if escopo_da_acao == TODOS:
         return qs
+    if escopo_da_acao in (SETOR, ATIVOS_DO_SETOR):
+        if not usuario.setor_id or not _tem_setor(qs.model):
+            return qs.none()
+        qs = qs.filter(setor=usuario.setor_id)
+        return qs.filter(status="ativo") if escopo_da_acao == ATIVOS_DO_SETOR else qs
     if escopo_da_acao == ATIVOS:
         return qs.filter(status="ativo")
     if escopo_da_acao == PROPRIAS:

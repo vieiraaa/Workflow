@@ -83,10 +83,9 @@ def test_todos_os_papeis_trocam_a_propria_senha(request, cliente):
 
 @pytest.mark.modulo("m1")
 @pytest.mark.parametrize("cliente", ["cliente_adm", "cliente_coordenador", "cliente_base"])
-def test_inicio_redireciona_para_fluxos(request, cliente):
-    """PRM-07: inicio → fluxos:lista para papéis com acesso."""
-    r = request.getfixturevalue(cliente).get(reverse("inicio"))
-    assert r.status_code == 302 and r.url == reverse("fluxos:lista")
+def test_inicio_e_a_home_sem_redirect(request, cliente):
+    """PRM-07 (revisado no M4, HOM-01): inicio é a Home (200) para papéis com acesso."""
+    assert request.getfixturevalue(cliente).get(reverse("inicio")).status_code == 200
 
 
 @pytest.mark.modulo("m1")

@@ -29,7 +29,13 @@ def test_shell_do_adm(usuario_adm):
     assert dados["usuario_nome"] == "Ana Admin"
     assert dados["usuario_papel"] == "Administrador"
     assert dados["sem_papel"] is False
-    assert [i["chave"] for i in dados["menu"]] == ["fluxos", "execucoes", "usuarios"]
+    assert [i["chave"] for i in dados["menu"]] == [
+        "inicio",
+        "fluxos",
+        "execucoes",
+        "usuarios",
+        "setores",
+    ]
 
 
 def test_shell_sem_papel(usuario_sem_papel):
@@ -51,9 +57,15 @@ def test_shell_omite_itens_de_rotas_inexistentes(monkeypatch, usuario_adm):
 def test_menu_por_papel(monkeypatch, usuario_adm, usuario_coordenador, usuario_base):
     monkeypatch.setattr(contexto, "reverse", lambda rota: f"/{rota}/")
     chaves = lambda u: [i["chave"] for i in contexto.montar_menu(_request(u))]  # noqa: E731
-    assert chaves(usuario_adm) == ["fluxos", "execucoes", "usuarios"]
-    assert chaves(usuario_coordenador) == ["fluxos", "execucoes"]
-    assert chaves(usuario_base) == ["fluxos", "execucoes"]
+    assert chaves(usuario_adm) == [
+        "inicio",
+        "fluxos",
+        "execucoes",
+        "usuarios",
+        "setores",
+    ]
+    assert chaves(usuario_coordenador) == ["inicio", "fluxos", "execucoes"]
+    assert chaves(usuario_base) == ["inicio", "fluxos", "execucoes"]
 
 
 def test_item_ativo_pelo_namespace(monkeypatch, usuario_adm):
@@ -61,7 +73,13 @@ def test_item_ativo_pelo_namespace(monkeypatch, usuario_adm):
     request = _request(usuario_adm)
     request.resolver_match = type("R", (), {"namespace": "fluxos"})()
     ativos = {i["chave"]: i["ativo"] for i in contexto.montar_menu(request)}
-    assert ativos == {"fluxos": True, "execucoes": False, "usuarios": False}
+    assert ativos == {
+        "inicio": False,
+        "fluxos": True,
+        "execucoes": False,
+        "usuarios": False,
+        "setores": False,
+    }
 
 
 def test_pagina_renderiza_shell(cliente_adm):

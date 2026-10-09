@@ -49,6 +49,7 @@ def criar_fluxo(dono, nome, status="rascunho", grafo=None, descricao=""):
         nome=nome,
         descricao=descricao,
         dono=dono,
+        setor_id=dono.setor_id,
         status=status,
         grafo=copy.deepcopy(grafo if grafo is not None else grafo_inicial()),
     )
@@ -89,6 +90,7 @@ def semear():
             criar_fluxo(dono, nome, status, fabrica_grafo(), descricao)
             criados += 1
     _semear_execucoes()
+    _semear_historico()
     return criados
 
 
@@ -110,3 +112,92 @@ def _semear_execucoes():
         usuario = Usuario.objects.filter(email=email).first()
         if usuario:
             demo_execucoes.criar_execucao(usuario, cenario, fluxo=fluxo, minutos_atras=minutos)
+
+
+def _semear_historico():
+    """HOM-08: ~700 execuções espalhadas por 1 ano em 3 setores (idempotente; sem rede)."""
+    import random
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.contas.models import Setor
+    from apps.execucoes.models import Execucao, ExecucaoNo
+
+    if Execucao.objects.count() >= 100:
+        return
+    sorteio = random.Random(2026)
+    agora = timezone.now()
+    categorias = ["http_5xx", "timeout", "http_4xx", "dns", "bloqueado_ssrf", "conexao"]
+    for nome in ("Geral", "Financeiro", "Atendimento"):
+        setor = Setor.objects.get_or_create(nome=nome)[0]
+        coordenador, base = pessoas_do_setor(setor)
+        pessoas = [coordenador, base]
+        fluxo = Fluxo.objects.filter(nome=f"Consulta de pedidos · {setor.nome}").first()
+        if fluxo is None:
+            fluxo = criar_fluxo(
+                coordenador, f"Consulta de pedidos · {setor.nome}", "ativo", grafo_exemplo()
+            )
+        execucoes, erros = [], []
+        for _ in range(230):
+            atras = timedelta(days=sorteio.random() ** 2 * 360, minutes=sorteio.randint(0, 600))
+            inicio = agora - atras
+            erro = sorteio.random() < 0.22
+            duracao = timedelta(milliseconds=sorteio.randint(120, 2400))
+            execucoes.append(
+                Execucao(
+                    fluxo=fluxo,
+                    fluxo_nome=fluxo.nome,
+                    grafo_snapshot=copy.deepcopy(fluxo.grafo),
+                    executado_por=sorteio.choice(pessoas),
+                    setor=setor,
+                    status=Execucao.ERRO if erro else Execucao.SUCESSO,
+                    iniciada_em=inicio,
+                    finalizada_em=inicio + duracao,
+                    erro_resumo="Buscar pedido: falha de exemplo" if erro else "",
+                )
+            )
+        criadas = Execucao.objects.bulk_create(execucoes)
+        for execucao in criadas:
+            if execucao.status == Execucao.ERRO:
+                erros.append(
+                    ExecucaoNo(
+                        execucao=execucao,
+                        no_id="n2",
+                        no_tipo="http",
+                        no_titulo="Buscar pedido",
+                        ordem=2,
+                        status=ExecucaoNo.ERRO,
+                        erro_categoria=sorteio.choice(categorias),
+                        erro_mensagem="Falha de exemplo.",
+                    )
+                )
+        ExecucaoNo.objects.bulk_create(erros)
+
+
+def pessoas_do_setor(setor, senha=None):
+    """(coordenador, base) de demo do setor, criados se faltarem (SET-06: cada um só atua no seu).
+
+    O Geral usa os usuários de demo de sempre; os demais ganham `coord.<setor>@` e `base.<setor>@`.
+    """
+    from django.contrib.auth.models import Group
+
+    from apps.contas.models import Usuario
+
+    if setor.nome == "Geral":
+        emails = ("coord@exemplo.test", "base@exemplo.test")
+    else:
+        chave = setor.nome.lower()
+        emails = (f"coord.{chave}@exemplo.test", f"base.{chave}@exemplo.test")
+    pessoas = []
+    for email, grupo, rotulo in zip(
+        emails, ("Coordenador", "Base"), ("Coord.", "Base"), strict=True
+    ):
+        usuario = Usuario.objects.filter(email=email).first()
+        if usuario is None:
+            usuario = Usuario.objects.create_user(
+                email=email, password=senha, nome=f"{rotulo} {setor.nome}", setor=setor
+            )
+            usuario.groups.set([Group.objects.get(name=grupo)])
+        pessoas.append(usuario)
+    return pessoas

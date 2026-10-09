@@ -93,3 +93,39 @@ telas:
     papel: coordenador
     estados: [sucesso, erro_http, bloqueado_ssrf]
     regras: [EXE-07, EXE-09, EXE-15, SEG-09, SEG-10]
+  # --- m4 · Home e setores
+  - id: TEL-13
+    modulo: m4
+    nome: Início (Home)
+    rota: inicio
+    papel: adm
+    estados: [vazio, com_dados_7d, com_dados_24h, com_dados_1a]
+    regras: [HOM-01, HOM-02, HOM-03, HOM-04, HOM-05, HOM-06, HOM-07]
+  - id: TEL-16
+    modulo: m4
+    nome: Início (visão do gestor)
+    rota: inicio
+    papel: coordenador
+    estados: [com_dados_7d]
+    regras: [HOM-01, SET-06]
+  - id: TEL-17
+    modulo: m4
+    nome: Início (visão do usuário base)
+    rota: inicio
+    papel: base
+    estados: [vazio, com_dados_7d]
+    regras: [HOM-01, SET-06]
+  - id: TEL-14
+    modulo: m4
+    nome: Setores (lista)
+    rota: contas:setores
+    papel: adm
+    estados: [com_dados]
+    regras: [SET-02]
+  - id: TEL-15
+    modulo: m4
+    nome: Setor (formulário)
+    rota: contas:setor_novo
+    papel: adm
+    estados: [padrao, erro_validacao]
+    regras: [SET-02]

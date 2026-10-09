@@ -81,12 +81,21 @@ def test_base_executa_ativo_de_outro_dono_mas_nunca_rascunho(cliente_base, usuar
     assert modelos.Execucao.objects.count() == n
 
 
-def test_execucao_de_base_nao_vaza_para_outro_base(cliente_base, liberado, fabrica_fluxo, cadeia, cfg_http, fabrica_usuario):
-    """PRM-04: dois Base distintos não veem as execuções um do outro."""
+def test_execucao_de_base_nao_vaza_para_outro_base(cliente_base, usuario_base, liberado, fabrica_fluxo, cadeia, cfg_http, fabrica_usuario):
+    """PRM-04/SET-06: dois Base do MESMO setor (Geral) não veem as execuções um do outro."""
+    from django.apps import apps
+
+    geral = apps.get_model("contas", "Setor").objects.get(nome="Geral")
+    usuario_base.setor = geral
+    usuario_base.save()
     outro = fabrica_usuario(papel="Base")
+    outro.setor = geral
+    outro.save()
     c2 = Client()
     c2.force_login(outro)
     f = fabrica_fluxo(grafo=cadeia(cfg_http(f"{liberado.base}/ok")), status="ativo", nome="Fluxo Compartilhado")
+    f.setor = geral
+    f.save()
     r = c2.post(reverse("fluxos:executar", kwargs={"pk": f.pk}))
     pk = int(r.url.rstrip("/").rsplit("/", 1)[1]) if r.url.rstrip("/").rsplit("/", 1)[1].isdigit() else None
     assert pk is not None

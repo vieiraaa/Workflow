@@ -133,6 +133,7 @@ class _Execucao:
             fluxo_nome=fluxo.nome,
             grafo_snapshot=mascarar.mascarar_grafo(grafo),
             executado_por=usuario,
+            setor_id=fluxo.setor_id,
             status=Execucao.EXECUTANDO,
         )
         self.prazo = time.monotonic() + float(settings.MOTOR_TIMEOUT_EXECUCAO)

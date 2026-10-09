@@ -31,6 +31,14 @@ class Execucao(models.Model):
         related_name="execucoes",
         verbose_name="executado por",
     )
+    setor = models.ForeignKey(
+        "contas.Setor",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="execucoes",
+        verbose_name="setor",
+    )
     status = models.CharField("status", max_length=12, choices=STATUS, default=EXECUTANDO)
     iniciada_em = models.DateTimeField("iniciada em", default=timezone.now, db_index=True)
     finalizada_em = models.DateTimeField("finalizada em", null=True, blank=True)
@@ -40,9 +48,19 @@ class Execucao(models.Model):
         verbose_name = "execução"
         verbose_name_plural = "execuções"
         ordering = ["-iniciada_em", "-pk"]
+        indexes = [
+            models.Index(fields=["setor", "iniciada_em"], name="exec_setor_inicio_idx"),
+            models.Index(fields=["status", "iniciada_em"], name="exec_status_inicio_idx"),
+        ]
 
     def __str__(self):
         return f"{self.fluxo_nome} · {self.iniciada_em:%d/%m/%Y %H:%M}"
+
+    def save(self, *args, **kwargs):
+        if self._state.adding and self.setor_id is None:  # SET-05: snapshot do setor do fluxo
+            origem = self.fluxo if self.fluxo_id else self.executado_por
+            self.setor_id = origem.setor_id
+        super().save(*args, **kwargs)
 
     @property
     def interrompida(self):

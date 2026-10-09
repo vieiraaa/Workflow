@@ -14,6 +14,7 @@
     var form = modal.querySelector("form");
     modal.querySelectorAll(".campo__erro").forEach(function (e) { e.remove(); });
     modal.querySelectorAll(".campo--erro").forEach(function (e) { e.classList.remove("campo--erro"); });
+    modal.querySelectorAll("[data-somente-editar]").forEach(function (e) { e.hidden = botao.dataset.modo !== "editar"; });
     Object.keys(botao.dataset).forEach(function (chave) {
       var valor = botao.dataset[chave], nome;
       if (chave === "formAction" && form) form.setAttribute("action", valor);
