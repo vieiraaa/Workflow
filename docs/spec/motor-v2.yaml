@@ -371,4 +371,11 @@ lacunas_parte_a:
       (tipo numero converte "2" → 2; tipo texto mantém "2"). Segredo embutido em jsCode (IMP-04/MV2-18 C7): o trecho vira
       o texto literal "{{ $credencial }}" DENTRO do código (o nó Código não avalia expressões) e a pendência permanece até
       a pessoa mover o token para uma credencial usada nos nós HTTP e ajustar o código; o relatório explica esse passo.
+  - id: MV2-22
+    texto: >
+      EXE-06 CONTINUA VALENDO NO v2 (sem regressão): cada entrada de ExecucaoNo.requisicoes ganha "resposta": {"status",
+      "headers" (minúsculos, mascarados SEG-09 e por valor de credencial), "corpo" (texto, até 8 KB, mascarado por valor de
+      credencial), "truncado" (bool)}, gravada em sucesso E em erro (http_4xx/http_5xx inclusive, e em cada página). O
+      detalhe da execução (TEL-07/TEL-22) mostra, no nó com erro HTTP, o status e o corpo da resposta de erro (escapados,
+      SEG-13), como no M3.
 

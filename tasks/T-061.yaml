@@ -1,0 +1,6 @@
+id: T-061
+titulo: M5 · Resposta gravada nas requisições (MV2-22, sem regressão do EXE-06)
+dono: Forja (back) + Vitral (detalhe)
+regras: [MV2-22, EXE-06, SEG-09, SEG-13, CRD-02]
+objetivo: requisicoes[].resposta {status, headers, corpo ≤ 8 KB, truncado} mascarada; o detalhe mostra status e corpo do erro HTTP.
+arquivos: [apps/motor/, apps/execucoes/, templates/execucoes/, tests/unit/]
