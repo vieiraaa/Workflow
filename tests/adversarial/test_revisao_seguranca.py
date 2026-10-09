@@ -254,12 +254,32 @@ def test_bomba_gzip_nao_explode_memoria(settings, servidor_com):
     assert pico < 16 * 1024 * 1024, f"pico de memória {pico / 2**20:.0f} MB para limite de 1 MB"
 
 
+def _no2(id_, tipo, config=None, x=0, titulo=None):
+    n = _no(id_, tipo, config, x)
+    n.update(titulo=titulo or id_.upper(), desativado=False, executar_uma_vez=False, em_erro="parar")
+    return n
+
+
+def _http2(url, metodo="GET", headers=None, query=None, corpo=None, **extra):
+    return {"metodo": metodo, "url": url, "query": query or [], "headers": headers or [],
+            "corpo": corpo or {"tipo": "nenhum", "conteudo": ""}, "credencial": None, "resposta": "automatica",
+            "paginacao": None, "resposta_completa": False, **extra}
+
+
+def _grafo2(nos, dados_fixos=None):
+    ids = [n["id"] for n in nos]
+    return {"versao": 2, "nos": nos, "arestas": [{"de": a, "saida": 0, "para": b, "entrada": 0}
+                                                   for a, b in zip(ids, ids[1:], strict=False)],
+            "notas": [], "dados_fixos": dados_fixos or {}}
+
+
 def test_segredo_de_set_cookie_vaza_no_historico_via_placeholder(
     db, servidor_com, settings, executar
 ):
     """MÉDIA · executor.py:168/184 + mascarar.py:22 — o nó seguinte recebe a saída BRUTA (sem
-    máscara) e a entrada gravada só é mascarada pelo NOME do par. `{{ anterior.headers.set-cookie }}`
-    num parâmetro `q` grava o cookie de sessão em claro no histórico (SEG-09), visível no detalhe."""
+    máscara) e a entrada gravada só é mascarada pelo NOME do par. `{{ $json.headers['set-cookie'] }}`
+    num parâmetro `q` grava o cookie de sessão em claro no histórico (SEG-09), visível no detalhe.
+    (v2: entrada/saída = listas de itens, MV2-12 L2; requisição gravada em ExecucaoNo.requisicoes, MV2-15 B10.)"""
 
     def login(h):
         h._enviar(
@@ -268,15 +288,18 @@ def test_segredo_de_set_cookie_vaza_no_historico_via_placeholder(
 
     srv = servidor_com({"/login": login})
     settings.MOTOR_SSRF_LIBERAR = [f"127.0.0.1:{srv.porta}"]
-    grafo = _cadeia(
-        _http(srv.base + "/login"),
-        _http(
-            srv.base + "/eco", query=[{"nome": "q", "valor": "{{ anterior.headers.set-cookie }}"}]
-        ),
-    )
+    grafo = _grafo2([
+        _no2("g", "gatilho", titulo="Início"),
+        _no2("h1", "http", _http2(srv.base + "/login", resposta_completa=True), x=100),
+        _no2("h2", "http", _http2(srv.base + "/eco", query=[
+            {"nome": "q", "valor": "{{ $json.headers['set-cookie'] }}"}]), x=200),
+    ])
     execucao = executar(grafo)
-    assert _no_exec(execucao, "h1").saida["headers"]["set-cookie"] == "••••"
-    assert SEGREDO not in json.dumps(_no_exec(execucao, "h2").entrada, ensure_ascii=False)
+    h1, h2 = _no_exec(execucao, "h1"), _no_exec(execucao, "h2")
+    assert h1.saida[0]["json"]["headers"]["set-cookie"] == "••••"
+    gravado = json.dumps([h2.entrada, h2.saida, h2.requisicoes, h1.requisicoes, execucao.grafo_snapshot],
+                         ensure_ascii=False)
+    assert SEGREDO not in gravado
 
 
 def test_snapshot_nao_mascara_header_com_nome_vindo_de_placeholder(
@@ -436,18 +459,19 @@ def test_timeout_de_conexao_vira_categoria_timeout(settings, monkeypatch):
     assert erro.value.mensagem == motor_http.MENSAGENS["timeout"]
 
 
-def test_json_invalido_no_envio_nao_dispara_requisicao(
-    db, servidor_com, settings, executar, monkeypatch
-):
+def test_json_invalido_no_envio_nao_dispara_requisicao(db, servidor_com, settings, executar):
     """Lacuna do aceite (SEG-16.4): corpo resolvido inválido → json_invalido, nada enviado.
-    O editor só deixa salvar JSON válido e o placeholder escapa como string; forçamos o caso
-    defensivo trocando o resolvedor do corpo."""
-    from apps.motor import placeholders
-
+    O editor só deixa salvar JSON válido; aqui o corpo SALVO é válido como template mas fica inválido
+    depois de resolvido (campo ausente → '' fora de string: `{"a": }`). Comportamento observável no v2."""
     srv = servidor_com({})
     settings.MOTOR_SSRF_LIBERAR = [f"127.0.0.1:{srv.porta}"]
-    monkeypatch.setattr(placeholders, "resolver_corpo", lambda texto, anterior: '{"a": ')
-    execucao = executar(_cadeia(_http(srv.base + "/x", metodo="POST", corpo='{"a": 1}')))
+    grafo = _grafo2([
+        _no2("g", "gatilho", titulo="Início"),
+        _no2("d", "sem_operacao", titulo="Dados", x=50),
+        _no2("h1", "http", _http2(srv.base + "/x", metodo="POST",
+                                  corpo={"tipo": "json", "conteudo": '{"a": {{ $json.ausente }}}'}), x=100),
+    ], {"d": [{"json": {}}]})
+    execucao = executar(grafo)
     h1 = _no_exec(execucao, "h1")
     assert h1.erro_categoria == "json_invalido"
     assert srv.httpd.recebidas == []
