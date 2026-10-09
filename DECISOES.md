@@ -20,3 +20,7 @@
 - D-018 · 08/10 · Servidor da APLICAÇÃO (Supabase) roda numa cópia estável (git worktree destacado em main: ../construtor-workflows-estavel, .env por link simbólico) no terminal "Servidor · Supabase (estável)", porta 8000. O time desenvolve na pasta principal; código em desenvolvimento nunca chega ao banco real. Motivo: ProgrammingError setor_id às 17:49 (servidor recarregou o M4 sem migration). Atualizar a cópia só depois de merge na main + migrate aprovado pelo usuário.
 - D-019 · 08/10 · Gráficos da Home em SVG próprio (static/js/graficos.js), cores sucesso/erro dos tokens + hachura 45° no erro como canal secundário (daltonismo); sem biblioteca vendorizada (Vitral, T-044).
 - D-020 · 09/10 · Usuário autorizou aplicar as migrations do M4 no Supabase após o merge na main (setores + vínculo 'Geral'), atualizar a cópia estável e reiniciar a 8000.
+- D-021 · 09/10 · Nó Código em JavaScript (compatível com o n8n), em runtime isolado fora do processo do Django (docs/ROADMAP-n8n.md).
+- D-022 · 09/10 · CSLog e Digisac são sistemas diferentes; o CSLog depende da documentação da API.
+- D-023 · 09/10 · Papéis Gerente e TI separados, mantendo o Adm (divisão proposta no ROADMAP §4, a confirmar).
+- D-024 · 09/10 · Ordem: M5 Motor v2 completo → M6 segundo plano/gatilhos → M7 Funções → M8 Digisac/CSLog + painel.
