@@ -336,4 +336,32 @@ lacunas_parte_a:
       validações SEG-01..06 e SEG-16 (esquema, host, IPs, credenciais na URL, "@", "\\", controle) antes de qualquer conexão;
       base que resolve para destino proibido = bloqueado_ssrf. Aresta para nó inexistente = 400 de formato (GRF-02);
       aresta para alça inexistente = pendência (MV2-12 L3).
+  - id: MV2-20
+    texto: >
+      MAPA DE PARÂMETROS n8n → nativo (completa IMP-03; parâmetro desconhecido → "ajustes" no relatório, nunca erro).
+      set (v3): assignments.assignments[{name, value, type}] → editar_campos.campos[{nome, valor, tipo}] (string→texto,
+      number→numero, boolean→booleano, array→lista, object→objeto); mode raw + jsonOutput → modo json + json;
+      includeOtherFields → incluir_outros. if/filter (v2): conditions.conditions[{leftValue, rightValue, operator:
+      {type, operation}}] + conditions.combinator (and|or) → condicoes[{esquerda, direita, operador, tipo}] + combinar
+      (e|ou); operation equals→igual, notEquals→diferente, gt→maior, gte→maior_igual, lt→menor, lte→menor_igual,
+      contains→contem, notContains→nao_contem, startsWith→comeca_com, endsWith→termina_com, empty→vazio,
+      notEmpty→nao_vazio, regex→regex, exists→existe, notExists→nao_existe; type string→texto, number→numero,
+      dateTime→data, boolean→booleano, array→lista, object→objeto. switch (v3): rules.values[{conditions, outputKey}] →
+      regras[{condicoes, combinar, rotulo}]; options.fallbackOutput "extra" → saida_outros. merge (v3): mode append→anexar;
+      combine + combineBy combineByFields (fieldsToMatchString "a,b" ou fields) → combinar_por_campo (campo1/campo2 do
+      primeiro par; joinMode keepMatches→dentro, keepEverything→externa, enrichInput1→esquerda, enrichInput2→direita);
+      combineByPosition → combinar_por_posicao; chooseBranch → escolher_entrada. sort: sortFieldsUi.sortField[{fieldName,
+      order}] → campos[{campo, ordem}]. limit: maxItems, keep firstItems|lastItems → quantidade, de inicio|fim.
+      removeDuplicates: compare allFields|selectedFields + fieldsToCompare → comparar todos|campos + campos.
+      splitOut: fieldToSplitOut, include noOtherFields|allOtherFields → campo, incluir nada|campos_pai. aggregate:
+      aggregateIndividualFields (fieldsToAggregate.fieldToAggregate[{fieldToAggregate}]) → modo campos;
+      aggregateAllItemData (destinationFieldName) → modo todos + saida. summarize: fieldsToSplitBy "a,b" → agrupar_por;
+      fieldsToSummarize.values[{aggregation, field}] (count→contar, countUnique→contar_unicos, sum→somar, average→media,
+      min, max, concatenate→concatenar). dateTime (v2): getCurrentDate→agora, addToDate→somar, subtractFromDate→subtrair,
+      formatDate→formatar, getTimeBetweenDates→diferenca, roundDate (roundDown)→inicio_de. splitInBatches (v3): batchSize
+      → tamanho_lote (saída 0 n8n "done" ↔ nossa 1 "pronto"; saída 1 n8n "loop" ↔ nossa 0 "loop": as arestas são
+      trocadas na importação e na exportação). stopAndError: errorMessage → mensagem. noOp → sem_operacao.
+      code: mode runOnceForAllItems → uma_vez_para_todos, runOnceForEachItem → uma_vez_por_item; jsCode → codigo.
+      stickyNote: content → texto, width/height → tamanho, color 1..7 → amarela (1 e padrão), azul (5,6), verde (4),
+      cinza (2,3,7). EXPORTAR n8n: nó "saida" vira noOp com o mesmo nome (equivalência "último nó").
 
