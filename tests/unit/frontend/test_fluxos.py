@@ -68,7 +68,7 @@ def test_editor_usa_template_e_json_script(cliente_coordenador, fluxo):
     assert "fluxos/editor.html" in nomes(resposta)
     assert b'id="grafo-inicial"' in resposta.content
     assert b"data-atualizado-em=" in resposta.content
-    assert json.loads(json.dumps(resposta.context["grafo"]))["versao"] == 1
+    assert json.loads(json.dumps(resposta.context["grafo"]))["versao"] == 2
 
 
 def test_editor_base_recebe_403(cliente_base, fluxo):
