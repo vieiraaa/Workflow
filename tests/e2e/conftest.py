@@ -27,3 +27,19 @@ def pagina_coordenador(navegador, live_server, cliente_coordenador):
     pagina = contexto.new_page()
     yield pagina
     contexto.close()
+
+
+@pytest.fixture(params=["chromium", "webkit"])
+def pagina_motores(request, live_server, cliente_coordenador):
+    """Página autenticada como Coordenador em Chromium e em WebKit (motor do Safari/iOS)."""
+    from playwright.sync_api import sync_playwright
+
+    sessao = cliente_coordenador.cookies["sessionid"].value
+    with sync_playwright() as pw:
+        navegador = getattr(pw, request.param).launch()
+        contexto = navegador.new_context(viewport={"width": 1440, "height": 900})
+        contexto.add_cookies([{"name": "sessionid", "value": sessao, "url": live_server.url}])
+        pagina = contexto.new_page()
+        yield pagina
+        contexto.close()
+        navegador.close()

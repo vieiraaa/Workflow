@@ -15,7 +15,7 @@
   --fill: rgba(120,120,128,.10); --fill-2: rgba(120,120,128,.16);
 
   --accent: #007aff; --fill-accent: rgba(0,122,255,.10);
-  --success: #34c759; --warning: #ff9f0a; --danger: #ff3b30; --orange: #ff9500;
+  --success: #34c759; --warning: #ff9f0a; --danger: #ff3b30; --orange: #ff9500; --purple: #af52de;
   --ring: 0 0 0 4px rgba(0,122,255,.22);
 
   --r-s: 6px; --r-m: 10px; --r-l: 14px; --r-xl: 20px; --r-pill: 999px;
@@ -33,7 +33,7 @@
   --hairline: rgba(84,84,88,.55);
   --fill: rgba(118,118,128,.22); --fill-2: rgba(118,118,128,.32);
   --accent: #0a84ff; --fill-accent: rgba(10,132,255,.18);
-  --success: #30d158; --warning: #ffd60a; --danger: #ff453a; --orange: #ff9f0a;
+  --success: #30d158; --warning: #ffd60a; --danger: #ff453a; --orange: #ff9f0a; --purple: #bf5af2;
   --ring: 0 0 0 4px rgba(10,132,255,.35);
   --shadow-1: 0 1px 2px rgba(0,0,0,.4);
   --shadow-2: 0 8px 32px rgba(0,0,0,.5);

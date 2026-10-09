@@ -1,0 +1,9 @@
+{# titulo, itens (lista de textos ou dicts com nome/tipo/mensagem), tom: sucesso|aviso|erro #}
+{% if itens %}
+<div class="relatorio__secao relatorio__secao--{{ tom }}">
+  <h3 class="relatorio__secao-titulo">{{ titulo }} <span class="relatorio__contagem">{{ itens|length }}</span></h3>
+  <ul class="relatorio__lista">
+    {% for item in itens %}<li>{% if item.mensagem or item.nome %}{% if item.nome %}<strong>{{ item.nome }}</strong>{% endif %}{% if item.nome and item.mensagem %}: {% endif %}{{ item.mensagem }}{% else %}{{ item }}{% endif %}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}

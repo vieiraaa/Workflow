@@ -1,0 +1,11 @@
+{# Menu "Arquivo": exportar (nativo e n8n) e importar. url_exportar, url_exportar_n8n (vazias = item oculto), modal_importar (id do modal; vazio = sem importar), pode_importar #}
+{% if url_exportar or url_exportar_n8n or pode_importar %}
+<details class="menu" data-menu>
+  <summary class="botao botao--secundario menu__gatilho" aria-label="Importar e exportar">{% include "componentes/icone.html" with nome="download" tamanho=16 %}<span class="botao__rotulo-desktop">Arquivo</span></summary>
+  <div class="menu__lista" role="menu">
+    {% if url_exportar %}<a class="menu__item" role="menuitem" href="{{ url_exportar }}" download>{% include "componentes/icone.html" with nome="download" tamanho=16 %}<span>Exportar (JSON)</span></a>{% endif %}
+    {% if url_exportar_n8n %}<a class="menu__item" role="menuitem" href="{{ url_exportar_n8n }}" download>{% include "componentes/icone.html" with nome="file-down" tamanho=16 %}<span>Exportar para n8n</span></a>{% endif %}
+    {% if pode_importar and modal_importar %}<button class="menu__item" role="menuitem" type="button" data-modal-abrir="{{ modal_importar }}">{% include "componentes/icone.html" with nome="upload" tamanho=16 %}<span>Importar…</span></button>{% endif %}
+  </div>
+</details>
+{% endif %}

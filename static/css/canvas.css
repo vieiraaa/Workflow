@@ -1,6 +1,6 @@
 /* Editor de canvas (TEL-05). Só tokens. Sobrescreve o CSS padrão do Drawflow. */
 .conteudo--cheio { max-width: none; padding: 0; gap: 0; }
-:root { --paleta-w: 200px; --inspector-w: 340px; --no-w: 220px; --porta: 18px; --cor-gatilho: var(--orange); --cor-http: var(--accent); --cor-saida: var(--success); }
+:root { --paleta-w: 200px; --inspector-w: 340px; --no-w: 220px; --porta-passo: 36px; --porta: 18px; --cor-gatilho: var(--orange); --cor-http: var(--accent); --cor-saida: var(--success); --cor-dados: var(--purple); --cor-fluxo: var(--warning); --cor-canvas: var(--text-2); }
 
 .editor { position: relative; display: grid; grid-template-columns: var(--paleta-w) minmax(0, 1fr) var(--inspector-w); height: calc(100dvh - var(--topbar-h)); min-height: 480px; background: var(--bg); overflow: hidden; }
 .editor__paleta, .editor__inspector { background: var(--surface); overflow-y: auto; padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-3); }
@@ -16,22 +16,31 @@
 
 /* Ícone por tipo */
 .no__icone { width: 32px; height: 32px; border-radius: var(--r-s); display: flex; align-items: center; justify-content: center; flex: none; color: var(--cor); background: color-mix(in srgb, var(--cor) 16%, transparent); }
-.drawflow .no__icone .icone { position: static; display: block; }
+.drawflow .no__icone .icone, .drawflow .no__fixo .icone { position: static; display: block; }
 .no__icone--gatilho { --cor: var(--cor-gatilho); }
 .no__icone--http { --cor: var(--cor-http); }
 .no__icone--saida { --cor: var(--cor-saida); }
+.no__icone--gatilhos { --cor: var(--cor-gatilho); }
+.no__icone--acoes { --cor: var(--cor-http); }
+.no__icone--dados { --cor: var(--cor-dados); }
+.no__icone--fluxo { --cor: var(--cor-fluxo); }
+.no__icone--canvas { --cor: var(--cor-canvas); }
 
 /* Canvas */
 .canvas { width: 100%; height: 100%; background-color: var(--bg); background-image: radial-gradient(var(--hairline) 1px, transparent 1px); background-size: var(--sp-6) var(--sp-6); }
 .drawflow .drawflow-node { width: var(--no-w); min-height: 0; padding: var(--sp-3); background: var(--surface); color: var(--text); border: 1px solid var(--hairline); border-radius: var(--r-l); box-shadow: var(--shadow-1); transition: box-shadow var(--dur) var(--ease); }
 .drawflow .drawflow-node:hover { cursor: grab; box-shadow: var(--shadow-2); }
 .drawflow .drawflow-node.selected { background: var(--surface); border-color: var(--accent); box-shadow: var(--ring); }
-.drawflow .drawflow-node .input, .drawflow .drawflow-node .output { width: var(--porta); height: var(--porta); background: var(--surface); border: 2px solid var(--text-3); margin: 0; }
-.drawflow .drawflow-node .input, .drawflow .drawflow-node .output { left: calc(-1 * var(--porta) / 2); top: calc(-1 * var(--porta) / 2); right: auto; }
-.drawflow .drawflow-node .inputs, .drawflow .drawflow-node .outputs { position: absolute; top: 50%; width: 0; height: 0; }
+.drawflow .drawflow-node { --portas: 1; min-height: calc(var(--portas) * var(--porta-passo)); }
+.drawflow .drawflow-node .input, .drawflow .drawflow-node .output { width: var(--porta); height: var(--porta); background: var(--surface); border: 2px solid var(--text-3); margin: 0; position: relative; top: 0; left: 0; right: auto; flex: none; }
+.drawflow .drawflow-node .inputs, .drawflow .drawflow-node .outputs { position: absolute; top: 0; bottom: 0; width: 0; height: auto; display: flex; flex-direction: column; justify-content: space-evenly; align-items: center; }
 .drawflow .drawflow-node .inputs { left: 0; }
 .drawflow .drawflow-node .outputs { right: 0; }
 .drawflow .drawflow-node .input:hover, .drawflow .drawflow-node .output:hover { border-color: var(--accent); background: var(--fill-accent); }
+/* Rótulo da alça (verdadeiro/falso, regra N, loop/pronto, erro): texto vem do atributo, nunca de HTML. */
+.drawflow .drawflow-node .output[data-rotulo]:not([data-rotulo=""])::after, .drawflow .drawflow-node .input[data-rotulo]:not([data-rotulo=""])::after { content: attr(data-rotulo); position: absolute; top: 50%; transform: translateY(-50%); font-size: var(--text-sm); line-height: 1; color: var(--text-2); white-space: nowrap; pointer-events: none; background: var(--bg); padding: 2px var(--sp-1); border-radius: var(--r-s); }
+.drawflow .drawflow-node .output::after { left: calc(var(--porta) + var(--sp-1)); }
+.drawflow .drawflow-node .input::after { right: calc(var(--porta) + var(--sp-1)); }
 .drawflow .connection .main-path { stroke: var(--text-3); stroke-width: 2px; }
 .drawflow .connection .main-path:hover, .drawflow .connection .main-path.selected { stroke: var(--accent); }
 .drawflow-delete { background: var(--danger); color: var(--on-accent); border-color: var(--surface); }
@@ -80,3 +89,87 @@
 
 /* O enquadramento (ajustar) calcula a translação a partir do canto superior esquerdo. */
 .canvas .drawflow { transform-origin: 0 0; }
+
+/* ===== Editor v2 (EDV-01..03) ===== */
+/* Paleta agrupada com busca */
+.paleta__busca input { width: 100%; }
+.paleta__lista { display: flex; flex-direction: column; gap: var(--sp-4); }
+.paleta__grupo { display: flex; flex-direction: column; gap: var(--sp-2); }
+.paleta__grupo-titulo { font-size: var(--text-sm); font-weight: 600; color: var(--text-2); }
+.paleta__item[hidden] { display: none; }
+.paleta__rotulo { min-width: 0; overflow-wrap: anywhere; }
+
+/* Nó: estados de desativado, teste, dados fixos, multi-seleção */
+.no__marcas { display: flex; align-items: center; gap: var(--sp-1); flex: none; }
+.no__fixo { color: var(--accent); display: inline-flex; }
+.no__fixo[hidden], .no__itens[hidden] { display: none; }
+.no__itens { font-size: var(--text-sm); color: var(--text-2); background: var(--fill); border-radius: var(--r-pill); padding: 0 var(--sp-2); white-space: nowrap; }
+.drawflow .drawflow-node.no--desativado { opacity: .55; border-style: dashed; }
+.drawflow .drawflow-node.no--teste-ok { border-color: var(--success); }
+.drawflow .drawflow-node.no--teste-erro { border-color: var(--danger); }
+.drawflow .drawflow-node.multi { border-color: var(--accent); box-shadow: var(--ring); }
+.drawflow .drawflow-node.no-nota { width: auto; min-height: 0; padding: 0; background: transparent; border: 0; box-shadow: none; z-index: 1; }
+.drawflow .drawflow-node.no-nota.selected { box-shadow: none; }
+
+/* Notas (sticky) */
+.nota { --nota: var(--warning); position: relative; min-width: 160px; min-height: 80px; padding: var(--sp-3); border-radius: var(--r-m); background: color-mix(in srgb, var(--nota) 22%, var(--surface)); border: 1px solid color-mix(in srgb, var(--nota) 45%, transparent); box-shadow: var(--shadow-1); color: var(--text); overflow: hidden; }
+.nota--amarela { --nota: var(--warning); }
+.nota--azul { --nota: var(--accent); }
+.nota--verde { --nota: var(--success); }
+.nota--cinza { --nota: var(--text-3); }
+.nota__texto { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--text-sm); height: 100%; overflow: hidden; }
+.nota__alca { position: absolute; right: 0; bottom: 0; width: var(--sp-4); height: var(--sp-4); cursor: nwse-resize; background: linear-gradient(135deg, transparent 50%, var(--text-3) 50%, var(--text-3) 58%, transparent 58%, transparent 72%, var(--text-3) 72%, var(--text-3) 80%, transparent 80%); touch-action: none; }
+.drawflow .drawflow-node.no-nota.selected .nota { box-shadow: var(--ring); }
+.notas__cores { display: flex; gap: var(--sp-2); }
+.notas__cor { width: var(--sp-6); height: var(--sp-6); border-radius: var(--r-pill); border: 2px solid transparent; cursor: pointer; background: color-mix(in srgb, var(--c) 45%, var(--surface)); padding: 0; }
+.notas__cor--amarela { --c: var(--warning); } .notas__cor--azul { --c: var(--accent); } .notas__cor--verde { --c: var(--success); } .notas__cor--cinza { --c: var(--text-3); }
+.notas__cor[aria-checked="true"] { border-color: var(--text); }
+
+/* Rótulo de contagem de itens nas arestas */
+.aresta-rotulo text { font-size: var(--text-sm); fill: var(--text-2); paint-order: stroke; stroke: var(--bg); stroke-width: 6px; pointer-events: none; }
+
+/* Inspector v2 */
+.inspector__cab { display: flex; align-items: center; gap: var(--sp-3); }
+.inspector__secao { background: var(--fill); border-radius: var(--r-m); padding: var(--sp-2) var(--sp-3); }
+.inspector__secao-titulo { cursor: pointer; font-weight: 500; padding: var(--sp-2) 0; }
+.inspector__secao-corpo { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-2) 0 var(--sp-3); }
+.inspector__acoes { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.par--simples { grid-template-columns: 1fr auto; }
+.tabela-campos, .condicoes { display: flex; flex-direction: column; gap: var(--sp-3); }
+.linha-campos, .condicao, .regra { position: relative; display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3); background: var(--fill); border-radius: var(--r-m); }
+.linha-campos > .botao--icone, .condicao__remover { align-self: flex-end; }
+.regra__cab { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+.grupo-campos { display: flex; flex-direction: column; gap: var(--sp-3); }
+.campo__link { font-size: var(--text-sm); }
+.alerta--aviso { color: var(--text); }
+
+/* Campo de expressão com destaque */
+.expr__area { position: relative; background: var(--fill); border-radius: var(--r-m); }
+.expr__espelho, .expr__entrada { margin: 0; padding: var(--sp-2) var(--sp-3); font: inherit; font-size: var(--text-body); line-height: 1.5; letter-spacing: normal; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; border: 0; border-radius: var(--r-m); }
+.expr__area--mono .expr__espelho, .expr__area--mono .expr__entrada, .codigo__entrada, .codigo__linhas { font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.6; }
+.expr__espelho { position: absolute; inset: 0; color: var(--text); pointer-events: none; overflow: hidden; }
+.campo .expr__entrada { position: relative; display: block; width: 100%; min-height: var(--ctl-h); resize: none; overflow: hidden; background: transparent; color: transparent; caret-color: var(--text); -webkit-text-fill-color: transparent; }
+.campo .expr__entrada::placeholder { color: var(--text-3); -webkit-text-fill-color: var(--text-3); }
+.expr__chave { color: var(--accent); font-weight: 600; }
+.expr__ex { color: var(--text); }
+.expr__variavel { color: var(--purple); }
+.expr__literal { color: var(--success); }
+.expr__numero { color: var(--orange); }
+.expr__previa { font-size: var(--text-sm); color: var(--text-2); margin-top: var(--sp-1); overflow-wrap: anywhere; }
+.expr__previa--ok { color: var(--success); }
+.expr__previa--erro { color: var(--danger); }
+.variaveis { background: var(--fill); border-radius: var(--r-m); padding: var(--sp-2) var(--sp-3); }
+.variaveis__titulo { cursor: pointer; font-size: var(--text-sm); font-weight: 500; padding: var(--sp-1) 0; }
+.variaveis__corpo { display: flex; flex-wrap: wrap; gap: var(--sp-2); padding: var(--sp-2) 0; }
+.variaveis__chip { font: inherit; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--accent); background: var(--surface); border: 0; border-radius: var(--r-pill); padding: var(--sp-1) var(--sp-3); cursor: pointer; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.variaveis__chip:hover { background: var(--fill-accent); }
+
+/* Editor de código */
+.codigo { display: flex; background: var(--fill); border-radius: var(--r-m); min-height: 220px; max-height: 420px; overflow: hidden; }
+.codigo__linhas { flex: none; min-width: 3ch; padding: var(--sp-2) var(--sp-2); text-align: right; color: var(--text-3); user-select: none; overflow: hidden; display: flex; flex-direction: column; border-right: 1px solid var(--hairline); }
+.codigo .codigo__entrada { flex: 1; min-width: 0; padding: var(--sp-2) var(--sp-3); border: 0; background: transparent; color: var(--text); resize: none; white-space: pre; overflow: auto; tab-size: 2; height: auto; min-height: 220px; border-radius: 0; }
+.codigo .codigo__entrada:focus { outline: none; box-shadow: none; }
+.codigo:focus-within { box-shadow: var(--ring); }
+.inspector__form .bloco-codigo__pre { margin: 0; padding: var(--sp-3); background: var(--surface); border-radius: var(--r-m); font-family: var(--font-mono); font-size: var(--text-sm); overflow: auto; max-height: 220px; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+@media (max-width: 800px) { .drawflow .drawflow-node { --porta-passo: 40px; } }
