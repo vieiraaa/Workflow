@@ -7,7 +7,10 @@ aceite: json_invalido e timeout de conexão). Sem internet: servidores locais em
 
 import gzip
 import json
+import os
+import shutil
 import socket
+import subprocess
 import threading
 import time
 import tracemalloc
@@ -19,6 +22,8 @@ from django.apps import apps
 from django.urls import reverse
 
 from apps.motor import http as motor_http
+from apps.motor.codigo import executor as code_exec
+from apps.motor.codigo.executor import CodigoErro, executar_codigo
 
 pytestmark = pytest.mark.modulo("m3")
 
@@ -479,3 +484,178 @@ def test_base_nao_ve_execucao_alheia(db, servidor_com, settings, executar, clien
         )
         == 0
     )
+
+
+# ================================================================ T-058 · NÓ CÓDIGO (SEG-17, NOV-06)
+# Prova de isolamento do runtime JS (apps/motor/codigo/, commit 93fe655). Atacamos como autor do
+# jsCode. Servidor HTTP local (127.0.0.1) prova rede; nunca a internet. Marcados m5 (o marcador de
+# função vence o de módulo em get_closest_marker). Node obrigatório: pula se ausente.
+_NODE = os.environ.get("NODE_BIN") or shutil.which("node")
+_sem_node = pytest.mark.skipif(_NODE is None, reason="Node.js ausente; runtime do nó Código indisponível")
+
+
+@pytest.fixture
+def servidor_fuga():
+    """Servidor local que apenas anota as rotas recebidas (detector de rede do código)."""
+    s = _Servidor({})
+    yield s
+    s.parar()
+
+
+# ---------------------------------------------------------------- fugas tentadas PELO código do usuário
+# Payloads de atacante. Para cada um: (a) não pode conectar no servidor local e (b) não pode vazar
+# process/arquivo. `__PORTA__` é trocado pela porta do servidor de fuga.
+_PAYLOADS_FUGA = {
+    "prepare_stack_trace_process": """
+        Error.prepareStackTrace = (e, s) => s;
+        let proc = null;
+        for (const f of new Error().stack) { try { const t = f.getThis(); if (t && t.process) proc = t.process; } catch (e) {} }
+        return [{json: {escapou: !!proc, pid: proc ? proc.pid : null}}];
+    """,
+    "prepare_stack_trace_socket": """
+        Error.prepareStackTrace = (e, s) => s;
+        let proc = null;
+        for (const f of new Error().stack) { try { const t = f.getThis(); if (t && t.process) proc = t.process; } catch (e) {} }
+        if (proc) { const net = proc.getBuiltinModule('net'); net.connect(__PORTA__, '127.0.0.1', function () { this.write('GET /stack HTTP/1.0\\r\\n\\r\\n'); }); }
+        return [{json: {escapou: !!proc}}];
+    """,
+    "constructor_constructor": "return [{json: {pid: this.constructor.constructor('return process')().pid}}]",
+    "function_constructor": "return [{json: {pid: (function(){}).constructor('return process.pid')()}}]",
+    "async_function_constructor": "return [{json: {pid: (async function(){}).constructor('return process')().pid}}]",
+    "generator_function_constructor": "const P = (function*(){}).constructor; return [{json: {pid: P('return process')().pid}}]",
+    "wasm_module": "const m = new WebAssembly.Module(new Uint8Array([0,97,115,109,1,0,0,0])); return [{json: {ok: typeof m}}]",
+    "dynamic_import_net": "return import('node:net').then((m) => { m.connect(__PORTA__, '127.0.0.1'); return [{json: {importou: true}}]; })",
+    "require_net_connect": "require('net').connect(__PORTA__, '127.0.0.1', function () { this.write('GET /req HTTP/1.0\\r\\n\\r\\n'); }); return [{json: {}}]",
+    "fetch_local": "return [{json: {r: fetch('http://127.0.0.1:__PORTA__/fetch')}}]",
+    "process_env": "return [{json: {path: process.env.PATH}}]",
+    "process_binding_fs": "return [{json: {b: process.binding('fs')}}]",
+    "worker_thread": "return [{json: {w: new Worker('x.js')}}]",
+    "caller_walk": "return [{json: {c: (function(){return arguments.callee.caller})()}}]",
+}
+
+
+@_sem_node
+@pytest.mark.modulo("m5")
+@pytest.mark.parametrize("nome", list(_PAYLOADS_FUGA))
+def test_codigo_do_usuario_nao_escapa_nem_abre_rede(nome, servidor_fuga):
+    """VERIFICADO (verde) · apps/motor/codigo/executor.mjs — em Node 24.21 a caixa `vm`
+    (codeGeneration.strings/wasm=false + supressão de globais + guarda de Promise) resiste a cada
+    vetor da T-058: nenhuma fuga obtém `process`/arquivo e NENHUM payload conecta no servidor local.
+    Guarda de regressão: se um global escapar no futuro, a rede fica aberta (ver o achado abaixo)."""
+    codigo = _PAYLOADS_FUGA[nome].replace("__PORTA__", str(servidor_fuga.porta))
+    try:
+        saida = executar_codigo(codigo, [])
+        texto = json.dumps(saida, ensure_ascii=False)
+    except CodigoErro:
+        texto = ""  # bloqueado pelo runtime é aceitável
+    time.sleep(0.2)  # dá tempo de um socket vazado chegar ao servidor
+    assert not servidor_fuga.httpd.recebidas, f"{nome}: o código abriu conexão de rede: {servidor_fuga.httpd.recebidas}"
+    # nada de pid real, caminho, nem conteúdo de arquivo vazado
+    assert '"escapou": true' not in texto and '"pid": ' not in texto.replace('"pid": null', "")
+    assert "/usr/" not in texto and "root:" not in texto
+
+
+@_sem_node
+@pytest.mark.modulo("m5")
+def test_contexto_nao_expoe_globais_perigosos():
+    """VERIFICADO (verde) · executor.mjs:91-94 — o contexto `Object.create(null)` não traz
+    process/require/module/Buffer/fetch/WebSocket, nem agendadores (setTimeout/queueMicrotask),
+    e WebAssembly.compile/Module está desabilitado (wasm:false)."""
+    saida = executar_codigo(
+        "return [{json: {"
+        "process: typeof process, require: typeof require, module: typeof module,"
+        "Buffer: typeof Buffer, fetch: typeof fetch, WebSocket: typeof WebSocket,"
+        "setTimeout: typeof setTimeout, queueMicrotask: typeof queueMicrotask,"
+        "setImmediate: typeof setImmediate}}]",
+        [],
+    )
+    assert saida["itens"][0]["json"] == {
+        "process": "undefined", "require": "undefined", "module": "undefined",
+        "Buffer": "undefined", "fetch": "undefined", "WebSocket": "undefined",
+        "setTimeout": "undefined", "queueMicrotask": "undefined", "setImmediate": "undefined",
+    }
+    with pytest.raises(CodigoErro):
+        executar_codigo("return [{json: {m: new WebAssembly.Module(new Uint8Array([0,97,115,109,1,0,0,0]))}}]", [])
+
+
+@_sem_node
+@pytest.mark.modulo("m5")
+def test_atomics_wait_nao_fura_o_limite_de_cpu():
+    """VERIFICADO (verde) · executor.mjs:94 — `Atomics.wait` numa SharedArrayBuffer (bloqueio
+    nativo) ainda é interrompido pelo vm.timeout: vira `codigo_limite` dentro do prazo, não trava
+    o worker. SharedArrayBuffer/Atomics existem no contexto, mas sem Worker não há canal de ataque."""
+    inicio = time.monotonic()
+    with pytest.raises(CodigoErro) as e:
+        executar_codigo(
+            "const ia = new Int32Array(new SharedArrayBuffer(8)); Atomics.wait(ia, 0, 0); return [];",
+            [],
+            cpu_s=1,
+        )
+    assert e.value.categoria == "codigo_limite" and time.monotonic() - inicio < 4
+
+
+# ---------------------------------------------------------------- ACHADO (vermelho)
+@_sem_node
+@pytest.mark.modulo("m5")
+def test_modelo_de_permissao_do_node_nao_barra_rede(servidor_fuga, tmp_path):
+    """ALTA · executor.py:60-68 + executor.mjs:91-94 (SEG-17 "sem rede") — a flag `--permission` do
+    Node 24 NÃO tem permissão de REDE: ela barra fs/child_process/worker, mas sockets ficam livres.
+    A única barreira de rede é o `vm`, que a doc do Node declara NÃO ser fronteira de segurança.
+    Prova: um processo com EXATAMENTE os flags do runner (sem nenhum escape do vm) abre um socket
+    para o servidor local. Logo qualquer fuga do vm (regressão do Node, global reintroduzido como
+    fetch/WebSocket, dependência nova) vira SSRF/exfiltração dos dados/credenciais dos nós anteriores,
+    sem segunda camada. O teste afirma a expectativa segura (nenhuma conexão) e por isso FALHA."""
+    script = tmp_path / "ataque_rede.cjs"
+    script.write_text(
+        "const net = require('net');\n"
+        "const s = net.connect(Number(process.argv[2]), '127.0.0.1', () => "
+        "s.write('GET /sem-barreira-de-rede HTTP/1.0\\r\\n\\r\\n'));\n"
+        "s.on('data', () => { s.end(); process.exit(0); });\n"
+        "s.on('error', () => process.exit(3));\n"
+        "setTimeout(() => process.exit(4), 2000);\n"
+    )
+    raiz = os.path.realpath(tmp_path)  # macOS: /var -> /private/var
+    comando = [
+        _NODE,
+        "--permission",
+        f"--allow-fs-read={raiz}",
+        f"--max-old-space-size={code_exec.LIMITE_MEMORIA_MB}",
+        "--disallow-code-generation-from-strings",
+        os.path.realpath(script),
+        str(servidor_fuga.porta),
+    ]
+    subprocess.run(comando, capture_output=True, timeout=8, env={}, check=False)
+    time.sleep(0.2)
+    assert not servidor_fuga.httpd.recebidas, (
+        "ACHADO ALTA: o modelo de permissões do Node não barra rede — o processo do nó Código "
+        f"conectou no servidor local ({servidor_fuga.httpd.recebidas}). 'sem rede' (SEG-17) depende só do "
+        "vm. Fechar a rede numa camada do SO: Linux/servidor -> namespace de rede sem interfaces "
+        "(unshare --net / PrivateNetwork=yes / container --network=none / seccomp sem AF_INET); "
+        "macOS/dev -> sandbox-exec negando network*, ou aceitar macOS como dev e exigir a camada no "
+        "servidor; alternativa -> QuickJS (D-i, sem sockets por construção) ou Node com --allow-net "
+        "quando existir."
+    )
+
+
+@_sem_node
+@pytest.mark.modulo("m5")
+def test_modelo_de_permissao_barra_fs_e_processo(servidor_fuga, tmp_path):
+    """VERIFICADO (verde) · executor.py:60-68 — a assimetria: os MESMOS flags que deixam a rede
+    passar BARRAM fs e child_process (ERR_ACCESS_DENIED). Prova que fs/child_process têm uma segunda
+    parede (o modelo de permissões) que a rede não tem."""
+    script = tmp_path / "ataque_fs.cjs"
+    script.write_text(
+        "try { require('fs').readFileSync('/etc/hosts'); console.log('FS-OK'); }\n"
+        "catch (e) { console.log('FS-BARRADO', e.code); }\n"
+        "try { require('child_process').execSync('id'); console.log('CP-OK'); }\n"
+        "catch (e) { console.log('CP-BARRADO', e.code); }\n"
+    )
+    raiz = os.path.realpath(tmp_path)
+    comando = [
+        _NODE, "--permission", f"--allow-fs-read={raiz}",
+        "--disallow-code-generation-from-strings", os.path.realpath(script),
+    ]
+    p = subprocess.run(comando, capture_output=True, timeout=8, env={}, check=False, text=True)
+    saida = (p.stdout or "") + (p.stderr or "")
+    assert "FS-OK" not in saida and "CP-OK" not in saida, f"fs/child_process não barrados: {saida[:200]}"
+    assert "ERR_ACCESS_DENIED" in saida or "restricted" in saida or "BARRADO" in saida
