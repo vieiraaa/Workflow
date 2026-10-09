@@ -77,7 +77,7 @@
         var op = criar("option", "", o[1]); op.value = o[0]; if (String(valor(f, base)) === String(o[0])) op.selected = true; sel.appendChild(op);
       });
       sel.disabled = bloqueado();
-      sel.addEventListener("change", function () { mudar(function (x) { E.definirEm(x.config, caminho(f, base), sel.value); }, f.recarrega); });
+      sel.addEventListener("change", function () { mudar(function (x) { E.definirEm(x.config, caminho(f, base), sel.value); if (f.aoMudar) f.aoMudar(x.config, sel.value); }, f.recarrega); });
       var env = criar("div", "campo__select"); env.appendChild(sel); env.appendChild(icone("chevron-down"));
       caixa.appendChild(env); ajuda(caixa, f.ajuda);
       return comErros(caixa, caminho(f, base));
@@ -144,7 +144,7 @@
       var corpo = criar("div", "pares");
       function emitir() {
         var itens = [].map.call(corpo.querySelectorAll(".par"), function (l) { var i = l.querySelectorAll("input"); return { nome: i[0].value, valor: i[1].value }; });
-        mudar(function (x) { x.config[f.c] = itens; });
+        mudar(function (x) { E.definirEm(x.config, f.c, itens); });
       }
       function linha(p) {
         var l = criar("div", "par"), n = criar("input"), v = criar("input");

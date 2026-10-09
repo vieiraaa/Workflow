@@ -30,6 +30,13 @@
     return obj;
   }
 
+  /* Corpo do HTTP: "formulario" guarda lista [{nome, valor}]; os outros tipos guardam texto (MV2-18). */
+  function ajustarCorpo(config, tipo) {
+    var c = config.corpo || (config.corpo = { tipo: tipo, conteudo: "" });
+    if (tipo === "formulario" && !Array.isArray(c.conteudo)) c.conteudo = [];
+    else if (tipo !== "formulario" && typeof c.conteudo !== "string") c.conteudo = "";
+  }
+
   var ESQUEMAS = {
     gatilho: [{ k: "aviso", texto: "O gatilho manual inicia o fluxo com um item: quando foi disparado e por quem." }],
     saida: [{ k: "aviso", texto: "Mostra na tela o resultado dos itens que chegam aqui." }],
@@ -40,8 +47,9 @@
       { k: "credencial", c: "credencial", rotulo: "Credencial" },
       { k: "pares", c: "query", rotulo: "Parâmetros de consulta" },
       { k: "pares", c: "headers", rotulo: "Cabeçalhos" },
-      { k: "select", c: "corpo.tipo", rotulo: "Corpo", recarrega: true, opcoes: [["nenhum", "Nenhum"], ["json", "JSON"], ["formulario", "Formulário"], ["texto", "Texto"]] },
-      { k: "expr", c: "corpo.conteudo", rotulo: "Conteúdo do corpo", multilinha: true, mono: true, quando: function (c) { return valorEm(c, "corpo.tipo") && valorEm(c, "corpo.tipo") !== "nenhum"; } },
+      { k: "select", c: "corpo.tipo", rotulo: "Corpo", recarrega: true, aoMudar: ajustarCorpo, opcoes: [["nenhum", "Nenhum"], ["json", "JSON"], ["formulario", "Formulário"], ["texto", "Texto"]] },
+      { k: "expr", c: "corpo.conteudo", rotulo: "Conteúdo do corpo", multilinha: true, mono: true, quando: function (c) { var t = valorEm(c, "corpo.tipo"); return t && t !== "nenhum" && t !== "formulario"; } },
+      { k: "pares", c: "corpo.conteudo", rotulo: "Campos do formulário", quando: eq("corpo.tipo", "formulario") },
       { k: "select", c: "resposta", rotulo: "Formato da resposta", opcoes: [["automatica", "Automático"], ["json", "JSON"], ["texto", "Texto"]] },
       { k: "toggle", c: "resposta_completa", rotulo: "Resposta completa (status, cabeçalhos e corpo)", ajuda: "Desligado: o item é o corpo da resposta." },
       { k: "paginacao", c: "paginacao", rotulo: "Paginação" }
@@ -118,7 +126,7 @@
 
   function unario(operador) { return OPERADORES_UNARIOS.indexOf(operador) >= 0; }
 
-  var API = { ESQUEMAS: ESQUEMAS, OPERADORES: OPERADORES, TIPOS_VALOR: TIPOS_VALOR, esquema: esquema, unario: unario, valorEm: valorEm, definirEm: definirEm, sempre: sempre };
+  var API = { ESQUEMAS: ESQUEMAS, OPERADORES: OPERADORES, TIPOS_VALOR: TIPOS_VALOR, esquema: esquema, ajustarCorpo: ajustarCorpo, unario: unario, valorEm: valorEm, definirEm: definirEm, sempre: sempre };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else raiz.EsquemasNos = API;
 })(typeof window !== "undefined" ? window : this);

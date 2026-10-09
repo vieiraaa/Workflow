@@ -159,3 +159,19 @@ def test_contagem_nas_arestas_apos_teste(editor):
     )
     assert editor.locator(".aresta-rotulo text").text_content() == "3 itens"
     assert "3 itens" in editor.locator(".drawflow-node").first.inner_text()
+
+
+def test_corpo_http_formulario_vira_lista_e_volta_a_texto(editor):
+    editor.click("[data-paleta-tipo=http]")
+    editor.select_option("#insp-corpo-tipo", "formulario")
+    editor.click("text=Adicionar")  # primeiro "Adicionar" do formulário: parâmetros de consulta
+    http = [n for n in _grafo(editor)["nos"] if n["tipo"] == "http"][0]
+    assert http["config"]["corpo"] == {"tipo": "formulario", "conteudo": []}
+    editor.locator(".campo:has-text('Campos do formulário') >> text=Adicionar").click()
+    editor.locator(".campo:has-text('Campos do formulário') input").first.fill("a")
+    editor.locator(".campo:has-text('Campos do formulário') input").nth(1).fill("1")
+    http = [n for n in _grafo(editor)["nos"] if n["tipo"] == "http"][0]
+    assert http["config"]["corpo"]["conteudo"] == [{"nome": "a", "valor": "1"}]
+    editor.select_option("#insp-corpo-tipo", "json")
+    http = [n for n in _grafo(editor)["nos"] if n["tipo"] == "http"][0]
+    assert http["config"]["corpo"] == {"tipo": "json", "conteudo": ""}

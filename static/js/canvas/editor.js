@@ -697,7 +697,11 @@
         body: dados.toString()
       }).then(function (r) {
         return r.json().catch(function () { return null; }).then(function (corpo) {
-          if (!corpo || !r.ok || corpo.ok === false) { fim(); avisar("error", (corpo && mensagensDe(corpo)[0]) || "Não foi possível executar este nó."); return; }
+          if (!corpo || !r.ok || corpo.ok === false) {
+            fim();
+            if (corpo && corpo.pendencias && corpo.pendencias.length) { aplicarPendencias(corpo.pendencias); avisar("error", "Corrija as pendências do fluxo antes de executar este nó."); return; }
+            avisar("error", (corpo && mensagensDe(corpo)[0]) || "Não foi possível executar este nó."); return;
+          }
           if (corpo.nos) { fim(); aplicarResultado(corpo); return; }
           return buscarResultado(corpo.url_detalhe).then(function (res) {
             fim();
