@@ -354,8 +354,24 @@ def _apagar_banco():
         admin.execute(f'DROP DATABASE IF EXISTS "{_BANCO_TELAS}" WITH (FORCE)')
 
 
+ESPERA_SERVIDOR = 60  # segundos; a máquina pode estar ocupada com a suíte ou com o demo
+
+
+def _ultimas_linhas(arquivo, quantidade=15):
+    try:
+        linhas = Path(arquivo).read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return "(sem saída do servidor)"
+    return "\n".join(linhas[-quantidade:]) or "(sem saída do servidor)"
+
+
 def _subir_servidor():
+    import tempfile
+
     porta = _porta_livre()
+    log = tempfile.NamedTemporaryFile(  # noqa: SIM115 - fica aberto enquanto o servidor roda
+        prefix="telas_runserver_", suffix=".log", delete=False
+    )
     proc = subprocess.Popen(
         [
             sys.executable,
@@ -368,17 +384,28 @@ def _subir_servidor():
         cwd=RAIZ,
         env={**os.environ, "DJANGO_SETTINGS_MODULE": "config.settings.teste"},
         stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stderr=log,
     )
     base = f"http://127.0.0.1:{porta}"
-    for _ in range(100):
+    limite = time.monotonic() + ESPERA_SERVIDOR
+    pausa = 0.2
+    while time.monotonic() < limite:
+        if proc.poll() is not None:  # morreu ao subir: erro de código/configuração
+            raise RuntimeError(
+                "Servidor local falhou ao iniciar. Últimas linhas do runserver:\n"
+                + _ultimas_linhas(log.name)
+            )
         try:
-            urllib.request.urlopen(base + "/entrar/", timeout=1)  # noqa: S310
+            urllib.request.urlopen(base + "/entrar/", timeout=2)  # noqa: S310
             return proc, base
         except Exception:  # noqa: BLE001 - servidor ainda subindo
-            time.sleep(0.2)
+            time.sleep(pausa)
+            pausa = min(pausa * 1.5, 2.0)
     proc.terminate()
-    raise RuntimeError("Servidor local não subiu.")
+    raise RuntimeError(
+        f"Servidor local não subiu em {ESPERA_SERVIDOR} s (tempo esgotado). "
+        "Últimas linhas do runserver:\n" + _ultimas_linhas(log.name)
+    )
 
 
 def _cookie_de_sessao(usuario):

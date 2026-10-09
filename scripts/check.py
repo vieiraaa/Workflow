@@ -30,6 +30,7 @@ SINAIS_AMBIENTE = (
     "executable doesn't exist",
     "playwright install",
     "browsertype.launch",
+    "servidor local não subiu",  # tempo esgotado com a máquina ocupada (telas.py)
 )
 SINAIS_EXTERNO = (
     "connection error",
