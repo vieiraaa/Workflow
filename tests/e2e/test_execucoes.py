@@ -129,7 +129,7 @@ def test_desenho_v2_mostra_ramos_e_itens_nas_arestas(pagina_coordenador, live_se
     pagina_coordenador.wait_for_selector(".fluxo-exec__no")
     assert pagina_coordenador.locator(".fluxo-exec__no").count() == 4
     contagens = pagina_coordenador.eval_on_selector_all(
-        ".fluxo-exec__aresta-itens", "els => els.map(e => e.dataset.itens)"
+        "svg .fluxo-exec__aresta-itens", "els => els.map(e => e.dataset.itens)"
     )
     assert contagens == ["3", "3", "0"]
     assert pagina_coordenador.locator(".fluxo-exec__no--sem_itens").count() == 1

@@ -34,6 +34,11 @@
     <div class="fluxo-exec__legenda" aria-hidden="true"><span class="l-sucesso">Sucesso</span><span class="l-erro">Erro</span><span>Não executado</span><span class="l-pulado">Sem itens ou desativado</span><span class="l-itens">Número nas ligações: itens</span><span class="l-dica">Toque num nó para ver os detalhes</span></div>
     <div class="fluxo-exec__palco" data-palco></div>
     <p class="texto-2 texto-sm" data-fluxo-vazio hidden>Não foi possível desenhar o fluxo.</p>
+    {% if grafo_execucao.arestas %}
+    <ul class="fluxo-exec__ligacoes texto-sm texto-2" aria-label="Itens em cada ligação" data-ligacoes>
+      {% for a in grafo_execucao.arestas %}<li data-itens="{{ a.itens }}">{% for n in grafo_execucao.nos %}{% if n.id == a.de %}{{ n.titulo }}{% endif %}{% endfor %} → {% for n in grafo_execucao.nos %}{% if n.id == a.para %}{{ n.titulo }}{% endif %}{% endfor %}: {{ a.itens }} {% if a.itens == 1 %}item{% else %}itens{% endif %}</li>{% endfor %}
+    </ul>
+    {% endif %}
   </div>
 </details>
 {{ grafo_execucao|json_script:"grafo-execucao" }}
