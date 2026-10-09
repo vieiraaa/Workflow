@@ -241,4 +241,33 @@ lacunas_parte_a:
       "rotulo": texto}], "saida_outros": bool}; Juntar {"modo", "entradas": 2..4, e conforme o modo "campo1", "campo2",
       "tipo" ou "entrada"}; Editar campos {"modo", "campos", "incluir_outros"}. (4) Limites de 10 MB gravados e 10.000 passos
       ficam como salvaguarda interna, sem teste de aceite.
+  - id: MV2-15
+    texto: >
+      Fecha B1–B10 do T-051 (propostas da QA aceitas). B1 RESUMIR: 1 item por grupo (ordem da 1ª aparição) com os campos
+      de agrupar_por + "<op>_<campo>" (contar_status, somar_valor, media_valor, min_x, max_x, contar_unicos_x,
+      concatenar_x = valores unidos por ", "); sem agrupar_por = 1 item. B2 EDITAR CAMPOS modo json: chave "json" (texto
+      com {{ }}) cujo resultado objeto vira o json do item; incluir_outros vale igual. B3 DATA E HORA: unidade dias|horas|
+      minutos|semanas|meses (inicio_de: dia|semana|mes|hora); diferenca usa "campo2" e devolve número na unidade;
+      formatar usa tokens Luxon; agora/somar/subtrair/inicio_de devolvem toISO() Luxon; data de entrada ISO 8601 (sem
+      offset = São Paulo); "saida" = campo gravado (vazio = sobrescreve "campo"). B4 JUNTAR: combinar_por_campo mescla
+      {**entrada0, **entrada1} (entrada 1 vence); tipo dentro = só pares, esquerda = todos da 0, direita = todos da 1,
+      externa = todos (sem par, o item sozinho); combinar_por_posicao = pares por índice até o menor tamanho;
+      escolher_entrada usa índice 0-based. B5 REPETIR EM LOTES: um ExecucaoNo por VISITA (mesmo no_id, ordem crescente);
+      "pronto" = todos os itens que voltaram do corpo, acumulados; mais de 1.000 voltas = erro categoria "laco_excessivo".
+      B6 HTTP CORPO: json = TEXTO template validado como JSON depois de resolvido (strings com inserção segura PLH-04);
+      formulario = lista [{nome, valor}] (x-www-form-urlencoded); texto = string; nenhum = ''. resposta json com corpo
+      inválido = erro "json_invalido"; texto = {data: texto}; automatica = pelo Content-Type. B7 PAGINAÇÃO: a 1ª
+      requisição usa a config como está; nas seguintes $pageCount = nº de páginas já buscadas (1 na 2ª); $response =
+      {status, headers (minúsculos), body} (padrão n8n); a página que satisfaz parar_quando ENTRA na saída, exceto em
+      resposta_vazia (lista [], objeto {} ou corpo vazio não gera item); parar por "status" {codigos} encerra sem erro e
+      a página não entra; limite_paginas atingido para sem erro; cada página conta para SSRF, limites e mascaramento.
+      B8 CONDIÇÕES: "direita" literal é convertido conforme o tipo ('5' → 5, 'true' → true); regex > 200 caracteres =
+      pendência ao salvar; regex que estoura 50 ms = erro do nó "expressao"; Escolher envia o item só para a PRIMEIRA regra
+      que casar; sem "outros", item sem regra é descartado; mais de 10 regras = pendência. B9 AGREGAR: modo todos → 1 item
+      {<saida>: [json de cada item]}; modo campos com 1 campo → {<saida>: [valores]}; com vários → {<campo>: [...]} por
+      campo (saida ignorada). SEPARAR LISTA: elemento objeto → json = elemento (incluir campos_pai → {**pai sem a lista,
+      **elemento}); elemento não objeto → {<campo>: elemento}; campo inexistente ou não lista = erro "expressao".
+      B10 REQUISIÇÕES GRAVADAS: ExecucaoNo.requisicoes = lista [{metodo, url, headers: [{nome, valor}], query, corpo,
+      status}] (uma por requisição/página), mascarada por NOME (SEG-09) e por VALOR de credencial (CRD-02).
+      Categorias novas: laco_excessivo.
 
