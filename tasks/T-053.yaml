@@ -1,0 +1,6 @@
+id: T-053
+titulo: M5 · Interpretador de expressões (subconjunto JS, MV2-10/11)
+dono: Forja (back)
+regras: [MV2-10, MV2-11, PLH-04]
+objetivo: apps/motor/expressoes/ — tokenizador + parser + avaliador próprio, lista branca, limites de passos/tamanho, $('Nó'), $input, $now/$today; substitui o parser de placeholders v1 mantendo a inserção segura por contexto.
+arquivos: [apps/motor/, tests/unit/motor/]

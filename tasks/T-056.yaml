@@ -1,0 +1,5 @@
+id: T-056
+titulo: M5 · Importar/Exportar (nativo e n8n) com relatório
+dono: Forja (back)
+regras: [IMP-01..06, SEG-19]
+arquivos: [apps/fluxos/, apps/motor/, config/urls.py, tests/unit/]

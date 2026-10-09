@@ -1,0 +1,5 @@
+id: T-055
+titulo: M5 · Nós de dados e de fluxo (NOV-02..04) e nó Código (NOV-06, após T-050)
+dono: Forja (back)
+regras: [NOV-01..04, NOV-06, SEG-17]
+arquivos: [apps/motor/, tests/unit/motor/]

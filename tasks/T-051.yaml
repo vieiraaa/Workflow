@@ -1,0 +1,12 @@
+id: T-051
+titulo: M5 · Aceite (motor v2, expressões, nós, credenciais, importar/exportar, meta Digisac falso)
+dono: Lupa (qa)
+fontes: [docs/spec/motor-v2.yaml, docs/spec/seguranca.yaml (SEG-17..19), docs/spec/exemplos/n8n_chamados_do_dia.json]
+partes:
+  - A (primeiro): MV2-01..07 (itens, grafo v2, migração v1→v2, ordem, erro, dados fixos, histórico) e MV2-10/11 (expressões)
+  - B: NOV-01..05 (catálogo, condições, dados, fluxo, HTTP v2 com paginação) — servidor HTTP local
+  - C: CRD-01/02, IMP-01..05, NOV-06 (Código, por comportamento observável), SEG-17..19
+  - D: IMP-06 META — API Digisac FALSA local em tests/acceptance/m5/ (me, users, tickets paginado); importar o exemplo, credencial
+       fictícia, ativar Código, executar, comparar a saída de "Lista de chamados" com o esperado que você define pela lógica do JSON
+regras: só pela spec; nunca a internet; @pytest.mark.modulo("m5"); lacunas me reportar ANTES de cada parte
+arquivos: [tests/acceptance/]
