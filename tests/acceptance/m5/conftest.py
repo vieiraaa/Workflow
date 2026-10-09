@@ -286,3 +286,76 @@ def http_no(executar, cliente_adm, liberado, h, no, jsons):
         return e, no(e, "h")
 
     return _h
+
+
+# ---------------- parte C: credenciais, setores, importação ----------------
+
+@pytest.fixture(autouse=True)
+def chave_credenciais(settings):
+    """SEG-18: chave de teste gerada na fixture (settings.CREDENCIAIS_CHAVE, MV2-18 C2)."""
+    try:
+        from cryptography.fernet import Fernet
+    except ImportError:  # dependência ainda não instalada: só os testes de credencial dependem dela
+        return None
+    settings.CREDENCIAIS_CHAVE = Fernet.generate_key().decode()
+    return settings.CREDENCIAIS_CHAVE
+
+
+@pytest.fixture
+def mk_setor(db):
+    Setor = apps.get_model("contas", "Setor")
+    return lambda nome: Setor.objects.create(nome=nome)
+
+
+@pytest.fixture
+def setor_a(mk_setor):
+    return mk_setor("Setor A Fictício")
+
+
+@pytest.fixture
+def setor_b(mk_setor):
+    return mk_setor("Setor B Fictício")
+
+
+@pytest.fixture
+def logar(fabrica_usuario, client):
+    """logar(papel, setor=None) → (Client logado, usuário). Papéis: Adm|Coordenador|Base."""
+    from django.test import Client
+
+    def _l(papel, setor=None):
+        u = fabrica_usuario(papel=papel)
+        if setor is not None:
+            u.setor = setor
+            u.save()
+        c = Client()
+        c.force_login(u)
+        return c, u
+
+    return _l
+
+
+@pytest.fixture
+def fluxo_no_setor(fabrica_fluxo, modelos):
+    def _f(setor, **kw):
+        f = fabrica_fluxo(**kw)
+        modelos.Fluxo.objects.filter(pk=f.pk).update(setor=setor)
+        f.refresh_from_db()
+        return f
+
+    return _f
+
+
+@pytest.fixture
+def Credencial(db):
+    return apps.get_model("credenciais", "Credencial")
+
+
+@pytest.fixture
+def criar_cred(cliente_adm):
+    """criar_cred(nome, tipo='bearer', valor='…', setor=None, **campos) → resposta do POST credenciais:nova (Adm)."""
+
+    def _c(nome="Digisac", tipo="bearer", valor="SEGREDO-CRED-VALOR-123", setor="", **campos):
+        dados = {"nome": nome, "tipo": tipo, "valor": valor, "setor": setor, **campos}
+        return cliente_adm.post(reverse("credenciais:nova"), dados)
+
+    return _c

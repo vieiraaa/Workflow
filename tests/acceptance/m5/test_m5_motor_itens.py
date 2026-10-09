@@ -268,7 +268,7 @@ def test_executar_no_permissoes_e_metodo(cliente_base, cliente_anonimo, cliente_
     url = reverse("fluxos:executar_no", kwargs={"pk": fluxo_teste.pk})
     assert cliente_base.post(url, {"no_id": "c"}).status_code in (403, 404)
     r = cliente_anonimo.post(url, {"no_id": "c"})
-    assert r.status_code == 302 and "login" in r["Location"]
+    assert r.status_code == 302 and r["Location"].startswith(reverse("login"))
     assert cliente_adm.get(url).status_code == 405
     assert cliente_adm.post(url, {"no_id": "inexistente"}).status_code < 500
     assert cliente_adm.post(url, {}).status_code < 500
@@ -335,5 +335,5 @@ def test_base_executa_fluxo_ativo_v2_e_anonimo_vai_ao_login(cliente_base, client
     assert r.status_code == 302 and r["Location"] == reverse("execucoes:detalhe", kwargs={"pk": e.pk})
     assert e.status == "sucesso"
     r2 = cliente_anonimo.post(url)
-    assert r2.status_code == 302 and "login" in r2["Location"]
+    assert r2.status_code == 302 and r2["Location"].startswith(reverse("login"))
     assert modelos.Execucao.objects.count() == 1

@@ -360,3 +360,46 @@ def test_pendencia_proxima_url_sem_url(salvar_http):
     """MV2-16: proxima_url sem 'url' = pendência."""
     r = salvar_http({"modo": "proxima_url", "parar_quando": "resposta_vazia"})
     assert r.status_code == 200 and r.json()["pendencias"]
+
+
+# ---------------- URL com base variável (MV2-19) ----------------
+
+def test_base_variavel_no_inicio_da_url_nao_e_percent_encoded(http_no, liberado, h):
+    """MV2-19: {{ expr }} no INÍCIO da url entra sem percent-encode (padrão baseUrl do n8n)."""
+    e, n = http_no(h.cfg_http2("{{ $json.base }}/eco/ok"), [{"base": liberado.base}])
+    assert e.status == "sucesso", e.erro_resumo
+    assert liberado.hits("/eco/ok")[0]["rota"] == "/eco/ok"
+    e, n = http_no(h.cfg_http2("={{ $json.base }}/eco/ok2"), [{"base": liberado.base}])
+    assert e.status == "sucesso" and liberado.hits("/eco/ok2")
+
+
+def test_valor_em_outra_posicao_continua_percent_encoded(http_no, liberado, h):
+    """MV2-19: fora do início, o valor é percent-encoded (não injeta / ? # @)."""
+    e, _ = http_no(h.cfg_http2(f"{liberado.base}/eco/{{{{ $json.v }}}}"), [{"v": "a/b?c#d@e"}])
+    r = liberado.hits("/eco/")[0]
+    assert e.status == "sucesso" and r["rota"].count("/") == 2 and "?" not in r["path"] and "#" not in r["path"]
+
+
+@pytest.mark.parametrize("base", [
+    "http://169.254.169.254", "http://localhost", "http://[::1]", "http://2130706433", "http://0177.0.0.1", "http://127.1",
+    "file://", "ftp://exemplo.test", "javascript:", "http://user:senha@127.0.0.1", "http://exemplo.test\\@127.0.0.1",
+    "http://127.0.0.1\r\nHost: x", "http://10.0.0.1", "http://[::ffff:127.0.0.1]",
+])
+def test_base_variavel_que_resolve_para_destino_proibido_e_bloqueada(base, http_no, liberado, h):
+    """MV2-19/SEG-01..06/16: base vinda de expressão passa por TODAS as validações → bloqueado_ssrf (CR/LF pode ser 'placeholder'); nada chega ao servidor."""
+    e, n = http_no(h.cfg_http2("{{ $json.base }}/api"), [{"base": base}])
+    assert e.status == "erro" and n.erro_categoria in ("bloqueado_ssrf", "placeholder"), (base, n.erro_categoria)
+    assert liberado.requisicoes == []
+
+
+def test_base_variavel_para_servidor_local_nao_liberado_e_bloqueada(http_no, liberado, nao_liberado, h):
+    """MV2-19/SEG-08: base apontando para outro servidor local (não liberado) → bloqueado_ssrf."""
+    e, n = http_no(h.cfg_http2("{{ $json.base }}/ok"), [{"base": nao_liberado.base}])
+    assert n.erro_categoria == "bloqueado_ssrf" and nao_liberado.requisicoes == []
+
+
+def test_base_variavel_com_redirect_para_proibido_e_bloqueada(http_no, liberado, h):
+    """MV2-19/SEG-05: mesmo com base liberada, o redirect para destino proibido é revalidado."""
+    liberado.rotas["/r"] = lambda req: (302, b"", {"Location": "http://169.254.169.254/"})
+    e, n = http_no(h.cfg_http2("{{ $json.base }}/r"), [{"base": liberado.base}])
+    assert n.erro_categoria == "bloqueado_ssrf"
