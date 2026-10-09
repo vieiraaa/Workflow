@@ -179,3 +179,49 @@ editor:
       Notas (sticky) arrastáveis e redimensionáveis; duplicar nó; copiar/colar seleção (JSON no grafo v2) entre fluxos;
       desativar/ativar nó; fixar/limpar dados do nó; "Executar este nó" (MV2-06); botões Importar e Exportar na lista e
       no editor; contagem de itens nas arestas após uma execução de teste.
+
+lacunas_parte_a:
+  - id: MV2-12
+    texto: >
+      Fecha L1–L13 do T-051 (propostas da QA aceitas, com o ajuste em L1). L1 ITEM DO HTTP: item.json = CORPO da
+      resposta (lista → 1 item por elemento; objeto → 1 item; texto → {"data": texto}), como no n8n. Opção
+      `resposta_completa: true` (fullResponse do n8n) → item.json = {"status", "headers" (minúsculos), "corpo"}. A
+      migração v1→v2 marca os nós HTTP migrados com resposta_completa=true e reescreve `anterior.X` → `$json.X`
+      (anterior.corpo.a → $json.corpo.a; anterior.status → $json.status): mesmo significado, sem pendência.
+      L2 HISTÓRICO: ExecucaoNo.entrada e .saida = LISTA de itens (até 50), + itens_entrada, itens_saida (int) e truncado
+      (bool); status do nó: sucesso | erro | nao_executado (só após erro que parou) | sem_itens | desativado | fixo.
+      Execução que terminou com nós em "continuar" ou ramos sem_itens = sucesso. Execucao ganha `teste` (bool).
+      L3 SALVAR: salvar_grafo aceita versao 1 (converte e grava 2) e 2; outra → 400. Limites MV2-02, chave desconhecida,
+      tipo errado e enum inválido = 400 de FORMATO; título duplicado, aresta para nó/alça inexistente (saida ≥ nº de
+      saídas do tipo) e dados_fixos de nó inexistente = PENDÊNCIA (200).
+      L4 PENDÊNCIAS (GRF-03 revisada para v2): exatamente 1 gatilho; nó sem caminho a partir do gatilho; ciclo (exceto a
+      aresta de retorno do Repetir em lotes); gatilho com entrada; Saída com aresta de saída. Nó Saída deixa de ser
+      obrigatório; fan-out e várias entradas são permitidos.
+      L5 ORDEM: busca em profundidade — ao terminar um nó, seus destinos rodam em ordem de posição (y, depois x) do nó
+      DESTINO, cada ramo até o fim ou até um Juntar que ainda espera entradas; ExecucaoNo.ordem = ordem real.
+      L6 ERRO: em nós "por item", a falha é POR ITEM (com `continuar`, os itens bons seguem normais e o que falhou segue com
+      json.erro; com `saida_de_erro`, o que falhou sai na alça de erro, de índice = nº de saídas normais do tipo:
+      http/codigo/editar 1, se 2, escolher N(+1 com "outros")). Nó com erro em modo continuar: ExecucaoNo.status = erro
+      (com o erro gravado), execução = sucesso.
+      L7 EXECUTAR ESTE NÓ: rota fluxos:executar_no (kwarg pk, só POST, campo `no_id`, só quem edita o fluxo); cria
+      Execucao com teste=True, visível só para o autor (nem o Adm de outro vê); fora do histórico oficial e da Home.
+      L8 EXPRESSÕES: (a) campo que começa com "=" → o resto é TEMPLATE com {{ }} (convenção n8n "={{ x }}"); (b) campo
+      que é exatamente UM {{ expr }} devolve o valor TIPADO; com texto fora vira string (objeto/lista = JSON compacto;
+      null/undefined = ''); (c) campos de expressão do NOV-02..05 seguem (a)/(b); (d) campo inexistente = undefined
+      ('' em texto, sem erro); acessar propriedade DE undefined/null = erro "expressao"; (e) semântica JavaScript (== frouxo,
+      divisão real, truthiness JS, ?? só null/undefined); (f) .first()/.last() de lista vazia = undefined.
+      L9 $('X').item = item de mesmo $itemIndex na saída de X; se X tem menos itens, o último.
+      L10 DATAS no padrão Luxon: toISO() → "2026-10-09T12:00:00.000-03:00"; toFormat com tokens yyyy MM dd HH mm ss.
+      L11 Limite efetivo testável: expressão > 2.000 caracteres e resultado > 1 MB → erro "expressao".
+      L12 Editar campos: tipo texto|numero|booleano|lista|objeto. CATEGORIAS de erro de nó = SEG-10 + expressao, codigo,
+      codigo_limite, credencial, limite_itens, parado (Parar com erro) e paginacao (limite de páginas atingido NÃO é erro).
+      L13 Saída de um nó para asserção: ExecucaoNo.saida[i]["json"].
+  - id: MV2-13
+    texto: >
+      Fecha L14 (rotas das partes B/C). Credenciais: namespace `credenciais` — credenciais:lista, credenciais:nova,
+      credenciais:editar (kwarg pk), credenciais:excluir (kwarg pk, só POST). Campos: nome, tipo (bearer|header|basic|
+      smtp), setor (id ou vazio = global), valor (token/valor do header/senha; vazio na edição = manter), usuario (basic,
+      smtp), header_nome (header), host, porta, tls (smtp). Importação: POST fluxos:importar → redirect para
+      fluxos:editor do fluxo novo + toast "Fluxo importado com N avisos."; o relatório fica gravado no fluxo
+      (relatorio_importacao, JSON) e aparece num painel do editor com data-relatorio-importacao, até o usuário dispensar.
+
