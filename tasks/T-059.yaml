@@ -1,0 +1,12 @@
+id: T-059
+titulo: M5 · Segunda parede de rede do nó Código (SEG-20)
+dono: Forja (back)
+depende_de: [T-058]
+regras: [SEG-17, SEG-20]
+objetivo: >
+  apps/motor/codigo/: detectar a camada disponível (darwin → sandbox-exec com perfil que nega network* e permite só o
+  necessário ao node; linux → unshare --net ou equivalente) e executar o node DENTRO dela; sem camada → erro
+  codigo_indisponivel (falha fechada). O vermelho do Atalaia (tests/adversarial/test_revisao_seguranca.py::
+  test_modelo_de_permissao_do_node_nao_barra_rede) tem de ficar verde SEM alteração do teste; os 17 verdes continuam.
+  Medir o custo de partida com a camada. Portável: sem shell, subprocess com lista de argumentos.
+arquivos: [apps/motor/codigo/, tests/unit/motor/]

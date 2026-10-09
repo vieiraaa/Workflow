@@ -97,4 +97,14 @@ motor_v2:
       IMPORTAÇÃO: JSON externo é dado não confiável — validação fechada (MV2-02), limite 2 MB, nó Código importado
       desativado até revisão do Adm, segredos detectados substituídos por pendência (IMP-04), nenhum campo do arquivo
       escolhe dono, setor, id ou status do fluxo criado.
+  - id: SEG-20
+    texto: >
+      SEGUNDA PAREDE DE REDE do nó Código (achado ALTA da T-058: o --permission do Node 24 não cobre rede). O processo do
+      runtime JS roda dentro de uma camada do SISTEMA OPERACIONAL que nega rede, independente do vm: macOS → sandbox-exec
+      com perfil que nega network*; Linux → namespace de rede vazio (unshare --net, ou systemd PrivateNetwork / container
+      --network=none). FALHA FECHADA: se nenhuma camada estiver disponível (ex.: Windows hoje), o nó Código não roda e dá
+      erro categoria "codigo_indisponivel" com a mensagem "O nó Código não está disponível neste servidor (sem isolamento de
+      rede)."; não existe opção para rodar sem a camada fora dos testes de unidade do próprio runner. O teste
+      test_modelo_de_permissao_do_node_nao_barra_rede (processo com os flags exatos do runner não conecta no servidor
+      local) tem de ficar VERDE.
 
