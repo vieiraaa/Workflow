@@ -24,3 +24,4 @@
 - D-022 · 09/10 · CSLog e Digisac são sistemas diferentes; o CSLog depende da documentação da API.
 - D-023 · 09/10 · Papéis Gerente e TI separados, mantendo o Adm (divisão proposta no ROADMAP §4, a confirmar).
 - D-024 · 09/10 · Ordem: M5 Motor v2 completo → M6 segundo plano/gatilhos → M7 Funções → M8 Digisac/CSLog + painel.
+- D-025 · 09/10 · Expressões v2 (T-053): aceitam também optional chaining `?.`; String.replace só com texto (sem regex); undefined/NaN/Infinity viram null ao serializar em JSON.
