@@ -299,3 +299,62 @@ def test_pageCount_e_response_so_existem_na_paginacao(usuario_coordenador, liber
     config = _cfg(f"{liberado.base}/eco?p={{{{ $pageCount }}}}")
     execucao, no = _rodar(usuario_coordenador, config)
     assert execucao.status == "sucesso" and liberado.requisicoes[-1]["path"].endswith("?p=")
+
+
+# ---------------------------------------------------------------- resposta gravada (MV2-22, EXE-06)
+def test_resposta_gravada_em_sucesso_e_em_erro(usuario_coordenador, liberado):
+    _, no = _rodar(usuario_coordenador, _cfg(f"{liberado.base}/ok"))
+    resposta = no.requisicoes[0]["resposta"]
+    assert resposta["status"] == 200 and json.loads(resposta["corpo"]) == {"ok": True}
+    assert (
+        resposta["headers"]["content-type"] == "application/json" and resposta["truncado"] is False
+    )
+    execucao, no = _rodar(usuario_coordenador, _cfg(f"{liberado.base}/status/503"))
+    resposta = no.requisicoes[0]["resposta"]
+    assert no.erro_categoria == "http_5xx" and resposta["status"] == 503
+    assert (
+        json.loads(resposta["corpo"]) == {"erro": "detalhe", "codigo": 503}
+        or "erro" in resposta["corpo"]
+    )
+
+
+def test_resposta_gravada_em_cada_pagina(usuario_coordenador, liberado):
+    _paginas(liberado, [[{"i": 1}], [{"i": 2}]])
+    _, no = _rodar(usuario_coordenador, _cfg(f"{liberado.base}/p", paginacao=_pag()))
+    assert [r["resposta"]["status"] for r in no.requisicoes] == [200, 200, 200]
+    assert json.loads(no.requisicoes[1]["resposta"]["corpo"]) == [{"i": 2}]
+
+
+def test_resposta_mascara_headers_e_valores_de_credencial_e_corta_em_8kb(
+    usuario_coordenador, liberado, chave_credenciais
+):
+    _credencial(usuario_coordenador)
+    liberado.rotas["/refl"] = lambda req: (
+        200,
+        {"visto": req["headers"].get("authorization"), "enchimento": "x" * 20000},
+        {"Set-Cookie": "sessao=SEGREDO-COOKIE-999", "X-Publico": "visivel"},
+    )
+    execucao, no = _rodar(usuario_coordenador, _cfg(f"{liberado.base}/refl", credencial="Digisac"))
+    resposta = no.requisicoes[0]["resposta"]
+    assert SEGREDO not in resposta["corpo"] and "••••" in resposta["corpo"]
+    assert (
+        resposta["headers"]["set-cookie"] == "••••"
+        and resposta["headers"]["x-publico"] == "visivel"
+    )
+    assert len(resposta["corpo"].encode()) <= 8 * 1024 and resposta["truncado"] is True
+    assert "SEGREDO-COOKIE-999" not in json.dumps(no.requisicoes)
+
+
+def test_detalhe_mostra_status_e_corpo_do_erro_http(
+    cliente_coordenador, usuario_coordenador, liberado
+):
+    from django.urls import reverse
+
+    liberado.rotas["/falha"] = lambda req: (500, {"mensagem": "<b>detalhe do servidor</b>"}, None)
+    execucao, no = _rodar(usuario_coordenador, _cfg(f"{liberado.base}/falha"))
+    contexto = cliente_coordenador.get(
+        reverse("execucoes:detalhe", kwargs={"pk": execucao.pk})
+    ).context
+    resposta = next(n for n in contexto["nos"] if n["no_id"] == "h")["resposta_http"]
+    assert resposta["status"] == 500 and "detalhe do servidor" in resposta["corpo"]
+    assert any(h["nome"] == "content-type" for h in resposta["headers"])

@@ -134,6 +134,9 @@ class ExecucaoDetalheView(PermissaoMixin, TemplateView):
     Contexto (além do shell), tudo texto puro (o template escapa):
     - `execucao`: {pk, fluxo_nome, status, status_rotulo, executado_por_nome, iniciada_em,
       finalizada_em, duracao_texto, erro_resumo, teste (bool)} (status efetivo; EXE-10)
+    - `nos` v2 (MV2-22): além dos campos abaixo, `resposta_http` {status, headers [{nome, valor}],
+      corpo (texto ≤ 8 KB, já mascarado), truncado} da ÚLTIMA requisição do nó (None se não houve)
+      — mostra o status e o corpo do erro HTTP; `requisicoes[].resposta` traz o de cada página.
     - `nos`: lista em ordem, cada um {ordem, no_id, tipo, titulo, status ('sucesso'|'erro'|
       'nao_executado'), status_rotulo, duracao_texto, erro_categoria, erro_rotulo, erro_mensagem,
       entrada_json (indentado, mascarado), saida_json, http_status (int|None),
@@ -182,6 +185,9 @@ class ExecucaoDetalheView(PermissaoMixin, TemplateView):
         requisicoes = no.requisicoes if isinstance(no.requisicoes, list) else []
         ultimo = requisicoes[-1] if requisicoes else {}
         status_http = ultimo.get("status") if isinstance(ultimo.get("status"), int) else None
+        resposta = ultimo.get("resposta") if isinstance(ultimo.get("resposta"), dict) else None
+        headers_resposta = (resposta or {}).get("headers")
+        headers_resposta = headers_resposta if isinstance(headers_resposta, dict) else {}
         return {
             "ordem": no.ordem,
             "no_id": no.no_id,
@@ -212,8 +218,16 @@ class ExecucaoDetalheView(PermissaoMixin, TemplateView):
             "logs": no.logs,
             "requisicoes": requisicoes,
             "http_status": status_http,
-            "headers_saida": [],
-            "corpo_texto": "",
+            "resposta_http": {
+                "status": resposta.get("status"),
+                "headers": [{"nome": n, "valor": v} for n, v in headers_resposta.items()],
+                "corpo": resposta.get("corpo", ""),
+                "truncado": bool(resposta.get("truncado")),
+            }
+            if resposta
+            else None,
+            "headers_saida": [{"nome": n, "valor": v} for n, v in headers_resposta.items()],
+            "corpo_texto": (resposta or {}).get("corpo", ""),
         }
 
     @staticmethod

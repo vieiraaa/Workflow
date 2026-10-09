@@ -83,6 +83,23 @@ def valores_sensiveis(headers):
     return {a for a in achados if len(a) >= 4}
 
 
+def valores_sensiveis_da_requisicao(resolvido):
+    """Valores digitados em headers/query sensíveis (e na query da URL) da requisição: servem para
+    mascarar o que o servidor devolve refletido na resposta (SEG-09 por valor)."""
+    achados = set()
+    pares = [(p["nome"], p["valor"]) for c in ("headers", "query") for p in resolvido.get(c) or []]
+    pares += [
+        (nome, valor)
+        for _, nome, _, valor in _QUERY_NA_URL.findall(resolvido.get("url", ""))
+        if sensivel(unquote_plus(nome))
+    ]
+    for nome, valor in pares:
+        if sensivel(nome):
+            achados.add(valor)
+            achados.update(parte for parte in valor.split() if len(parte) >= 4)
+    return {a for a in achados if len(a) >= 4}
+
+
 def ocultar_valores(entrada, segredos):
     """Troca por `••••` qualquer ocorrência dos `segredos` (crus, JSON-escapados ou percent-encoded)
     no texto de url, nomes e valores de headers/query e corpo da entrada gravada."""

@@ -149,12 +149,28 @@ def _cabecalho_da_credencial(ctx, config):
 
 
 # ---------------------------------------------------------------- requisição
+MAX_CORPO_GRAVADO = 8 * 1024
+
+
+def _resposta_gravavel(resposta):
+    """Resposta a gravar no histórico (MV2-22, EXE-06): status, headers, corpo ≤ 8 KB e `truncado`.
+    O mascaramento (SEG-09 por nome, SEG-18 por valor) é feito pelo executor ao gravar."""
+    bruto = resposta.get("texto", "").encode("utf-8")
+    return {
+        "status": resposta["status"],
+        "headers": dict(resposta["headers"]),
+        "corpo": bruto[:MAX_CORPO_GRAVADO].decode("utf-8", errors="ignore"),
+        "truncado": len(bruto) > MAX_CORPO_GRAVADO or bool(resposta.get("truncado")),
+    }
+
+
 def _enviar(ctx, resolvido, cabecalho, requisicoes):
     """Faz UMA requisição (uma página). Devolve a resposta; 4xx/5xx saem como `FalhaNo`."""
     enviado = dict(resolvido)
     if cabecalho:
         outros = [h for h in enviado["headers"] if h["nome"].lower() != cabecalho["nome"].lower()]
         enviado["headers"] = [*outros, cabecalho]
+    ctx.adicionar_segredos(mascarar.valores_sensiveis_da_requisicao(enviado))
     registro = ctx.mascarar_requisicao(enviado)
     if len(requisicoes) < MAX_REQUISICOES_REGISTRADAS:
         requisicoes.append(registro)
@@ -167,6 +183,7 @@ def _enviar(ctx, resolvido, cabecalho, requisicoes):
         raise FalhaNo(erro.categoria, erro.mensagem, requisicao=registro) from None
     ctx.segredos |= mascarar.valores_sensiveis(resposta["headers"])
     registro["status"] = resposta["status"]
+    registro["resposta"] = _resposta_gravavel(resposta)
     resposta["_registro"] = registro
     return resposta
 

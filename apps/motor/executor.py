@@ -187,6 +187,23 @@ class _Execucao:
         self.bytes_gravados += tamanho
         return gravados, len(itens) > MAX_ITENS_GRAVADOS
 
+    def _requisicao_gravada(self, registro):
+        """Requisição pronta para gravar: segredos mascarados por nome e por valor (SEG-09/18)."""
+        gravada = mascarar.ocultar_valores(registro, self.ctx.segredos)
+        resposta = gravada.get("resposta")
+        if isinstance(resposta, dict):
+            gravada["resposta"] = {
+                **resposta,
+                "headers": mascarar.mascarar_headers_dict(
+                    {
+                        nome: mascarar.ocultar_em_texto(valor, self.ctx.segredos)
+                        for nome, valor in resposta.get("headers", {}).items()
+                    }
+                ),
+                "corpo": mascarar.ocultar_em_texto(resposta.get("corpo", ""), self.ctx.segredos),
+            }
+        return gravada
+
     def _gravar(self, no, status, entradas, saidas, duracao_ms, falha=None, resultado=None):
         entrada_itens = [i for lista in entradas for i in lista]
         saida_itens = [i for lista in saidas if lista for i in lista]
@@ -196,9 +213,7 @@ class _Execucao:
             brutas = resultado.requisicoes
         else:
             brutas = [falha.requisicao] if falha is not None and falha.requisicao else []
-        requisicoes = [mascarar.ocultar_valores(r, self.ctx.segredos) for r in brutas][
-            :MAX_REQUISICOES_GRAVADAS
-        ]
+        requisicoes = [self._requisicao_gravada(r) for r in brutas][:MAX_REQUISICOES_GRAVADAS]
         dados = {
             "execucao": self.execucao,
             "no_id": no["id"],
