@@ -16,6 +16,7 @@ select = ["E", "F", "W", "I", "B", "UP", "DJ", "S102", "S307", "TID251"]
 "tests/adversarial/*" = ["E501"]
 "tests/e2e/*" = ["E501"]
 "tests/unit/frontend/*" = ["E501"]
+"tests/unit/motor/test_codigo_isolado.py" = ["E501"]  # trechos de JavaScript em string
 
 # eval/exec são proibidos (placeholders têm parser próprio, ver skill integracao).
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
