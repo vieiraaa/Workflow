@@ -44,3 +44,31 @@ def por_item(ctx, no, itens, funcao):
             saidas[0 if modo == "continuar" else normais].append(marcado)
     conferir_limite(saidas)
     return resultado
+
+
+def rotear(ctx, no, itens, decidir):
+    """Roda `decidir(item, indice, escopo)` por item; devolve a saída (int) ou None (descarta).
+
+    Falha por item como em `por_item`: `continuar` manda o item (com json.erro) para a saída 0;
+    `saida_de_erro` para a alça de erro (última saída).
+    """
+    modo = no.get("em_erro", "parar")
+    normais = catalogo.n_saidas_normais(no)
+    saidas = [[] for _ in range(catalogo.n_saidas(no))]
+    resultado = Resultado(saidas=saidas)
+    for indice, item in enumerate(itens):
+        try:
+            alvo = decidir(item, indice, ctx.escopo(item, indice, itens))
+        except (FalhaNo, ErroExpressao) as erro:
+            falha = como_falha(erro)
+            if modo == "parar":
+                raise falha from None
+            resultado.erro = resultado.erro or falha
+            ctx.diagnostico(falha)
+            marcado = {"json": {**item["json"], "erro": falha.como_dict()}}
+            saidas[0 if modo == "continuar" else normais].append(marcado)
+            continue
+        if alvo is not None:
+            saidas[alvo].append(item)
+    conferir_limite(saidas)
+    return resultado

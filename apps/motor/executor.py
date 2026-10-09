@@ -22,6 +22,7 @@ from apps.fluxos.grafo import arestas_de_retorno, normalizar, validar
 from . import mascarar, nos
 from .erros import FalhaNo, FluxoComPendencias
 from .expressoes import ErroExpressao, Escopo
+from .nos.base import conferir_limite
 
 logger = logging.getLogger(__name__)
 
@@ -271,6 +272,7 @@ class _Execucao:
                 saidas = resultado.saidas
                 if resultado.erro is not None:
                     status, falha = ExecucaoNo.ERRO, resultado.erro
+            conferir_limite(saidas)
         except (FalhaNo, ErroExpressao) as erro:
             falha = _como_falha(erro)
             self._gravar(no, ExecucaoNo.ERRO, entradas, [], self._ms(inicio), falha)
@@ -352,6 +354,8 @@ class _Execucao:
             while pilha:
                 id_, entrada, itens, aresta = pilha.pop()
                 no = self.por_id[id_]
+                if aresta in self.retornos and id_ not in self.lotes:
+                    continue  # volta de um laço que não está ativo (ex.: entrada sem itens)
                 entradas = self._receber(no, entrada, itens, aresta) if aresta is not None else [[]]
                 if entradas is None:
                     continue

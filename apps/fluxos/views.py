@@ -19,13 +19,14 @@ from apps.nucleo import listagem
 from apps.nucleo.entrada import limpar_texto
 
 from .forms import FluxoForm
-from .grafo import normalizar, validar
+from .grafo import mexeu_no_codigo, normalizar, validar
 from .models import Fluxo, grafo_inicial
 
 ORDENS = {"nome": "nome", "atualizado_em": "atualizado_em"}
 ORDEM_PADRAO = "-atualizado_em"
 STATUS = {"rascunho": "Rascunho", "ativo": "Ativo"}
 LIMITE_GRAFO_BYTES = 2 * 1024 * 1024
+MSG_SO_ADM_CODIGO = "Só o administrador pode criar ou editar o nó Código."
 MSG_CONFLITO = "Este fluxo foi alterado por outra pessoa. Recarregue para continuar."
 
 
@@ -531,6 +532,10 @@ class SalvarGrafoView(PermissaoMixin, View):
             )
             if fluxo.atualizado_em != lido:
                 return _json_erro(MSG_CONFLITO, 409)
+            if not pode(request.user, "codigo.editar") and mexeu_no_codigo(
+                fluxo.grafo, normalizar(grafo)
+            ):
+                return _json_erro(MSG_SO_ADM_CODIGO, 403)
             voltou = bool(pendencias) and fluxo.status == Fluxo.ATIVO
             fluxo.grafo = normalizar(grafo)
             if voltou:

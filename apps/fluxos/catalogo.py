@@ -74,6 +74,7 @@ ESQUEMA_CONFIG = {
     "data_hora": {
         "operacao": "texto",
         "campo": "texto",
+        "campo2": "texto",
         "formato": "texto",
         "quantidade": "numero",
         "unidade": "texto",
@@ -106,6 +107,17 @@ ENUMS_CONFIG = {
     ): ("agora", "formatar", "somar", "subtrair", "diferenca", "inicio_de"),
 }
 
+OPERADORES = (
+    "igual", "diferente", "maior", "maior_igual", "menor", "menor_igual", "contem", "nao_contem",
+    "comeca_com", "termina_com", "vazio", "nao_vazio", "regex", "existe", "nao_existe",
+)  # fmt: skip
+TIPOS_CONDICAO = ("texto", "numero", "data", "booleano", "lista", "objeto")
+SEM_DIREITA = ("vazio", "nao_vazio", "existe", "nao_existe")
+OPS_RESUMIR = ("contar", "contar_unicos", "somar", "media", "min", "max", "concatenar")
+UNIDADES_DATA = ("dias", "horas", "minutos", "semanas", "meses")
+UNIDADES_INICIO = ("dia", "semana", "mes", "hora")
+MAX_REGEX = 200
+MAX_CODIGO = 50_000
 CHAVES_CORPO = {"tipo", "conteudo"}
 # MV2-16: formato plano de config.paginacao do HTTP.
 ESQUEMA_PAGINACAO = {
@@ -176,7 +188,7 @@ def n_entradas(no):
 def n_saidas_normais(no):
     """Saídas "de dados" do nó, sem a alça de erro."""
     tipo, config = no.get("tipo"), _config(no)
-    if tipo in ("saida", "parar_com_erro"):
+    if tipo == "saida":
         return 0
     if tipo == "se" or tipo == "repetir_em_lotes":
         return 2

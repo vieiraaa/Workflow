@@ -29,4 +29,4 @@ def tipo(nome):
 
 def carregar():
     """Importa os módulos que registram tipos (evita ciclo de importação)."""
-    from . import basicos, http  # noqa: F401
+    from . import basicos, codigo, condicoes, dados, fluxo, http  # noqa: F401

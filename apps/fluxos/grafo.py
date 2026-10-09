@@ -15,6 +15,7 @@ from urllib.parse import urlsplit
 
 from . import catalogo
 from .migracao import para_v2
+from .pendencias_nos import pendencias_do_no
 
 VERSAO = 2
 MAX_NOS = 200
@@ -26,7 +27,7 @@ MAX_URL = 2048
 MAX_PARES = 30
 MAX_VALOR_PAR = 4096
 MAX_CORPO_BYTES = 100 * 1024
-MAX_ITENS_FIXOS = 1000
+MAX_ITENS_FIXOS = 20_000
 METODOS = ("GET", "POST", "PUT", "PATCH", "DELETE")
 METODOS_COM_CORPO = ("POST", "PUT", "PATCH")
 MAX_PROFUNDIDADE = 16
@@ -650,7 +651,26 @@ def _pendencias(grafo):
             )
         if no["tipo"] == "http":
             pendencias += _pendencias_http(no)
+        pendencias += [
+            _pendencia(no["id"], campo, mensagem) for campo, mensagem in pendencias_do_no(no)
+        ]
     return pendencias + _pendencias_estrutura(grafo)
+
+
+def mexeu_no_codigo(antigo, novo):
+    """True se `novo` adiciona ou altera (tipo, config ou desativado) algum nó Código (NOV-06)."""
+    antigos = {n["id"]: n for n in normalizar(antigo).get("nos", [])}
+
+    def assinatura(no):
+        return (no["tipo"], json.dumps(no["config"], sort_keys=True), no["desativado"])
+
+    for no in novo["nos"]:
+        anterior = antigos.get(no["id"])
+        if no["tipo"] == "codigo" and (anterior is None or assinatura(anterior) != assinatura(no)):
+            return True
+        if anterior is not None and anterior["tipo"] == "codigo" and no["tipo"] != "codigo":
+            return True
+    return False
 
 
 def normalizar(grafo):

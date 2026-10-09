@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.views import View
 from django.views.generic import TemplateView
 
-from apps.contas.permissoes import papel_de
+from apps.contas.permissoes import pode
 from apps.nucleo import listagem
 from apps.nucleo.entrada import limpar_texto
 
@@ -18,12 +18,12 @@ from .models import Credencial
 
 
 class SoAdmMixin(LoginRequiredMixin):
-    """CRD-01: gestão só do Adm (TI no M7). Anônimo → login; outro papel → 403."""
+    """CRD-01: ação `credenciais.gerenciar` da matriz. Anônimo → login; sem a ação → 403."""
 
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
             return self.handle_no_permission()
-        if papel_de(request.user) != "adm":
+        if not pode(request.user, "credenciais.gerenciar"):
             raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)
 
