@@ -136,9 +136,9 @@
 
   /* Editor de código monoespaçado: numeração de linhas, Tab insere 2 espaços (Esc depois Tab sai do campo). */
   function editorCodigo(opcoes) {
-    var caixa = criar("div", "codigo");
-    var nums = criar("div", "codigo__linhas"); nums.setAttribute("aria-hidden", "true");
-    var entrada = criar("textarea", "codigo__entrada");
+    var caixa = criar("div", "editor-codigo");
+    var nums = criar("div", "editor-codigo__linhas"); nums.setAttribute("aria-hidden", "true");
+    var entrada = criar("textarea", "editor-codigo__entrada");
     entrada.id = opcoes.id; entrada.spellcheck = false; entrada.value = opcoes.valor || "";
     entrada.setAttribute("wrap", "off"); entrada.setAttribute("autocapitalize", "off"); entrada.setAttribute("autocorrect", "off");
     if (opcoes.max) entrada.maxLength = opcoes.max;

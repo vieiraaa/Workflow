@@ -90,7 +90,7 @@ def test_editor_de_codigo_so_leitura_sem_permissao(editor):
     editor.click("[data-paleta-tipo=codigo]")
     assert editor.locator("#insp-codigo").get_attribute("readonly") is not None
     assert "Só administradores" in editor.locator(".inspector__form").inner_text()
-    assert editor.locator(".codigo__linhas span").count() == 1
+    assert editor.locator(".editor-codigo__linhas span").count() == 1
 
 
 def test_nota_sticky_no_grafo_v2(editor):

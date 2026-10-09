@@ -16,8 +16,10 @@
   if (!palco || !nos.length) { if (vazio) vazio.hidden = false; return; }
 
   var SPRITE = raiz.dataset.sprite;
-  var ICONES = { gatilho: "zap", http: "globe", saida: "flag" };
-  var ROTULO = { sucesso: "Sucesso", erro: "Erro", nao_executado: "Não executado" };
+  var C = window.ConversorGrafo;
+  var ROTULO = { sucesso: "Sucesso", erro: "Erro", nao_executado: "Não executado", sem_itens: "Sem itens", desativado: "Desativado", fixo: "Dados fixos" };
+  function infoTipo(tipo) { return C ? C.tipoDe(tipo) : { icone: "workflow", grupo: "fluxo" }; }
+  function plural(n) { return n + (n === 1 ? " item" : " itens"); }
   var LARG = 220, ALT = 64, MARGEM = 24, NS = "http://www.w3.org/2000/svg";
 
   function criar(tag, classe, texto) {
@@ -85,8 +87,9 @@
       b.setAttribute("aria-label", (n.ordem ? "Nó " + n.ordem + ": " : "Nó não executado: ") + n.titulo +
         ", " + (ROTULO[n.status] || "") + ". Ver detalhes.");
       var no = criar("div", "no");
-      var ic = criar("div", "no__icone no__icone--" + n.tipo);
-      ic.appendChild(icone(ICONES[n.tipo] || "workflow"));
+      var info = infoTipo(n.tipo);
+      var ic = criar("div", "no__icone no__icone--" + info.grupo);
+      ic.appendChild(icone(info.icone || "workflow"));
       var textos = criar("div", "no__textos");
       textos.appendChild(criar("div", "no__titulo", n.titulo));
       textos.appendChild(criar("div", "no__resumo", resumoDe(n)));
@@ -97,22 +100,39 @@
       mundo.appendChild(b);
     });
 
+    var nSaidas = {}, nEntradas = {};
+    arestas.forEach(function (a) {
+      nSaidas[a.de] = Math.max(nSaidas[a.de] || 1, (a.saida || 0) + 1);
+      nEntradas[a.para] = Math.max(nEntradas[a.para] || 1, (a.entrada || 0) + 1);
+    });
     arestas.forEach(function (a) {
       var de = porId[a.de], para = porId[a.para];
       if (!de || !para) return;
+      var fy1 = ALT * ((a.saida || 0) + 1) / ((nSaidas[a.de] || 1) + 1), fy2 = ALT * ((a.entrada || 0) + 1) / ((nEntradas[a.para] || 1) + 1);
+      var meio = null;
       var d;
       if (emColuna) {
         var cx = LARG / 2, y1 = de._y + ALT, y2 = para._y, dy = Math.max(16, Math.abs(y2 - y1) / 2);
         d = "M" + (de._x + cx) + " " + y1 + " C" + (de._x + cx) + " " + (y1 + dy) + " " + (para._x + cx) + " " + (y2 - dy) + " " + (para._x + cx) + " " + y2;
       } else {
-        var x1 = de._x + LARG, y1h = de._y + ALT / 2, x2 = para._x, y2h = para._y + ALT / 2;
+        var x1 = de._x + LARG, y1h = de._y + fy1, x2 = para._x, y2h = para._y + fy2;
         var dx = Math.max(40, Math.abs(x2 - x1) / 2);
         d = "M" + x1 + " " + y1h + " C" + (x1 + dx) + " " + y1h + " " + (x2 - dx) + " " + y2h + " " + x2 + " " + y2h;
       }
       var path = document.createElementNS(NS, "path");
       path.setAttribute("d", d);
-      path.setAttribute("class", "fluxo-exec__aresta" + (para.status === "nao_executado" ? " fluxo-exec__aresta--inativa" : ""));
+      path.setAttribute("class", "fluxo-exec__aresta" + (para.status === "nao_executado" || (typeof a.itens === "number" && a.itens === 0) ? " fluxo-exec__aresta--inativa" : ""));
       svg.appendChild(path);
+      if (typeof a.itens === "number") {
+        var ponto = path.getTotalLength ? path.getPointAtLength(path.getTotalLength() / 2) : null;
+        var g = document.createElementNS(NS, "g");
+        g.setAttribute("class", "fluxo-exec__aresta-itens"); g.setAttribute("data-itens", String(a.itens));
+        var t = document.createElementNS(NS, "text");
+        t.textContent = plural(a.itens);
+        if (ponto) { t.setAttribute("x", ponto.x); t.setAttribute("y", ponto.y); }
+        t.setAttribute("text-anchor", "middle"); t.setAttribute("dominant-baseline", "central");
+        g.appendChild(t); svg.appendChild(g);
+      }
     });
     palco.appendChild(mundo);
   }

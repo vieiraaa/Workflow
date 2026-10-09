@@ -97,6 +97,7 @@
 .paleta__grupo { display: flex; flex-direction: column; gap: var(--sp-2); }
 .paleta__grupo-titulo { font-size: var(--text-sm); font-weight: 600; color: var(--text-2); }
 .paleta__item[hidden] { display: none; }
+.paleta__lista .paleta__item { padding: var(--sp-2) var(--sp-3); }
 .paleta__rotulo { min-width: 0; overflow-wrap: anywhere; }
 
 /* Nó: estados de desativado, teste, dados fixos, multi-seleção */
@@ -146,7 +147,7 @@
 /* Campo de expressão com destaque */
 .expr__area { position: relative; background: var(--fill); border-radius: var(--r-m); }
 .expr__espelho, .expr__entrada { margin: 0; padding: var(--sp-2) var(--sp-3); font: inherit; font-size: var(--text-body); line-height: 1.5; letter-spacing: normal; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; border: 0; border-radius: var(--r-m); }
-.expr__area--mono .expr__espelho, .expr__area--mono .expr__entrada, .codigo__entrada, .codigo__linhas { font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.6; }
+.expr__area--mono .expr__espelho, .expr__area--mono .expr__entrada, .editor-codigo__entrada, .editor-codigo__linhas { font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.6; }
 .expr__espelho { position: absolute; inset: 0; color: var(--text); pointer-events: none; overflow: hidden; }
 .campo .expr__entrada { position: relative; display: block; width: 100%; min-height: var(--ctl-h); resize: none; overflow: hidden; background: transparent; color: transparent; caret-color: var(--text); -webkit-text-fill-color: transparent; }
 .campo .expr__entrada::placeholder { color: var(--text-3); -webkit-text-fill-color: var(--text-3); }
@@ -165,11 +166,11 @@
 .variaveis__chip:hover { background: var(--fill-accent); }
 
 /* Editor de código */
-.codigo { display: flex; background: var(--fill); border-radius: var(--r-m); min-height: 220px; max-height: 420px; overflow: hidden; }
-.codigo__linhas { flex: none; min-width: 3ch; padding: var(--sp-2) var(--sp-2); text-align: right; color: var(--text-3); user-select: none; overflow: hidden; display: flex; flex-direction: column; border-right: 1px solid var(--hairline); }
-.codigo .codigo__entrada { flex: 1; min-width: 0; padding: var(--sp-2) var(--sp-3); border: 0; background: transparent; color: var(--text); resize: none; white-space: pre; overflow: auto; tab-size: 2; height: auto; min-height: 220px; border-radius: 0; }
-.codigo .codigo__entrada:focus { outline: none; box-shadow: none; }
-.codigo:focus-within { box-shadow: var(--ring); }
+.editor-codigo { display: flex; background: var(--fill); border-radius: var(--r-m); min-height: 220px; max-height: 420px; overflow: hidden; }
+.editor-codigo__linhas { flex: none; min-width: 3ch; padding: var(--sp-2) var(--sp-2); text-align: right; color: var(--text-3); user-select: none; overflow: hidden; display: flex; flex-direction: column; border-right: 1px solid var(--hairline); }
+.editor-codigo .editor-codigo__entrada { flex: 1; min-width: 0; padding: var(--sp-2) var(--sp-3); border: 0; background: transparent; color: var(--text); resize: none; white-space: pre; overflow: auto; tab-size: 2; height: auto; min-height: 220px; border-radius: 0; }
+.editor-codigo .editor-codigo__entrada:focus { outline: none; box-shadow: none; }
+.editor-codigo:focus-within { box-shadow: var(--ring); }
 .inspector__form .bloco-codigo__pre { margin: 0; padding: var(--sp-3); background: var(--surface); border-radius: var(--r-m); font-family: var(--font-mono); font-size: var(--text-sm); overflow: auto; max-height: 220px; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 @media (max-width: 800px) { .drawflow .drawflow-node { --porta-passo: 40px; } }

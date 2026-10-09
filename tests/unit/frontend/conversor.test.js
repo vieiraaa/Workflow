@@ -64,6 +64,11 @@ C.ORDEM_TIPOS.forEach((t) => {
 });
 assert.strictEqual(C.ORDEM_TIPOS.length, 19);
 
+// Paginação (MV2-16): formato plano, só as chaves do modo
+assert.deepStrictEqual(C.normalizarPaginacao({ modo: "atualizar_parametro", onde: "query", nome: "page", valor: "{{ $pageCount }}", url: "x", parar_quando: "status", codigos: [404], expressao: "y", limite_paginas: 5, intervalo_ms: 0 }),
+  { modo: "atualizar_parametro", parar_quando: "status", limite_paginas: 5, intervalo_ms: 0, onde: "query", nome: "page", valor: "{{ $pageCount }}", codigos: [404] });
+assert.strictEqual(C.normalizarPaginacao(null), null);
+
 // Ids e títulos
 assert.strictEqual(C.novoId(["n1", "n2"]), "n3");
 assert.strictEqual(C.novoId(["n2", "n3"]), "n4");

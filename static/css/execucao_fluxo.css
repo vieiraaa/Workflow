@@ -27,3 +27,11 @@ details[open] > .fluxo-exec__cab .icone { transform: rotate(180deg); }
 .fluxo-exec__no--erro .fluxo-exec__ordem { background: var(--danger); color: var(--on-accent); }
 .fluxo-exec__no .icone { position: static; display: block; }
 .fluxo-exec__legenda .l-dica::before { display: none; }
+.fluxo-exec__no--sem_itens, .fluxo-exec__no--desativado { border-color: var(--hairline); border-style: dashed; opacity: .7; }
+.fluxo-exec__no--fixo { border-color: var(--accent); }
+.fluxo-exec__legenda .l-pulado::before { border: 1px dashed var(--text-3); background: transparent; }
+.fluxo-exec__legenda .l-itens::before { display: none; }
+.fluxo-exec__aresta-itens text { font-size: var(--text-sm); fill: var(--text-2); paint-order: stroke; stroke: var(--bg); stroke-width: 6px; }
+.no-exec__itens { white-space: nowrap; }
+.no-exec__log, .no-exec__lista { margin: 0; padding: var(--sp-3); background: var(--fill); border-radius: var(--r-m); font-family: var(--font-mono); font-size: var(--text-sm); white-space: pre-wrap; overflow-wrap: anywhere; }
+.no-exec__lista { list-style: none; font-family: inherit; display: flex; flex-direction: column; gap: var(--sp-1); }

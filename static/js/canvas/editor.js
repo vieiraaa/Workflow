@@ -296,6 +296,7 @@
       minx = Math.min(minx, dados[id].pos_x); miny = Math.min(miny, dados[id].pos_y);
       maxx = Math.max(maxx, dados[id].pos_x + w); maxy = Math.max(maxy, dados[id].pos_y + h);
     });
+    minx -= 40; maxx += 100; // folga para os rótulos das alças (verdadeiro, regra N...)
     var r = areaCanvas.getBoundingClientRect(), margem = 48, topo = 72;
     var z = Math.min(1, (r.width - margem) / (maxx - minx), (r.height - margem - topo) / (maxy - miny));
     z = Math.max(window.innerWidth <= 800 ? 0.65 : editor.zoom_min, z);
@@ -668,9 +669,16 @@
       if (!r.ok) return null;
       return r.text().then(function (html) {
         var doc = new DOMParser().parseFromString(html, "text/html");
-        var e = doc.getElementById("resultado-teste");
+        var e = doc.getElementById("nos-execucao"), g = doc.getElementById("grafo-execucao");
         if (!e) return null;
-        try { return JSON.parse(e.textContent); } catch (_) { return null; }
+        try {
+          var lista = JSON.parse(e.textContent), nos = {}, arestas = [];
+          lista.forEach(function (n) {
+            nos[n.no_id] = { status: n.status, itens_entrada: n.itens_entrada, itens_saida: n.itens_saida, saida: n.saida || [], erro: n.erro, logs: n.logs || [] };
+          });
+          if (g) arestas = JSON.parse(g.textContent).arestas || [];
+          return { nos: nos, arestas: arestas };
+        } catch (_) { return null; }
       });
     }).catch(function () { return null; });
   }

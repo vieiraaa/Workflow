@@ -91,3 +91,45 @@ def test_linha_nao_usa_link_esticado(pagina_coordenador, live_server, execucao):
     # clique direto numa célula (sem force): nada cobre a linha
     pagina.locator(".tabela__papel").first.click()
     pagina.wait_for_url(live_server.url + reverse("execucoes:detalhe", kwargs={"pk": execucao.pk}))
+
+
+def test_desenho_v2_mostra_ramos_e_itens_nas_arestas(pagina_coordenador, live_server, usuario_coordenador):
+    from apps.execucoes.models import ExecucaoNo
+
+    grafo = {
+        "versao": 2,
+        "nos": [
+            {"id": "n1", "tipo": "gatilho", "titulo": "Início", "posicao": {"x": 0, "y": 100}, "config": {}},
+            {"id": "n2", "tipo": "se", "titulo": "É grande?", "posicao": {"x": 300, "y": 100}, "config": {}},
+            {"id": "n3", "tipo": "saida", "titulo": "Sim", "posicao": {"x": 600, "y": 20}, "config": {}},
+            {"id": "n4", "tipo": "saida", "titulo": "Não", "posicao": {"x": 600, "y": 200}, "config": {}},
+        ],
+        "arestas": [
+            {"de": "n1", "saida": 0, "para": "n2", "entrada": 0},
+            {"de": "n2", "saida": 0, "para": "n3", "entrada": 0},
+            {"de": "n2", "saida": 1, "para": "n4", "entrada": 0},
+        ],
+        "notas": [], "dados_fixos": {},
+    }
+    exe = Execucao.objects.create(
+        fluxo=None, fluxo_nome="Ramos", grafo_snapshot=grafo, executado_por=usuario_coordenador,
+        status="sucesso", finalizada_em=timezone.now(),
+        arestas=[
+            {"de": "n1", "saida": 0, "para": "n2", "entrada": 0, "itens": 3},
+            {"de": "n2", "saida": 0, "para": "n3", "entrada": 0, "itens": 3},
+            {"de": "n2", "saida": 1, "para": "n4", "entrada": 0, "itens": 0},
+        ],
+    )
+    for ordem, (no_id, tipo, titulo, status) in enumerate(
+        [("n1", "gatilho", "Início", "sucesso"), ("n2", "se", "É grande?", "sucesso"),
+         ("n3", "saida", "Sim", "sucesso"), ("n4", "saida", "Não", "sem_itens")], start=1):
+        ExecucaoNo.objects.create(execucao=exe, no_id=no_id, no_tipo=tipo, no_titulo=titulo, ordem=ordem,
+                                  status=status, itens_entrada=3, itens_saida=3)
+    pagina_coordenador.goto(live_server.url + reverse("execucoes:detalhe", kwargs={"pk": exe.pk}))
+    pagina_coordenador.wait_for_selector(".fluxo-exec__no")
+    assert pagina_coordenador.locator(".fluxo-exec__no").count() == 4
+    contagens = pagina_coordenador.eval_on_selector_all(
+        ".fluxo-exec__aresta-itens", "els => els.map(e => e.dataset.itens)"
+    )
+    assert contagens == ["3", "3", "0"]
+    assert pagina_coordenador.locator(".fluxo-exec__no--sem_itens").count() == 1

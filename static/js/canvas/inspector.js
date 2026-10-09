@@ -253,8 +253,16 @@
           caixa.appendChild(expressao(sub("valor", "Valor"), ""));
         }
         caixa.appendChild(selecao(sub("parar_quando", "Parar quando", { recarrega: true }), "", [["resposta_vazia", "A resposta vier vazia"], ["status", "O status for um destes"], ["expressao", "Uma expressão for verdadeira"]]));
-        if (p.parar_quando === "status") caixa.appendChild(texto(sub("codigos_texto", "Códigos (separados por vírgula)", { placeholder: "404, 204" }), ""));
-        if (p.parar_quando === "expressao") caixa.appendChild(expressao(sub("expr", "Expressão", { placeholder: "{{ $response.corpo.length < 100 }}" }), ""));
+        if (p.parar_quando === "status") {
+          var cc = criar("div", "campo"), ci = id("paginacao.codigos"); rotulo(cc, "Códigos de status (separados por vírgula)", ci);
+          var inpC = criar("input"); inpC.type = "text"; inpC.id = ci; inpC.placeholder = "404, 204"; inpC.value = (p.codigos || []).join(", ");
+          inpC.addEventListener("input", function () {
+            var nums = inpC.value.split(",").map(function (t) { return parseInt(t.trim(), 10); }).filter(function (n) { return !isNaN(n); });
+            mudar(function (x) { x.config.paginacao.codigos = nums; });
+          });
+          cc.appendChild(inpC); caixa.appendChild(comErros(cc, "paginacao.codigos"));
+        }
+        if (p.parar_quando === "expressao") caixa.appendChild(expressao(sub("expressao", "Expressão (verdadeiro = para)", { placeholder: "{{ $response.corpo.length < 100 }}" }), ""));
         caixa.appendChild(numero(sub("limite_paginas", "Limite de páginas (1 a 100)", { min: 1, max: 100 }), ""));
         caixa.appendChild(numero(sub("intervalo_ms", "Intervalo entre páginas (ms)", { min: 0, max: 5000 }), ""));
       }

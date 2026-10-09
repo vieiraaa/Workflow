@@ -182,6 +182,22 @@
     };
   }
 
+  /* Paginação do HTTP (MV2-16): só as chaves do modo e do critério de parada (schema fechado). */
+  function normalizarPaginacao(p) {
+    if (!p || typeof p !== "object") return null;
+    var o = { modo: p.modo, parar_quando: p.parar_quando, limite_paginas: p.limite_paginas, intervalo_ms: p.intervalo_ms };
+    if (p.modo === "proxima_url") o.url = p.url || "";
+    else { o.onde = p.onde; o.nome = p.nome || ""; o.valor = p.valor || ""; }
+    if (p.parar_quando === "status") o.codigos = p.codigos || [];
+    if (p.parar_quando === "expressao") o.expressao = p.expressao || "";
+    return o;
+  }
+  function normalizarConfig(tipo, config) {
+    var c = clonar(config || {});
+    if (tipo === "http" && c.paginacao) c.paginacao = normalizarPaginacao(c.paginacao);
+    return c;
+  }
+
   /* Drawflow.export() -> grafo canônico v2 (arestas e itens em ordem estável). */
   function extrair(exportado) {
     var dados = exportado.drawflow.Home.data;
@@ -198,7 +214,7 @@
       }
       nos.push({
         id: nd.cid, tipo: nd.tipo, titulo: nd.titulo, posicao: posicao,
-        config: clonar(nd.config || {}), desativado: !!nd.desativado, executar_uma_vez: !!nd.executar_uma_vez,
+        config: normalizarConfig(nd.tipo, nd.config), desativado: !!nd.desativado, executar_uma_vez: !!nd.executar_uma_vez,
         em_erro: nd.em_erro || "parar"
       });
       if (Array.isArray(nd.fixos) && nd.fixos.length) fixos[nd.cid] = clonar(nd.fixos);
@@ -269,7 +285,7 @@
 
   var API = {
     GRUPOS: GRUPOS, TIPOS: TIPOS, ORDEM_TIPOS: ORDEM_TIPOS, METODOS: METODOS, CORES_NOTA: CORES_NOTA, EM_ERRO: EM_ERRO,
-    LIMITE_REGRAS: LIMITE_REGRAS, clonar: clonar, tipoDe: tipoDe, configPadrao: configPadrao, condicaoPadrao: condicaoPadrao,
+    LIMITE_REGRAS: LIMITE_REGRAS, normalizarPaginacao: normalizarPaginacao, clonar: clonar, tipoDe: tipoDe, configPadrao: configPadrao, condicaoPadrao: condicaoPadrao,
     portas: portas, novoId: novoId, tituloUnico: tituloUnico, resumo: resumo, extrair: extrair, especificacao: especificacao,
     especificacaoNota: especificacaoNota, tamanhoNota: tamanhoNota, migrar: migrar, anteriores: anteriores, dadosDoNo: dadosDoNo
   };
