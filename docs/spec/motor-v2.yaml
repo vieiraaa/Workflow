@@ -328,4 +328,12 @@ lacunas_parte_a:
       ativo do setor; Coordenador fora do setor 404; anônimo → login); credenciais_usadas = nomes únicos dos nós http,
       ordenados. fluxos:exportar_n8n, mesma permissão → {name, nodes, connections, pinData, ...} + "construtor_relatorio":
       {"fora": [{no, tipo, motivo}]} sempre presente; credenciais viram referência vazia, nunca valor.
+  - id: MV2-19
+    texto: >
+      URL COM BASE VARIÁVEL (revisa PLH-04 para o v2, decisão da T-052): um {{ expr }} no INÍCIO do campo url (antes de
+      qualquer "/" do caminho) é inserido SEM percent-encode, para permitir o padrão n8n "{{ $('Config').first().json.baseUrl
+      }}/api/..."; em qualquer outra posição o valor continua percent-encoded. A URL final resolvida passa por TODAS as
+      validações SEG-01..06 e SEG-16 (esquema, host, IPs, credenciais na URL, "@", "\\", controle) antes de qualquer conexão;
+      base que resolve para destino proibido = bloqueado_ssrf. Aresta para nó inexistente = 400 de formato (GRF-02);
+      aresta para alça inexistente = pendência (MV2-12 L3).
 
