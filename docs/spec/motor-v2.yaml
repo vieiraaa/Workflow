@@ -288,4 +288,44 @@ lacunas_parte_a:
       segmento do caminho>: elemento} (ex.: {"nums": 7}). Juntar combinar_por_campo: ordem de saída = ordem da entrada 0;
       itens só da entrada 1 (direita/externa) vêm depois, na ordem dela. Editar campos modo json aceita texto template
       ({{ }} resolvidos e o resultado parseado como JSON) além do valor tipado de um único {{ }}.
+  - id: MV2-18
+    texto: >
+      Fecha C1–C9 do T-051 (propostas da QA aceitas integralmente). C1 MODELO: app "credenciais", model Credencial
+      {nome, tipo, setor (FK nula), criado_por, atualizado_em, dados_cifrados (Fernet)}; o valor em claro nunca aparece
+      em nenhuma coluna. C2 CHAVE: settings.CREDENCIAIS_CHAVE lida em runtime (vazia = ausente). Sem chave: POST
+      credenciais:nova → 200 com erro que menciona "chave" e nada salvo; nó que usa credencial → erro "credencial" com
+      mensagem que menciona "chave" (nunca 500); chave diferente da que cifrou → idem. C3 MENSAGENS: "Este campo é
+      obrigatório."; "Já existe uma credencial com este nome." (sem diferenciar maiúsculas); "Use no máximo 80 caracteres.";
+      tipo/setor inválido "Valor inválido."; sucesso → redirect credenciais:lista + toast "Credencial <nome> salva."
+      (criar e editar) e "Credencial <nome> excluída."; valor obrigatório na criação e opcional na edição (vazio =
+      manter); header exige header_nome; basic exige usuario; Coordenador/Base 403, anônimo → login; excluir só POST
+      (GET 405). C4 USO: credencial smtp num nó HTTP = erro "credencial"; valor de credencial refletido no CORPO da
+      resposta também é mascarado por VALOR ("••••") na saída gravada e na tela (só valores de credencial; SEG-16.6 segue
+      para segredo digitado); export, snapshot, requisicoes e mensagens de erro nunca contêm o valor.
+      C5 CÓDIGO: (a) ExecucaoNo.logs = lista de strings do console.log (argumentos unidos por espaço; máx. 200 linhas,
+      excedente descartado); (b) throw → erro "codigo" com a mensagem do Error; retorno que não é array/objeto → erro
+      "codigo"; (c) salvar_grafo por Coordenador que ADICIONA ou ALTERA nó codigo (tipo, config ou desativado) → 403
+      JSON {ok:false, erros:[{campo:null, mensagem:"Só o administrador pode criar ou editar o nó Código."}]} e nada
+      gravado; salvar sem mexer no Código passa; qualquer papel com acesso EXECUTA fluxo com Código; (d) CPU 5 s, memória
+      128 MB e saída > 5 MB → "codigo_limite"; (e) isolamento observável: process, require, fetch, import(), fs,
+      WebSocket, setTimeout indefinidos ou lançam erro; nenhuma requisição chega a servidor local e nenhum arquivo é lido.
+      C6 IMPORTAR: campo multipart "arquivo"; relatorio_importacao = {"importados": [titulo], "ajustes": [{no, mensagem}],
+      "sem_equivalente": [{no, tipo_n8n}], "expressoes_nao_suportadas": [{no, campo, expressao}], "segredos": [{no,
+      campo}], "codigo_desativado": [titulo]}; N do toast = soma dos tamanhos de ajustes, sem_equivalente,
+      expressoes_nao_suportadas, segredos e codigo_desativado. Arquivo inválido (JSON ruim, > 2 MB, formato/versão errada,
+      grafo inválido) → nada criado; Accept JSON → 400 {ok:false, erros:[...]}, senão redirect fluxos:lista + toast "Não
+      foi possível importar: <motivo>.". Permissão: Adm e Coordenador (setor de quem importa; Adm sem setor → setor nulo);
+      Base 403; anônimo → login. Sem equivalente → sem_operacao + nota com "Não suportado: <tipo n8n>". Título repetido
+      no n8n → sufixo " 2", " 3". Ids novos gerados. C7 SEGREDOS: detectados em qualquer string da config de qualquer nó
+      (inclusive literais dentro de jsCode): JWT (eyJ….….…), "Bearer " + ≥20 caracteres [A-Za-z0-9._~+/=-], ou string
+      inteira [A-Za-z0-9_-]{32,}; substituídos pelo texto exato "{{ $credencial }}" (no jsCode, só o trecho do valor),
+      com pendência "Mova este segredo para uma credencial." (campo = chave da config) → o fluxo não ativa nem executa até
+      a troca; o valor original não fica em NENHUM lugar gravado. C8 SEG-19: no formato nativo, chave desconhecida na
+      raiz ou em "fluxo" (dono, setor, id, status…) = REJEITADA, nada criado; no n8n, chaves extras da raiz (id, active,
+      tags, settings, versionId, meta) são ignoradas. Fluxo criado: dono = quem importou, setor = setor dele, status
+      rascunho, nome = fluxo.nome (n8n: name; vazio → "Fluxo importado"). C9 EXPORTAR: fluxos:exportar (GET) →
+      application/json com Content-Disposition attachment; filename=<slug do nome>.json; quem vê o fluxo exporta (Base: só
+      ativo do setor; Coordenador fora do setor 404; anônimo → login); credenciais_usadas = nomes únicos dos nós http,
+      ordenados. fluxos:exportar_n8n, mesma permissão → {name, nodes, connections, pinData, ...} + "construtor_relatorio":
+      {"fora": [{no, tipo, motivo}]} sempre presente; credenciais viram referência vazia, nunca valor.
 
