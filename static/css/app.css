@@ -249,7 +249,7 @@ h2 { font-size: var(--text-h2); font-weight: 600; }
 .no-exec__resumo::-webkit-details-marker { display: none; }
 .no-exec__resumo:hover { background: var(--fill); }
 .no-exec__ordem { width: 24px; height: 24px; border-radius: var(--r-pill); background: var(--fill); color: var(--text-2); display: grid; place-items: center; font-size: var(--text-sm); font-weight: 600; flex: none; }
-.no-exec__titulo { flex: 1; min-width: 0; font-weight: 500; overflow-wrap: anywhere; }
+.no-exec__titulo { flex: 1 1 12ch; min-width: 0; font-weight: 500; overflow-wrap: anywhere; }
 .no-exec__seta { color: var(--text-3); transition: transform var(--dur) var(--ease); }
 .no-exec[open] .no-exec__seta { transform: rotate(180deg); }
 .no-exec__corpo { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-2) var(--sp-6) var(--sp-6); }

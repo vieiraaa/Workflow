@@ -8,7 +8,8 @@
 .editor__inspector { border-left: 1px solid var(--hairline); }
 .editor__titulo-painel { font-size: var(--text-sm); font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .04em; }
 .editor__fechar { display: none; }
-.editor__area { position: relative; min-width: 0; min-height: 0; }
+.editor__area { position: relative; min-width: 0; min-height: 0; container-type: inline-size; }
+@container (max-width: 760px) { .toolbar .botao__rotulo-desktop { display: none; } }
 
 /* Paleta */
 .paleta__item { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3); border: 0; width: 100%; text-align: left; font: inherit; color: var(--text); background: var(--fill); border-radius: var(--r-m); cursor: grab; transition: background var(--dur) var(--ease); }
@@ -82,6 +83,7 @@
   .editor--paleta .editor__paleta, .editor--inspector .editor__inspector { transform: none; visibility: visible; }
   .editor__fechar { display: inline-flex; align-self: flex-end; }
   .toolbar { top: var(--sp-2); }
+  .relatorio { top: calc(var(--sp-12) * 2 + var(--sp-8)); }
   .toolbar .botao__rotulo-desktop { display: none; }
 }
 
