@@ -18,7 +18,7 @@ def _grafo_lista(h, n, extra=None):
     """gatilho → Dados (pin com n itens) → Editar campos (passa tudo adiante)."""
     pin = h.itens(*[{"id": i, **(extra or {})} for i in range(n)])
     return h.cadeia2(h.no2("d", "sem_operacao", x=1, titulo="Dados"),
-                     h.no2("calc", "editar_campos", h.cfg_editar([], incluir_outros=True), x=2, titulo="Calc"),
+                     h.no2("calc", "editar_campos", h.cfg_editar([("marca", "1", "texto")], incluir_outros=True), x=2, titulo="Calc"),
                      dados_fixos={"d": pin})
 
 

@@ -150,11 +150,17 @@ def test_padrao_de_data_ontem_resolvido_na_execucao(mundo7, criar_funcao, mk_flu
     assert e is not None and e.parametros["dia"] == (timezone.localdate() - timedelta(days=1)).isoformat()
 
 
-@pytest.mark.parametrize("valor", ["a\x00b", "a\ud800b"])
-def test_nul_e_surrogate_dao_400(mundo7, fn_entradas, exec_funcao, valor, modelos):
-    """FUN-07/MV2-25 c: NUL/surrogate → 400, nada executa."""
-    r, e = exec_funcao(mundo7.c["bA"], fn_entradas, {"nome": valor})
+def test_nul_da_400(mundo7, fn_entradas, exec_funcao, modelos):
+    """FUN-07/MV2-25 c: NUL → 400, nada executa."""
+    r, e = exec_funcao(mundo7.c["bA"], fn_entradas, {"nome": "a\x00b"})
     assert r.status_code == 400 and e is None and modelos.Execucao.objects.count() == 0
+
+
+def test_surrogate_da_400(mundo7, fn_entradas, modelos):
+    """FUN-07/MV2-25 c: surrogate solto (corpo cru, o Client não codifica) → 400, nada executa."""
+    corpo = b"nome=a%ED%A0%80b"  # "a\ud800b" em UTF-8 com surrogatepass
+    r = mundo7.c["bA"].post(_url(fn_entradas), data=corpo, content_type="application/x-www-form-urlencoded")
+    assert r.status_code == 400 and modelos.Execucao.objects.count() == 0
 
 
 # ---------------- FUN-08 ----------------
