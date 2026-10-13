@@ -1,0 +1,12 @@
+id: T-066
+titulo: M5 · Correções do adversarial (T-065)
+dono: Forja (back)
+regras: [MV2-25, SEG-18, SEG-21, IMP-04, GRF-09, MV2-12, MV2-24]
+achados:
+  - "(3) SEGURANÇA: console.log do Código grava em claro o valor de credencial refletido — test_valor_nao_vaza_no_log_do_codigo (MV2-25 a)"
+  - "(4)(5) SEGURANÇA: JWT/Bearer em dados_fixos e notas gravados; JWT com zero-width não detectado (MV2-25 b)"
+  - "(1)(2) 500: surrogate solto em expressão e NUL no nome importado/credencial → DataError (MV2-25 c)"
+  - "(6) enum inválido em paginacao deve ser 400 (MV2-25 d) — 3 testes"
+  - "(7) página cortada usada em $response/proxima_url → resposta_grande (MV2-25 e)"
+regra: os testes de tests/adversarial/m5/ ficam verdes SEM alteração
+arquivos: [apps/, tests/unit/]

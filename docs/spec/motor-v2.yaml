@@ -396,4 +396,18 @@ lacunas_parte_a:
       limite lido (MOTOR_LIMITE_RESPOSTA) ou no gravado (8 KB); ExecucaoNo.truncado fala só dos 50 itens gravados. Se um
       nó seguinte usa (por expressão ou $json) o corpo de uma resposta cortada no limite lido, esse nó falha com categoria
       "resposta_grande" (SEG-07), em qualquer valor de MOTOR_LIMITE_RESPOSTA.
+  - id: MV2-25
+    texto: >
+      Fecha lacunas e achados da T-065. (a) MASCARAMENTO POR VALOR (CRD-02, SEG-18, SEG-21) vale para TODO dado GRAVADO:
+      entrada e saída de qualquer nó (inclusive Código), ExecucaoNo.logs (console.log), requisicoes, snapshot,
+      dados_fixos, relatório de importação e notas — não só para o nó HTTP. Em runtime os nós recebem os dados reais;
+      só o que é gravado ou exibido é mascarado. (b) DETECTOR DE SEGREDOS (IMP-04, MV2-18 C7) varre TODO o grafo
+      importado ou salvo por importação: config de nós, dados_fixos e notas; antes de detectar, remove caracteres
+      Unicode de categoria Cf (zero-width etc.); além da string inteira [A-Za-z0-9_-]{32,}, detecta valor ≥ 16 caracteres
+      de parâmetro/header com nome sensível (SEG-09) e "token=", "key=", "apikey=" dentro de url/corpo. (c) TEXTO
+      PERSISTIDO: NUL e surrogate solto em QUALQUER texto que vá ao banco (nome/descrição do fluxo, nome de credencial,
+      grafo, expressões, relatório) → recusado com 400 e mensagem (GRF-09 d), nunca 500. (d) ENUM inválido em
+      config.paginacao (modo, onde, parar_quando) = 400 de FORMATO (MV2-12 L3 prevalece; MV2-16 trata só faixa e
+      chave obrigatória ausente como pendência). (e) MV2-24 d vale também para a PAGINAÇÃO: página cortada no limite
+      lido usada em $response ou em proxima_url → resposta_grande.
 
