@@ -246,9 +246,9 @@ def test_pendencias_v2_na_resposta_do_salvar(caso, cliente_adm, fluxo, salvar_gr
 # ---------------- MV2-03 · migração v1 → v2 ----------------
 
 @pytest.fixture
-def v1(grafo_valido):
-    """Grafo v1 (exemplo da spec) com placeholders anterior.*."""
-    g = copy.deepcopy(grafo_valido)
+def v1(grafo_valido_v1):
+    """Grafo v1 (exemplo da spec) com placeholders anterior.* — base: grafo_valido_v1 (o grafo_valido já é v2, T-060)."""
+    g = copy.deepcopy(grafo_valido_v1)
     g["nos"][1]["config"]["query"] = [{"nome": "q", "valor": "{{ anterior.executado_por }}"}]
     g["nos"].insert(2, {"id": "n4", "tipo": "http", "titulo": "Segunda", "posicao": {"x": 500, "y": 120},
                         "config": {"metodo": "GET", "url": "https://api.exemplo.test/x", "headers": [],
@@ -323,11 +323,11 @@ def test_executa_fluxo_v1_com_o_mesmo_significado(cliente_adm, liberado, fabrica
     assert liberado.hits("/eco")[0]["query"] == {"n": ["1"], "st": ["200"]}
 
 
-def test_execucao_antiga_v1_continua_legivel(cliente_adm, usuario_adm, modelos, grafo_valido):
+def test_execucao_antiga_v1_continua_legivel(cliente_adm, usuario_adm, modelos, grafo_valido_v1):
     """MV2-03: execução gravada em v1 (snapshot v1, entrada/saída objeto) abre no detalhe e na lista."""
     agora = timezone.now()
     e = modelos.Execucao.objects.create(
-        fluxo=None, fluxo_nome="Fluxo Antigo Fictício", grafo_snapshot=copy.deepcopy(grafo_valido), executado_por=usuario_adm,
+        fluxo=None, fluxo_nome="Fluxo Antigo Fictício", grafo_snapshot=copy.deepcopy(grafo_valido_v1), executado_por=usuario_adm,
         status="sucesso", iniciada_em=agora - timedelta(seconds=2), finalizada_em=agora, erro_resumo="")
     modelos.ExecucaoNo.objects.create(
         execucao=e, no_id="n2", no_tipo="http", no_titulo="Buscar pedido", ordem=1, status="sucesso",
