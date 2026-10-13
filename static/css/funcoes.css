@@ -48,3 +48,4 @@ fieldset.campo { border: 0; padding: 0; margin: 0; min-width: 0; }
 .resultado__rodape { padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--hairline); }
 .resultado__acoes { justify-content: flex-start; }
 @media (max-width: 800px) { .resultado__acoes .botao { width: 100%; } }
+.resultado__nav { display: flex; flex-wrap: wrap; gap: var(--sp-2); }

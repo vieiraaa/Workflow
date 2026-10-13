@@ -3,12 +3,12 @@
 {% block estilos %}<link rel="stylesheet" href="{% static 'css/funcoes.css' %}">{% endblock %}
 {% block titulo %}Resultado · {{ funcao.nome }} · Construtor de Workflows{% endblock %}
 {% block titulo_pagina %}Resultado · {{ funcao.nome }}{% endblock %}
-{% block acoes %}
-{% url "funcoes:catalogo" as url_catalogo %}
-{% include "componentes/botao.html" with rotulo="Funções" icone="chevron-left" href=url_catalogo %}
-{% if url_detalhe %}{% include "componentes/botao.html" with rotulo="Detalhe técnico" icone="workflow" href=url_detalhe %}{% endif %}
-{% endblock %}
 {% block conteudo %}
+{% url "funcoes:catalogo" as url_catalogo %}
+<div class="resultado__nav">
+  {% include "componentes/botao.html" with rotulo="Funções" icone="chevron-left" href=url_catalogo %}
+  {% if url_detalhe %}{% include "componentes/botao.html" with rotulo="Detalhe técnico" icone="workflow" href=url_detalhe %}{% endif %}
+</div>
 <section class="grupo" aria-label="Resumo da execução">
   <div class="grupo__linha"><span>Função</span><span class="grupo__valor resultado__funcao">{% include "componentes/icone.html" with nome=funcao.icone|default:"zap" tamanho=16 %}{{ funcao.nome }}{% if execucao.funcao_versao %} · versão {{ execucao.funcao_versao }}{% endif %}</span></div>
   <div class="grupo__linha"><span>Status</span><span>{% include "componentes/badge_status.html" with status=execucao.status rotulo=execucao.status_rotulo %}</span></div>
