@@ -307,8 +307,8 @@ ENTRADAS_DEMO = [
 ]
 
 
-def _execucao_da_funcao(usuarios, funcao, cenario="sucesso"):
-    """Execução `para_mim` do Adm, gravada direto (sem rodar o motor)."""
+def _execucao_da_funcao(usuarios, funcao, cenario="sucesso", quem="adm"):
+    """Execução `para_mim` de `quem`, gravada direto (sem rodar o motor)."""
     from datetime import timedelta
 
     from django.utils import timezone
@@ -320,7 +320,7 @@ def _execucao_da_funcao(usuarios, funcao, cenario="sucesso"):
     execucao = Execucao.objects.create(
         fluxo=funcao.fluxo,
         fluxo_nome=funcao.fluxo.nome,
-        executado_por=usuarios["adm"],
+        executado_por=usuarios[quem],
         funcao=funcao,
         funcao_nome=funcao.nome,
         funcao_versao=funcao.versao,
@@ -389,7 +389,9 @@ def _catalogo_demo(usuarios):
         ),
         "inativa": _funcao(usuarios, fluxo, "Conferência antiga", icone="list-checks", ativa=False),
     }
-    _execucao_da_funcao(usuarios, funcoes["funcao_demo"])
+    for quem in ("adm", "base"):
+        if quem in usuarios:
+            _execucao_da_funcao(usuarios, funcoes["funcao_demo"], quem=quem)
     return funcoes
 
 
@@ -1076,10 +1078,16 @@ def executar(modulo, verificar):
                         ):
                             problemas.append(f"{etiqueta}: overflow horizontal em 390px")
                         if not verificar:
+                            repetida = (
+                                sum(1 for t, e in itens if (t["id"], e) == (tela["id"], estado)) > 1
+                            )
+                            sufixo = f"_{tela['papel']}" if repetida else ""
                             pasta = RAIZ / "docs" / "telas" / f"m{modulo}"
                             pasta.mkdir(parents=True, exist_ok=True)
                             page.screenshot(
-                                path=str(pasta / f"{tela['id']}_{estado}_{tema}_{largura}.png"),
+                                path=str(
+                                    pasta / f"{tela['id']}_{estado}{sufixo}_{tema}_{largura}.png"
+                                ),
                                 full_page=True,
                             )
                             capturas += 1
@@ -1106,7 +1114,7 @@ def main():
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawTextHelpFormatter
     )
-    parser.add_argument("--modulo", type=int, help="número do módulo (0, 1, ...)")
+    parser.add_argument("--modulo", help="módulo: 0, 1, ... ou 7a ('7' vale só para m7)")
     parser.add_argument("--verificar", action="store_true", help="só verifica; não grava capturas")
     args = parser.parse_args()
     if args.modulo is None and not args.verificar:
