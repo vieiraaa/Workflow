@@ -387,7 +387,7 @@ def imp(cliente_adm, modelos):
 
     from django.core.files.uploadedfile import SimpleUploadedFile
 
-    class I:
+    class Imp:
         n8n_no = staticmethod(_n8n_no)
         liga = staticmethod(_liga)
         n8n = staticmethod(_n8n)
@@ -414,4 +414,4 @@ def imp(cliente_adm, modelos):
         def pks():
             return set(modelos.Fluxo.objects.values_list("pk", flat=True))
 
-    return I
+    return Imp
