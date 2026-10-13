@@ -299,7 +299,7 @@
     minx -= 40; maxx += 100; // folga para os rótulos das alças (verdadeiro, regra N...)
     var r = areaCanvas.getBoundingClientRect(), margem = 48, topo = 72;
     var z = Math.min(1, (r.width - margem) / (maxx - minx), (r.height - margem - topo) / (maxy - miny));
-    z = Math.max(window.innerWidth <= 800 ? 0.65 : editor.zoom_min, z);
+    z = Math.max(window.innerWidth <= 800 ? 0.65 : 0.8, z); // abaixo disso o título do nó fica ilegível: o resto rola/arrasta
     editor.zoom = z;
     editor.zoom_last_value = z; // zoom_refresh() reescala canvas_x/y por zoom/zoom_last_value
     editor.canvas_x = (r.width - (maxx - minx) * z) / 2 - minx * z;
