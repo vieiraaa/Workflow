@@ -387,4 +387,13 @@ lacunas_parte_a:
       interpretador (MV2-10/11) sobre os dados da ÚLTIMA execução de teste do próprio usuário (MV2-14), item 0 do nó;
       nunca executa nó, nunca faz requisição HTTP nem roda Código; mascara valores de credencial e sensíveis (SEG-09/18/21);
       expressão > 2.000 caracteres = erro; limite de 30 prévias por minuto por usuário (429 com mensagem).
+  - id: MV2-24
+    texto: >
+      Fecha lacunas da T-060 e resolve conflito do próprio Lead. (a) PRECEDÊNCIA: MV2-19 prevalece sobre MV2-12 L3 —
+      aresta para NÓ inexistente = 400 de formato; aresta para ALÇA inexistente (saida/entrada ≥ nº do tipo) = pendência.
+      (b) Aresta v2 sem "saida" ou "entrada" = 0 (padrão; não é erro). (c) Aresta repetida (mesmo de, saida, para, entrada)
+      = pendência "Ligação repetida.". (d) TRUNCAMENTO: requisicoes[].resposta.truncado = true quando o corpo foi cortado no
+      limite lido (MOTOR_LIMITE_RESPOSTA) ou no gravado (8 KB); ExecucaoNo.truncado fala só dos 50 itens gravados. Se um
+      nó seguinte usa (por expressão ou $json) o corpo de uma resposta cortada no limite lido, esse nó falha com categoria
+      "resposta_grande" (SEG-07), em qualquer valor de MOTOR_LIMITE_RESPOSTA.
 
