@@ -1,0 +1,37 @@
+id: T-067
+titulo: Canvas · navegação infinita de verdade + legenda de navegação
+dono: Vitral (front)
+origem: usuário (13/10) — "ao ir pro lado, a navegação trava"; diagnóstico do Lead abaixo
+regras: [EDV-01, TEL (editor), design-base]
+diagnostico:
+  - "CAUSA PRINCIPAL (confirmada no fonte do Drawflow 0.0.60): o clique só inicia o pan se e.target.classList[0] for
+     'parent-drawflow' ou 'drawflow'. Nosso container é <div class=\"canvas\">: o Drawflow ADICIONA 'parent-drawflow'
+     depois, então classList[0] = 'canvas' e clicar no container não faz nada. Só funciona onde o .drawflow
+     (precanvas, 100%×100%, transladado e escalado pelo pan/zoom) ainda cobre a tela. Depois de mover para o lado ou
+     dar zoom out, a área descoberta vira 'zona morta' — por isso 'só em lugares específicos'."
+  - "Não há limite de coordenadas (Drawflow não faz clamp), mas o Drawflow 0.0.60 escuta mousemove/mouseup SÓ no
+     container: ao arrastar o fundo para o lado e o cursor sair da área (paleta, inspector, borda da janela), o
+     arraste para — cada arraste fica limitado à largura do canvas e parece 'travar'."
+  - "A grade de pontos é background fixo do .canvas: não acompanha o pan/zoom, então longe dos nós não há
+     sinal de movimento (parece parado)."
+  - "Rolagem/trackpad sem Ctrl não faz nada (zoom_enter só com ctrlKey); no Mac o swipe horizontal de dois dedos
+     pode disparar o 'voltar' do navegador."
+aceite:
+  - "Clicar e arrastar em QUALQUER ponto em branco do canvas move a tela, em qualquer pan e zoom (correção: classe
+     'parent-drawflow' primeiro no container — ex. class=\"parent-drawflow canvas\" no template — ou tratar o pan
+     no nosso próprio handler). e2e: depois de pan de 3.000 px e zoom 0,4, arrastar nos 4 cantos e no centro move."
+  - "Arrastar o fundo continua movendo o canvas mesmo com o cursor fora da área (listeners em window/document ou
+     pointer capture durante o arraste); soltar fora encerra o arraste (sem canvas 'grudado' no mouse)."
+  - "Grade de pontos acompanha pan e zoom (background-position = canvas_x/canvas_y; background-size × zoom)."
+  - "Roda/trackpad sem Ctrl/⌘: pan (deltaX/deltaY; Shift+roda = horizontal). Ctrl/⌘ + roda e pinça: zoom.
+     preventDefault no canvas + overscroll-behavior: contain (sem 'voltar' do navegador por swipe)."
+  - "Espaço + arrastar e botão do meio também movem o canvas (como no n8n), inclusive sobre um nó."
+  - "Pan de 20.000 px para qualquer lado funciona; dá para voltar com 'Ajustar'. Toque (390 px) segue funcionando."
+  - "Legenda de navegação discreta no rodapé do canvas (não cobre nós nem a toolbar; some/compacta em 390 px):
+     'Arraste o fundo ou use dois dedos para mover · Ctrl/⌘ + rolagem ou pinça para zoom · Espaço + arrastar ·
+     Ajustar centraliza'. ⌘ no Mac, Ctrl nos demais. light/dark."
+  - "e2e em tests/e2e/test_canvas.py (chromium + webkit): arraste que sai da área continua movendo; wheel sem Ctrl
+     move canvas_x; Ctrl+wheel muda zoom; pan de 20.000 px; grade acompanha; legenda visível em 1440 e 390."
+  - "Nada quebra: arrastar nó, conectar portas, seleção múltipla com Shift, paleta drag&drop, notas redimensionáveis."
+arquivos: [static/js/canvas/editor.js, static/css/canvas.css, templates/fluxos/editor.html, tests/e2e/test_canvas.py]
+depende_de: [integração do M5 concluída (Git & Gitea), de volta em feat/modulo-5]
