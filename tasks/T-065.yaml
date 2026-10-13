@@ -1,0 +1,19 @@
+id: T-065
+titulo: M5 · QA adversarial do Motor v2
+dono: Lupa (qa)
+fontes: [docs/spec/motor-v2.yaml, docs/spec/seguranca.yaml (SEG-17..21), permissoes.yaml]
+ataques_minimos:
+  - expressões: escapar da lista branca (__proto__, constructor, prototype via ["con"+"structor"], getters, ?., template
+    literals, recursão/aninhamento profundo, 2.000 chars, resultado gigante, $('Nó') com títulos hostis, regex ReDoS)
+  - itens: 10.000+ itens, Separar lista de lista gigante, Juntar/Resumir com chaves especiais, laço de 1.000 voltas
+  - Código (por comportamento): tudo que o Atalaia cobriu fica com ele; foque em vazar dados de OUTRA execução/usuário,
+    console.log gigante, retorno com objetos hostis (toJSON, getters), Coordenador tentando criar/alterar Código por todos
+    os caminhos (salvar, importar, colar, executar_no, dados fixos)
+  - credenciais: IDOR (credencial de outro setor por nome), vazamento do valor por qualquer caminho (export, n8n, prévia,
+    executar_no, erro, detalhe, logs do Código), troca de valor sem revelar o antigo, CSRF
+  - importação: JSON hostil (2 MB, profundo, chaves duplicadas, tipos errados), segredo disfarçado, nó Código importado
+    ativo, n8n que tenta escolher dono/setor/status/id, zip bomb não se aplica (só JSON)
+  - prévia e executar_no: IDOR (fluxo/execução de teste de outro usuário), rate limit, nunca executar HTTP/Código na prévia
+  - paginação: loop infinito de páginas, próxima_url para destino proibido (SSRF por página), $response gigante
+regras: caixa-preta; servidor local; nunca internet; @pytest.mark.modulo("m5").
+arquivos: [tests/adversarial/m5/]
