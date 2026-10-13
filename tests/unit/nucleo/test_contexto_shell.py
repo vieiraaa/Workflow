@@ -31,6 +31,7 @@ def test_shell_do_adm(usuario_adm):
     assert dados["sem_papel"] is False
     assert [i["chave"] for i in dados["menu"]] == [
         "inicio",
+        "funcoes",
         "fluxos",
         "execucoes",
         "usuarios",
@@ -60,14 +61,15 @@ def test_menu_por_papel(monkeypatch, usuario_adm, usuario_coordenador, usuario_b
     chaves = lambda u: [i["chave"] for i in contexto.montar_menu(_request(u))]  # noqa: E731
     assert chaves(usuario_adm) == [
         "inicio",
+        "funcoes",
         "fluxos",
         "execucoes",
         "usuarios",
         "setores",
         "credenciais",
     ]
-    assert chaves(usuario_coordenador) == ["inicio", "fluxos", "execucoes"]
-    assert chaves(usuario_base) == ["inicio", "fluxos", "execucoes"]
+    assert chaves(usuario_coordenador) == ["inicio", "funcoes", "fluxos", "execucoes"]
+    assert chaves(usuario_base) == ["inicio", "funcoes", "fluxos", "execucoes"]
 
 
 def test_item_ativo_pelo_namespace(monkeypatch, usuario_adm):
@@ -77,6 +79,7 @@ def test_item_ativo_pelo_namespace(monkeypatch, usuario_adm):
     ativos = {i["chave"]: i["ativo"] for i in contexto.montar_menu(request)}
     assert ativos == {
         "inicio": False,
+        "funcoes": False,
         "fluxos": True,
         "execucoes": False,
         "usuarios": False,

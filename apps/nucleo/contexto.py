@@ -7,6 +7,7 @@ from apps.contas.permissoes import nome_do_papel, papel_de, pode
 # (chave, rótulo, rota, ícone Lucide, namespace da rota, ação que libera o item). Ordem = menu.
 ITENS_MENU = [
     ("inicio", "Início", "inicio", "house", "", "inicio.ver"),
+    ("funcoes", "Funções", "funcoes:catalogo", "square-function", "funcoes", "funcoes.ver"),
     ("fluxos", "Fluxos", "fluxos:lista", "workflow", "fluxos", "fluxos.ver"),
     ("execucoes", "Execuções", "execucoes:lista", "clock", "execucoes", "execucoes.ver"),
     ("usuarios", "Usuários", "contas:usuarios", "users", "contas", "usuarios.gerenciar"),

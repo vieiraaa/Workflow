@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     "apps.execucoes",
     "apps.motor",
     "apps.credenciais",
+    "apps.funcoes",
 ]
 
 MIDDLEWARE = [
