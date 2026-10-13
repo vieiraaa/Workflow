@@ -1,6 +1,7 @@
 # Progresso (sobrescrito a cada resultado) — 13/10
-Branch: feat/modulo-5 · M5 Motor v2: check completo VERDE (3.419 testes) · docs/prs/modulo-5.md
-Em andamento: integração pelo Git & Gitea (merge na main + push, pedido do usuário em 13/10)
-Próximas: CREDENCIAIS_CHAVE no .env (usuário) · migrations do M5 no Supabase (com OK) · atualizar cópia estável e :8000
-Decisões pendentes do usuário: SET-07 (a) · Melhorias · Ollama · D-d..D-i do roadmap · M6
-Servidores: :8000 hoje = demo local (banco construtor_demo) · Métricas: python3 docs/metricas/metricas.py
+Main = 63997a6 (M5 + T-067 canvas), check completo VERDE, no GitHub.
+Branch: feat/modulo-7a · M7a núcleo das Funções (docs/spec/funcoes.yaml FUN-01..13; D-029 Adm = TI; D-030; D-031)
+Em andamento: T-068 Lupa (aceite m7a) · T-069 Forja (back, 3 fatias) · T-070 Vitral (telas TEL-23..26)
+Depois: revisão visual · adversarial m7a · check completo · docs/prs/modulo-7a.md
+Pendente do usuário: CREDENCIAIS_CHAVE no .env + OK para migrations M5 no Supabase · D-d · SET-07 (a) · Melhorias · Ollama
+Servidores: :8000 = demo local · Métricas: python3 docs/metricas/metricas.py
