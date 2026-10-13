@@ -1,0 +1,7 @@
+id: T-062
+titulo: M5 · Menu Credenciais e preparadores de capturas TEL-18..22
+dono: Forja (back)
+itens:
+  - (AGORA, antes de fechar a T-056) apps/nucleo/contexto.py ITENS_MENU: {chave credenciais, rótulo 'Credenciais', rota credenciais:lista, ícone key-round, ação credenciais.gerenciar} — só aparece para quem pode (pode()).
+  - (logo após a T-056) scripts/telas.py: preparadores de TEL-18..22 (credencial_demo, fluxo_v2_demo com ramos/HTTP com paginação/Código, relatório de importação, pendências v2; execucao_v2_demo com ramos, erro em modo continuar e execução de teste), sem rede e sem Supabase.
+arquivos: [apps/nucleo/, scripts/telas.py, tests/unit/]

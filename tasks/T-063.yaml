@@ -1,0 +1,5 @@
+id: T-063
+titulo: M5 · Prévia de expressão no editor (MV2-23)
+dono: Forja (back) → Vitral (url_previa no editor)
+regras: [MV2-23, EDV-02, MV2-10, MV2-11, SEG-09, SEG-18, SEG-21]
+arquivos: [apps/fluxos/, apps/motor/, config/urls.py, tests/unit/]

@@ -378,4 +378,13 @@ lacunas_parte_a:
       credencial), "truncado" (bool)}, gravada em sucesso E em erro (http_4xx/http_5xx inclusive, e em cada página). O
       detalhe da execução (TEL-07/TEL-22) mostra, no nó com erro HTTP, o status e o corpo da resposta de erro (escapados,
       SEG-13), como no M3.
+  - id: MV2-23
+    texto: >
+      PRÉVIA DE EXPRESSÃO (contrato que faltava ao EDV-02). Rota fluxos:previa_expressao (kwarg pk, só POST JSON com
+      X-CSRFToken, ação fluxos.editar): {"no_id", "campo", "expressao"} → 200 {"ok": true, "valor": <JSON>, "texto":
+      <como ficaria no campo>, "itens_usados": n} ou {"ok": false, "erro": "<mensagem>"}; sem execução de teste deste
+      fluxo feita pelo usuário → {"ok": false, "erro": "Execute o fluxo em teste para ver a prévia."}. Avalia com o MESMO
+      interpretador (MV2-10/11) sobre os dados da ÚLTIMA execução de teste do próprio usuário (MV2-14), item 0 do nó;
+      nunca executa nó, nunca faz requisição HTTP nem roda Código; mascara valores de credencial e sensíveis (SEG-09/18/21);
+      expressão > 2.000 caracteres = erro; limite de 30 prévias por minuto por usuário (429 com mensagem).
 
