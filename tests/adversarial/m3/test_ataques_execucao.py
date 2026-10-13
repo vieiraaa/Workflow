@@ -12,11 +12,17 @@ from django.urls import reverse
 
 pytestmark = [pytest.mark.django_db, pytest.mark.modulo("m3")]
 
-CATEGORIAS = {"bloqueado_ssrf", "timeout", "dns", "conexao", "tls", "resposta_grande", "redirect_excessivo", "http_4xx", "http_5xx", "placeholder", "json_invalido"}
+CATEGORIAS = {"bloqueado_ssrf", "timeout", "dns", "conexao", "tls", "resposta_grande", "redirect_excessivo", "http_4xx", "http_5xx", "placeholder", "json_invalido",
+              "expressao"}  # MV2-12 L12: categoria nova do v2
 
 
 def _h(r):
     return r.content.decode()
+
+
+def _truncou(n):
+    """SEG-07 no v2: marca em ExecucaoNo.truncado (MV2-12 L2) ou em requisicoes[].resposta.truncado (MV2-22)."""
+    return bool(n.truncado or any(r["resposta"]["truncado"] for r in n.requisicoes))
 
 
 # ---------- IDOR ----------
@@ -150,7 +156,7 @@ def _executar_h2(cliente, executar, liberado, cadeia, cfg_http, url_h2, caminho_
 ])
 def test_host_montado_por_placeholder_nunca_chega_ao_servidor_interno(valor, cliente_coordenador, liberado, executar, cadeia, cfg_http, no):
     """SEG-02/SEG-03/PLH-04: o host vem da SAÍDA do nó anterior; a URL final é validada de ponta a ponta."""
-    g = cadeia(cfg_http(f"{liberado.base}/alvo?v={quote(valor, safe='')}"), cfg_http("http://{{ anterior.corpo.v }}/x"))
+    g = cadeia(cfg_http(f"{liberado.base}/alvo?v={quote(valor, safe='')}"), cfg_http("http://{{ $json.corpo.v }}/x"))
     _, e, _ = executar(cliente_coordenador, g)
     assert e is not None
     h2 = no(e, "h2")
@@ -163,7 +169,7 @@ def test_host_montado_por_placeholder_nunca_chega_ao_servidor_interno(valor, cli
 @pytest.mark.parametrize("valor", ["file", "gopher", "ftp", "javascript", "data", "HTTP", "http://127.0.0.1:1/"])
 def test_esquema_montado_por_placeholder(valor, cliente_coordenador, liberado, executar, cadeia, cfg_http, no):
     """SEG-01: esquema vindo de placeholder: pendência (sem execução) ou erro; nunca requisição ao destino."""
-    g = cadeia(cfg_http(f"{liberado.base}/alvo?v={quote(valor, safe='')}"), cfg_http("{{ anterior.corpo.v }}://127.0.0.1:1/x"))
+    g = cadeia(cfg_http(f"{liberado.base}/alvo?v={quote(valor, safe='')}"), cfg_http("{{ $json.corpo.v }}://127.0.0.1:1/x"))
     _, e, _ = executar(cliente_coordenador, g)
     assert e is None or no(e, "h2").status == "erro"
     assert liberado.contagem("/x") == 0
@@ -172,7 +178,7 @@ def test_esquema_montado_por_placeholder(valor, cliente_coordenador, liberado, e
 @pytest.mark.parametrize("valor", ["1", "0", "22", "65535", "65536", "99999999999", "-1", "80@127.0.0.1", "80/../x"])
 def test_porta_montada_por_placeholder(valor, cliente_coordenador, liberado, executar, cadeia, cfg_http, no):
     """SEG-02: porta alta/inválida/maliciosa vinda de placeholder nunca causa 500 e só chega ao servidor se permitido."""
-    g = cadeia(cfg_http(f"{liberado.base}/alvo?v={quote(valor, safe='')}"), cfg_http("http://127.0.0.1:{{ anterior.corpo.v }}/x"))
+    g = cadeia(cfg_http(f"{liberado.base}/alvo?v={quote(valor, safe='')}"), cfg_http("http://127.0.0.1:{{ $json.corpo.v }}/x"))
     _, e, _ = executar(cliente_coordenador, g)
     assert e is None or no(e, "h2").status == "erro"
     assert liberado.contagem("/x") == 0
@@ -243,12 +249,12 @@ def test_urls_malformadas_e_unicode_nunca_chegam_ao_servidor_local(url_tpl, clie
 
 
 @pytest.mark.parametrize("caminho", [
-    "anterior" + ".corpo" * 300, "anterior.corpo.lista.99999999999999999999", "anterior.corpo.lista.-1", "anterior.corpo.a.b",
-    "anterior.corpo.__proto__", "anterior.corpo.__class__", "anterior.corpo.a" + ".a" * 5000, "anterior.corpo." + "x" * 100000,
-    "anterior.corpo.‮", "anterior.corpo.é", "anterior.corpo.a b",
+    "$json" + ".corpo" * 300, "$json.corpo.lista[99999999999999999999]", "$json.corpo.lista[-1]", "$json.corpo.a.b",
+    "$json.corpo.__proto__", "$json.corpo.__class__", "$json.corpo.a" + ".a" * 5000, "$json.corpo." + "x" * 100000,
+    "$json.corpo.‮", "$json.corpo.é", "$json.corpo.a b",
 ])
 def test_placeholders_hostis_nunca_derrubam_a_execucao(caminho, cliente_coordenador, liberado, executar, cadeia, cfg_http, no):
-    """PLH-03: profundidade, índice gigante, chaves especiais/ponto/unicode e caminhos de 100 KB → erro de placeholder ou valor; nunca 500."""
+    """PLH-03 → MV2-10 (anterior → $json, MV2-03; categoria expressao): profundidade, índice gigante, chaves especiais/ponto/unicode e caminhos de 100 KB → erro de placeholder ou valor; nunca 500."""
     g = cadeia(cfg_http(f"{liberado.base}/chave-ponto"), cfg_http(f"{liberado.base}/eco", query=[{"nome": "x", "valor": "{{ " + caminho + " }}"}]))
     r, e, _ = executar(cliente_coordenador, g)
     assert r.status_code == 302 or e is None
@@ -261,10 +267,10 @@ def test_placeholders_hostis_nunca_derrubam_a_execucao(caminho, cliente_coordena
 
 def test_valor_de_900kb_em_placeholder_no_corpo_e_na_url(cliente_coordenador, liberado, executar, cadeia, cfg_http, no):
     """PLH-04/SEG-07: valor de ~900 KB interpolado no corpo funciona ou falha com categoria; na URL é recusado; nunca 500."""
-    g = cadeia(cfg_http(f"{liberado.base}/enorme"), cfg_http(f"{liberado.base}/eco", "POST", corpo='{"a": "{{ anterior.corpo.v }}"}'))
+    g = cadeia(cfg_http(f"{liberado.base}/enorme"), cfg_http(f"{liberado.base}/eco", "POST", corpo='{"a": "{{ $json.corpo.v }}"}'))
     r, e, _ = executar(cliente_coordenador, g)
     assert r.status_code == 302 and no(e, "h2").status in ("sucesso", "erro")
-    g = cadeia(cfg_http(f"{liberado.base}/enorme"), cfg_http(f"{liberado.base}/eco/" + "{{ anterior.corpo.v }}"))
+    g = cadeia(cfg_http(f"{liberado.base}/enorme"), cfg_http(f"{liberado.base}/eco/" + "{{ $json.corpo.v }}"))
     r, e, _ = executar(cliente_coordenador, g)
     assert r.status_code == 302 and no(e, "h2").status == "erro"
 
@@ -296,7 +302,8 @@ def test_segredo_nao_aparece_em_erros_telas_nem_snapshot(caminho, cliente_coorde
     _, e, _ = executar(cliente_coordenador, g)
     blobs = [e.erro_resumo, json.dumps(e.grafo_snapshot)]
     for n in nos_de(e):
-        blobs += [n.erro_mensagem or "", json.dumps(n.entrada), json.dumps(n.saida)]
+        # v2: a requisição enviada e a resposta gravadas ficam em requisicoes[] (MV2-15 B10, MV2-22) — também vigiadas
+        blobs += [n.erro_mensagem or "", json.dumps(n.entrada), json.dumps(n.saida), json.dumps(n.requisicoes)]
     assert SEGREDO not in "\n".join(blobs)
     for c in (cliente_coordenador, cliente_adm):
         for url in (reverse("execucoes:detalhe", kwargs={"pk": e.pk}), reverse("execucoes:lista")):
@@ -326,7 +333,7 @@ def test_segredo_na_query_nao_vaza_na_mensagem_de_erro_de_rede(modo, cliente_coo
         url = f"https://127.0.0.1:{servidor.porta}/x"
     _, e, _ = executar(cliente_coordenador, cadeia(cfg_http(url, query=q)))
     h1 = no(e, "h1")
-    assert h1.status == "erro" and SEGREDO not in (h1.erro_mensagem + e.erro_resumo + json.dumps(h1.entrada))
+    assert h1.status == "erro" and SEGREDO not in (h1.erro_mensagem + e.erro_resumo + json.dumps(h1.entrada) + json.dumps(h1.requisicoes))
     assert SEGREDO not in _h(cliente_coordenador.get(reverse("execucoes:detalhe", kwargs={"pk": e.pk})))
 
 
@@ -344,7 +351,10 @@ def test_nome_de_header_sensivel_com_caixa_e_variacoes(cliente_coordenador, libe
     nomes = ["aUtHoRiZaTiOn", "x_api_key", "X-API-KEY", "x-Token", "SECRET", "x-client-secret", "PASSWORD", "x-senha-admin", "Api-Key"]
     hs = [{"nome": n, "valor": SEGREDO} for n in nomes]
     _, e, _ = executar(cliente_coordenador, cadeia(cfg_http(f"{liberado.base}/eco", headers=hs)))
-    assert SEGREDO not in json.dumps(no(e, "h1").entrada)
+    h1 = no(e, "h1")
+    assert SEGREDO not in json.dumps(h1.entrada) and SEGREDO not in json.dumps(h1.requisicoes)
+    # SEG-21: o /eco devolve os headers no corpo; o valor digitado não pode reaparecer em claro na saída
+    assert SEGREDO not in json.dumps(h1.saida)
 
 
 @pytest.mark.parametrize("caminho", ["/ok", "/status/500", "/redir/2"])
@@ -364,8 +374,8 @@ def test_resposta_infinita_e_cortada_no_limite(cliente_coordenador, liberado, ex
     """SEG-07: resposta chunked sem fim é cortada em 1 MiB (truncado=true) e a execução termina rápido."""
     t0 = time.time()
     _, e, _ = executar(cliente_coordenador, cadeia(cfg_http(f"{liberado.base}/infinito")))
-    s = no(e, "h1").saida
-    assert e.status == "sucesso" and s["truncado"] is True and len(s["corpo"]) <= 1024 * 1024
+    h1 = no(e, "h1")
+    assert e.status == "sucesso" and _truncou(h1) and len(h1.saida[0]["json"]["corpo"]) <= 1024 * 1024  # MV2-12 L2/L13, MV2-22
     assert time.time() - t0 < 15
 
 
@@ -382,8 +392,8 @@ def test_gzip_bomba_300mb_e_truncada_sem_estourar_memoria(cliente_coordenador, l
     """SEG-07: gzip de ~300 MB descompactados é cortado em 1 MiB (truncado) e leva poucos segundos."""
     t0 = time.time()
     _, e, _ = executar(cliente_coordenador, cadeia(cfg_http(f"{liberado.base}/gzip-bomba")))
-    s = no(e, "h1").saida
-    assert s["truncado"] is True and len(s["corpo"]) <= 1024 * 1024 and time.time() - t0 < 15
+    h1 = no(e, "h1")
+    assert _truncou(h1) and len(h1.saida[0]["json"]["corpo"]) <= 1024 * 1024 and time.time() - t0 < 15
 
 
 @pytest.mark.parametrize("caminho", ["/muitos-headers", "/header-enorme"])
@@ -471,3 +481,38 @@ def test_botao_executar_bloqueia_duplo_envio(pagina_coordenador, liberado, clien
     pagina.wait_for_url("**/execucoes/**", timeout=20000)
     assert bloqueado
     assert modelos.Execucao.objects.filter(fluxo=f).count() == 1
+
+
+# ---------- v2 (T-060): SEG-21 e MV2-22 sob ataque ----------
+
+
+def test_segredo_refletido_em_header_e_corpo_da_resposta_e_mascarado(cliente_coordenador, cliente_adm, liberado, executar, cadeia, cfg_http, no):
+    """SEG-21: o servidor remoto devolve o Authorization digitado num header de resposta e no corpo — o valor não fica em
+    claro na saída, em requisicoes[].resposta (headers e corpo) nem nas telas."""
+    g = cadeia(cfg_http(f"{liberado.base}/reflete?token={SEGREDO}", headers=[{"nome": "Authorization", "valor": f"Bearer {SEGREDO}"}]))
+    _, e, _ = executar(cliente_coordenador, g)
+    h1 = no(e, "h1")
+    assert e.status == "sucesso"
+    for bruto in (json.dumps(h1.saida), json.dumps(h1.requisicoes), json.dumps(no(e, "s").entrada)):
+        assert SEGREDO not in bruto
+    for c in (cliente_coordenador, cliente_adm):
+        assert SEGREDO not in _h(c.get(reverse("execucoes:detalhe", kwargs={"pk": e.pk})))
+
+
+def test_resposta_gravada_do_erro_http_e_escapada_na_tela(cliente_coordenador, liberado, executar, cadeia, cfg_http, no):
+    """MV2-22/SEG-13: corpo de erro 4xx/5xx com HTML hostil, gravado em requisicoes[].resposta, aparece ESCAPADO no
+    detalhe (nunca como tag viva)."""
+    g = cadeia(cfg_http(f"{liberado.base}/status-xss"))
+    _, e, _ = executar(cliente_coordenador, g)
+    h1 = no(e, "h1")
+    assert h1.status == "erro" and h1.erro_categoria == "http_5xx"
+    assert "<script>window.__pwn=1</script>" in h1.requisicoes[0]["resposta"]["corpo"]
+    html = _h(cliente_coordenador.get(reverse("execucoes:detalhe", kwargs={"pk": e.pk})))
+    assert "<script>window.__pwn=1</script>" not in html and "<img src=x onerror" not in html
+
+
+def test_corpo_da_resposta_gravada_respeita_o_limite_de_8kb(cliente_coordenador, liberado, executar, cadeia, cfg_http, no):
+    """MV2-22: requisicoes[].resposta.corpo tem até 8 KB e truncado=true quando a resposta é maior (sem 500)."""
+    _, e, _ = executar(cliente_coordenador, cadeia(cfg_http(f"{liberado.base}/grande")))
+    r = no(e, "h1").requisicoes[0]["resposta"]
+    assert len(r["corpo"].encode()) <= 8 * 1024 + 64 and r["truncado"] is True

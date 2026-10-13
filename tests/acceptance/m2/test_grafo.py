@@ -9,6 +9,19 @@ from django.urls import reverse
 
 pytestmark = pytest.mark.django_db
 
+# MV2-02: grafo vazio no contrato v2 (antes: VAZIO).
+VAZIO = {"versao": 2, "nos": [], "arestas": [], "notas": [], "dados_fixos": {}}
+
+
+def _no2(id_, tipo, titulo=None, config=None, x=0, y=0):
+    """Nó v2 completo (MV2-02)."""
+    return {"id": id_, "tipo": tipo, "titulo": titulo or id_, "posicao": {"x": x, "y": y}, "config": config or {},
+            "desativado": False, "executar_uma_vez": False, "em_erro": "parar"}
+
+
+def _ar(de, para, saida=0, entrada=0):
+    return {"de": de, "saida": saida, "para": para, "entrada": entrada}
+
 
 def _Fluxo():
     return apps.get_model("fluxos", "Fluxo")
@@ -33,7 +46,7 @@ def _salvo(f):
 @pytest.mark.parametrize("cliente", ["cliente_adm", "cliente_coordenador"])
 def test_salvar_grafo_valido(request, cliente, fabrica_fluxo, grafo_valido, salvar_grafo):
     """GRF-01: ok=true, pendencias=[], grafo gravado."""
-    f = fabrica_fluxo(grafo={"versao": 1, "nos": [], "arestas": []})
+    f = fabrica_fluxo(grafo=VAZIO)
     r = salvar_grafo(request.getfixturevalue(cliente), f, grafo_valido)
     assert r.status_code == 200
     corpo = r.json()
@@ -44,7 +57,7 @@ def test_salvar_grafo_valido(request, cliente, fabrica_fluxo, grafo_valido, salv
 @pytest.mark.modulo("m2")
 def test_salvar_grafo_permissoes(cliente_base, cliente_anonimo, cliente_adm, fabrica_fluxo, grafo_valido, salvar_grafo):
     """PRM-01/02/03/08: Base 403, anônimo login, pk inexistente 404, GET 405; nada gravado."""
-    f = fabrica_fluxo(status="ativo", grafo={"versao": 1, "nos": [], "arestas": []})
+    f = fabrica_fluxo(status="ativo", grafo=VAZIO)
     assert salvar_grafo(cliente_base, f, grafo_valido).status_code == 403
     r = salvar_grafo(cliente_anonimo, f, grafo_valido)
     assert r.status_code == 302 and r.url.startswith(reverse("login"))
@@ -52,19 +65,19 @@ def test_salvar_grafo_permissoes(cliente_base, cliente_anonimo, cliente_adm, fab
     inexistente = copy.copy(f)
     inexistente.pk = 999999
     assert salvar_grafo(cliente_adm, inexistente, grafo_valido, atualizado_em="2000-01-01T00:00:00+00:00").status_code == 404
-    assert _salvo(f) == {"versao": 1, "nos": [], "arestas": []}
+    assert _salvo(f) == VAZIO
 
 
 @pytest.mark.modulo("m2")
 def test_salvar_grafo_exige_csrf(usuario_adm, fabrica_fluxo, grafo_valido):
     """GRF-01/SEG-12: sem X-CSRFToken → 403; com token válido → 200."""
     from django.test import Client
-    f = fabrica_fluxo(grafo={"versao": 1, "nos": [], "arestas": []})
+    f = fabrica_fluxo(grafo=VAZIO)
     c = Client(enforce_csrf_checks=True)
     c.force_login(usuario_adm)
     corpo = json.dumps({"grafo": grafo_valido, "atualizado_em": f.atualizado_em.isoformat()})
     assert c.post(_url(f), corpo, content_type="application/json").status_code == 403
-    assert _salvo(f) == {"versao": 1, "nos": [], "arestas": []}
+    assert _salvo(f) == VAZIO
     token = re.search(r'name="csrfmiddlewaretoken" value="([^"]+)"',
                       c.get(reverse("fluxos:lista")).content.decode())
     if token is None:
@@ -83,7 +96,10 @@ def _mut(fn):
 
 
 FORMATO = {
-    "versao_2": _mut(lambda g: g.update(versao=2)),
+    # MV2-12 L3: a versao 2 passou a ser válida; "outra" versão → 400.
+    "versao_3": _mut(lambda g: g.update(versao=3)),
+    "versao_0": _mut(lambda g: g.update(versao=0)),
+    "versao_texto": _mut(lambda g: g.update(versao="2")),
     "sem_versao": _mut(lambda g: g.pop("versao")),
     "tipo_desconhecido": _mut(lambda g: g["nos"][1].update(tipo="python")),
     "id_repetido": _mut(lambda g: g["nos"][2].update(id="n1")),
@@ -91,9 +107,15 @@ FORMATO = {
     "id_vazio": _mut(lambda g: g["nos"][0].update(id="")),
     "id_41_caracteres": _mut(lambda g: g["nos"][0].update(id="a" * 41)),
     "id_com_barra": _mut(lambda g: g["nos"][0].update(id="a/b")),
-    "aresta_para_inexistente": _mut(lambda g: g["arestas"].append({"de": "n1", "para": "zzz"})),
-    "aresta_de_inexistente": _mut(lambda g: g["arestas"].append({"de": "zzz", "para": "n1"})),
-    "nos_nao_e_lista": _mut(lambda g: g.update(nos="n1")),
+    # MV2-12 L3: aresta para/de nó inexistente deixou de ser FORMATO (400); agora é PENDÊNCIA (ver
+    # test_ligacao_para_no_inexistente_e_pendencia). Aqui fica o formato de verdade da aresta v2:
+    "aresta_saida_negativa": _mut(lambda g: g["arestas"][0].update(saida=-1)),
+    "aresta_entrada_texto": _mut(lambda g: g["arestas"][0].update(entrada="0")),
+    "em_erro_invalido": _mut(lambda g: g["nos"][1].update(em_erro="ignorar")),
+    "desativado_texto": _mut(lambda g: g["nos"][1].update(desativado="sim")),
+    "nota_cor_invalida": _mut(lambda g: g["notas"].append(
+        {"id": "t1", "texto": "x", "posicao": {"x": 0, "y": 0}, "tamanho": {"l": 1, "a": 1}, "cor": "roxa"})),
+    "dados_fixos_nao_objeto": _mut(lambda g: g.update(dados_fixos=[])),    "nos_nao_e_lista": _mut(lambda g: g.update(nos="n1")),
     "arestas_nao_e_lista": _mut(lambda g: g.update(arestas={"de": "n1"})),
     "titulo_numero": _mut(lambda g: g["nos"][0].update(titulo=123)),
     "posicao_texto": _mut(lambda g: g["nos"][0].update(posicao={"x": "a", "y": 1})),
@@ -133,30 +155,124 @@ def test_corpo_malformado_400(bruto, cliente_adm, fabrica_fluxo, salvar_grafo):
 
 
 @pytest.mark.modulo("m2")
-def test_payload_acima_de_256kb_400(cliente_adm, fabrica_fluxo, grafo_valido, salvar_grafo):
-    """GRF-02/SEG-14: payload > 256 KB → 400 e nada gravado."""
+def test_payload_acima_de_2mb_400_e_entre_256kb_e_2mb_aceito(cliente_adm, fabrica_fluxo, grafo_valido, salvar_grafo):
+    """MV2-02 (substitui o limite de 256 KB da GRF-02/SEG-14): payload > 2 MB → 400 e nada gravado; 300 KB
+    (que o v1 recusava) agora é aceito."""
     f = fabrica_fluxo()
     antes = copy.deepcopy(f.grafo)
-    _http(grafo_valido)["titulo"] = "t" * (270 * 1024)
-    r = salvar_grafo(cliente_adm, f, grafo_valido)
+    grande = copy.deepcopy(grafo_valido)
+    grande["dados_fixos"] = {"n2": [{"json": {"x": "t" * (2100 * 1024)}}]}
+    r = salvar_grafo(cliente_adm, f, grande)
     assert r.status_code == 400
     assert _salvo(f) == antes
+    medio = copy.deepcopy(grafo_valido)
+    medio["dados_fixos"] = {"n2": [{"json": {"x": "t" * (300 * 1024)}}]}
+    r = salvar_grafo(cliente_adm, f, medio)
+    assert r.status_code == 200 and r.json()["ok"] is True
 
 
 @pytest.mark.modulo("m2")
-def test_mais_de_50_nos_400_e_50_aceito(cliente_adm, fabrica_fluxo, grafo_valido, salvar_grafo):
-    """GRF-02: 51 nós → 400; exatamente 50 → aceito como formato (pendências não impedem salvar)."""
+def test_mais_de_200_nos_400_e_200_aceito(cliente_adm, fabrica_fluxo, grafo_valido, salvar_grafo):
+    """MV2-02 (substitui o limite de 50 nós da GRF-02): 201 nós → 400; exatamente 200 → aceito como formato
+    (pendências não impedem salvar)."""
     f = fabrica_fluxo()
+
     def com_n(n):
         g = copy.deepcopy(grafo_valido)
-        g["nos"] += [{"id": f"x{i}", "tipo": "saida", "titulo": "S", "posicao": {"x": 0, "y": 0}, "config": {}}
-                     for i in range(n - 3)]
+        g["nos"] += [_no2(f"x{i}", "saida", titulo=f"S{i}") for i in range(n - 3)]
         return g
     antes = copy.deepcopy(f.grafo)
-    assert salvar_grafo(cliente_adm, f, com_n(51)).status_code == 400
+    assert salvar_grafo(cliente_adm, f, com_n(201)).status_code == 400
     assert _salvo(f) == antes
-    r = salvar_grafo(cliente_adm, f, com_n(50))
+    r = salvar_grafo(cliente_adm, f, com_n(200))
     assert r.status_code == 200 and r.json()["ok"] is True
+
+
+@pytest.mark.modulo("m2")
+def test_limites_de_arestas_e_notas(cliente_adm, fabrica_fluxo, grafo_valido, salvar_grafo):
+    """MV2-02: 401 arestas → 400, 400 → aceito; 101 notas → 400, 100 → aceito."""
+    f = fabrica_fluxo()
+    antes = copy.deepcopy(f.grafo)
+
+    def com_arestas(n):
+        g = copy.deepcopy(grafo_valido)
+        g["arestas"] = [_ar("n1", "n2")] * n
+        return g
+
+    def com_notas(n):
+        g = copy.deepcopy(grafo_valido)
+        g["notas"] = [{"id": f"t{i}", "texto": "x", "posicao": {"x": 0, "y": 0}, "tamanho": {"l": 1, "a": 1},
+                       "cor": "cinza"} for i in range(n)]
+        return g
+    assert salvar_grafo(cliente_adm, f, com_arestas(401)).status_code == 400
+    assert salvar_grafo(cliente_adm, f, com_notas(101)).status_code == 400
+    assert _salvo(f) == antes
+    assert salvar_grafo(cliente_adm, f, com_arestas(400)).status_code == 200
+    assert salvar_grafo(cliente_adm, f, com_notas(100)).status_code == 200
+
+
+@pytest.mark.modulo("m2")
+def test_nota_texto_5000_aceito_e_5001_400(cliente_adm, fabrica_fluxo, grafo_valido, salvar_grafo):
+    """MV2-02 (limite do texto da nota: ≤ 5000)."""
+    f = fabrica_fluxo()
+
+    def com_texto(n):
+        g = copy.deepcopy(grafo_valido)
+        g["notas"] = [{"id": "t1", "texto": "a" * n, "posicao": {"x": 0, "y": 0}, "tamanho": {"l": 1, "a": 1},
+                       "cor": "verde"}]
+        return g
+    assert salvar_grafo(cliente_adm, f, com_texto(5001)).status_code == 400
+    assert salvar_grafo(cliente_adm, f, com_texto(5000)).status_code == 200
+
+
+# ---------- MV2-03 / MV2-12 L3: versao 1 convertida, versao 2 aceita ----------
+
+@pytest.mark.modulo("m2")
+def test_salvar_v1_converte_e_grava_v2(cliente_adm, fabrica_fluxo, grafo_valido_v1, salvar_grafo):
+    """MV2-03 / MV2-12 L3: salvar_grafo aceita versao 1, converte (saida=0/entrada=0, campos novos com padrão,
+    corpo string vazia → {"tipo": "nenhum"}) e grava versao 2, sem pendências."""
+    f = fabrica_fluxo()
+    r = salvar_grafo(cliente_adm, f, grafo_valido_v1)
+    assert r.status_code == 200 and r.json()["ok"] is True and r.json()["pendencias"] == []
+    g = _salvo(f)
+    assert g["versao"] == 2 and g["notas"] == [] and g["dados_fixos"] == {}
+    assert g["arestas"] == [_ar("n1", "n2"), _ar("n2", "n3")]
+    for n in g["nos"]:
+        assert n["desativado"] is False and n["executar_uma_vez"] is False and n["em_erro"] == "parar"
+    assert g["nos"][1]["config"]["corpo"] == {"tipo": "nenhum", "conteudo": ""}
+
+
+@pytest.mark.modulo("m2")
+def test_salvar_v1_reescreve_anterior_e_marca_resposta_completa(cliente_adm, fabrica_fluxo, grafo_valido_v1,
+                                                                  salvar_grafo):
+    """MV2-03 / MV2-12 L1: `{{ anterior.corpo.id }}` vira `{{ $json.corpo.id }}` e o nó HTTP migrado ganha
+    resposta_completa=true (mesmo significado, sem pendência)."""
+    f = fabrica_fluxo()
+    grafo_valido_v1["nos"][1]["config"]["url"] = "https://api.exemplo.test/pedidos/{{ anterior.corpo.id }}"
+    grafo_valido_v1["nos"][1]["config"].update(metodo="POST", corpo='{"s": "{{ anterior.status }}"}')
+    r = salvar_grafo(cliente_adm, f, grafo_valido_v1)
+    assert r.status_code == 200 and r.json()["pendencias"] == []
+    cfg = _salvo(f)["nos"][1]["config"]
+    assert cfg["url"] == "https://api.exemplo.test/pedidos/{{ $json.corpo.id }}"
+    assert cfg["corpo"] == {"tipo": "json", "conteudo": '{"s": "{{ $json.status }}"}'}
+    assert cfg["resposta_completa"] is True
+
+
+@pytest.mark.modulo("m2")
+def test_editor_abre_grafo_v1_ja_convertido(cliente_adm, fabrica_fluxo, grafo_valido_v1):
+    """MV2-03: fluxo gravado em v1 é convertido ao ABRIR (o json_script do editor vem em versao 2)."""
+    f = fabrica_fluxo(grafo=grafo_valido_v1)
+    html = cliente_adm.get(reverse("fluxos:editor", kwargs={"pk": f.pk})).content.decode()
+    m = re.search(r'<script id="grafo-inicial" type="application/json">(.*?)</script>', html, re.S)
+    assert m and json.loads(m.group(1))["versao"] == 2
+
+
+@pytest.mark.modulo("m2")
+def test_salvar_v2_valido_continua_aceito(cliente_adm, fabrica_fluxo, grafo_valido, salvar_grafo):
+    """MV2-12 L3: versao 2 é aceita e gravada como veio."""
+    f = fabrica_fluxo(grafo=VAZIO)
+    assert salvar_grafo(cliente_adm, f, grafo_valido).status_code == 200
+    assert _salvo(f) == grafo_valido
 
 
 @pytest.mark.modulo("m2")
@@ -180,21 +296,73 @@ def _sem(grafo, tipo):
 
 
 def _no(id_, tipo, config=None):
-    return {"id": id_, "tipo": tipo, "titulo": id_, "posicao": {"x": 0, "y": 0}, "config": config or {}}
+    return _no2(id_, tipo, config=config)
 
 
+# v2 (MV2-12 L4, GRF-03 revisada): exatamente 1 gatilho; nó sem caminho a partir do gatilho; ciclo (exceto o retorno
+# do Repetir em lotes); gatilho com entrada; Saída com aresta de saída. Mais as de MV2-14 (6)/MV2-12 L3.
 PENDENCIAS = {
     "sem_gatilho": lambda g: _sem(g, "gatilho"),
-    "dois_gatilhos": lambda g: (g["nos"].append(_no("g2", "gatilho")), g["arestas"].append({"de": "g2", "para": "n2"}), g)[-1],
-    "sem_saida": lambda g: _sem(g, "saida"),
+    "dois_gatilhos": lambda g: (g["nos"].append(_no("g2", "gatilho")), g["arestas"].append(_ar("g2", "n2")), g)[-1],
     "no_solto": lambda g: (g["nos"].append(_no("solto", "saida")), g)[-1],
-    "ciclo": lambda g: (g["arestas"].append({"de": "n3", "para": "n2"}), g)[-1],
-    "duas_saidas_de_um_no": lambda g: (g["nos"].append(_no("s2", "saida")), g["arestas"].append({"de": "n2", "para": "s2"}), g)[-1],
-    "duas_entradas_em_um_no": lambda g: (g["nos"].append(_no("g2", "gatilho")), g["arestas"].append({"de": "g2", "para": "n3"}), g)[-1],
-    "gatilho_com_entrada": lambda g: (g["arestas"].append({"de": "n2", "para": "n1"}), g)[-1],
-    "saida_com_saida": lambda g: (g["nos"].append(_no("s2", "saida")), g["arestas"].append({"de": "n3", "para": "s2"}), g)[-1],
-    "grafo_vazio": lambda g: {"versao": 1, "nos": [], "arestas": []},
+    "ciclo": lambda g: (g["nos"].extend([_no("c1", "sem_operacao"), _no("c2", "sem_operacao")]),
+                        g["arestas"].extend([_ar("n2", "c1"), _ar("c1", "c2"), _ar("c2", "c1")]), g)[-1],
+    "gatilho_com_entrada": lambda g: (g["arestas"].append(_ar("n2", "n1")), g)[-1],
+    "saida_com_saida": lambda g: (g["nos"].append(_no("s2", "saida")), g["arestas"].append(_ar("n3", "s2")), g)[-1],
+    "grafo_vazio": lambda g: copy.deepcopy(VAZIO),
+    "titulo_duplicado": lambda g: (g["nos"][2].update(titulo=g["nos"][1]["titulo"]), g)[-1],
+    "ligacao_para_saida_que_o_no_nao_tem": lambda g: (g["arestas"].append(_ar("n2", "n3", saida=5)), g)[-1],
+    "dados_fixos_de_no_inexistente": lambda g: (g["dados_fixos"].update(zzz=[{"json": {"a": 1}}]), g)[-1],
 }
+
+# MV2-12 L3: "aresta para nó/alça inexistente = PENDÊNCIA (200)" (no v1 era FORMATO 400, GRF-02).
+LIGACAO_INEXISTENTE = {
+    "para_no_inexistente": lambda g: (g["arestas"].append(_ar("n2", "zzz")), g)[-1],
+    "de_no_inexistente": lambda g: (g["arestas"].append(_ar("zzz", "n3")), g)[-1],
+}
+
+
+@pytest.mark.modulo("m2")
+@pytest.mark.parametrize("nome", sorted(LIGACAO_INEXISTENTE))
+def test_ligacao_para_no_inexistente_e_pendencia(nome, cliente_coordenador, fabrica_fluxo, grafo_valido,
+                                                 salvar_grafo):
+    """MV2-12 L3 (revoga o 400 da GRF-02 para aresta com nó inexistente): 200 ok=true com pendência; grava;
+    não ativa."""
+    f = fabrica_fluxo()
+    g = LIGACAO_INEXISTENTE[nome](grafo_valido)
+    r = salvar_grafo(cliente_coordenador, f, g)
+    assert r.status_code == 200, nome
+    assert r.json()["ok"] is True and r.json()["pendencias"]
+    assert _salvo(f) == g
+    a = cliente_coordenador.post(reverse("fluxos:status", kwargs={"pk": f.pk}), {"status": "ativo"},
+                                 HTTP_ACCEPT="application/json")
+    assert a.status_code == 400
+
+
+# Deixaram de ser pendência no v2 (MV2-12 L4: "Nó Saída deixa de ser obrigatório; fan-out e várias entradas são
+# permitidos"): eram sem_saida, duas_saidas_de_um_no e duas_entradas_em_um_no no v1 (GRF-03).
+NAO_PENDENCIAS = {
+    "sem_saida": lambda g: _sem(g, "saida"),
+    "fan_out": lambda g: (g["nos"].append(_no2("s2", "saida", titulo="S2", x=700, y=300)),
+                          g["arestas"].append(_ar("n2", "s2")), g)[-1],
+    "varias_entradas": lambda g: (g["nos"].append(_no2("n4", "sem_operacao", titulo="Outro", x=360, y=300)),
+                                  g["arestas"].extend([_ar("n1", "n4"), _ar("n4", "n3")]), g)[-1],
+}
+
+
+@pytest.mark.modulo("m2")
+@pytest.mark.parametrize("nome", sorted(NAO_PENDENCIAS))
+def test_v2_nao_e_mais_pendencia(nome, cliente_coordenador, fabrica_fluxo, grafo_valido, salvar_grafo):
+    """MV2-12 L4 (revoga GRF-03: saída obrigatória, 1 entrada/1 saída por nó): sem Saída, fan-out e várias
+    entradas salvam sem pendências e o fluxo pode ser ativado."""
+    f = fabrica_fluxo()
+    r = salvar_grafo(cliente_coordenador, f, NAO_PENDENCIAS[nome](grafo_valido))
+    assert r.status_code == 200 and r.json()["pendencias"] == [], nome
+    a = cliente_coordenador.post(reverse("fluxos:status", kwargs={"pk": f.pk}), {"status": "ativo"},
+                                 HTTP_ACCEPT="application/json")
+    assert a.status_code == 200, nome
+    f.refresh_from_db()
+    assert f.status == "ativo"
 
 
 @pytest.mark.modulo("m2")
@@ -232,7 +400,8 @@ def test_pendencia_aponta_o_no(cliente_coordenador, fabrica_fluxo, grafo_valido,
     corpo = salvar_grafo(cliente_coordenador, f, grafo_valido).json()
     assert any(p["no"] == "n2" for p in corpo["pendencias"])
     f2 = fabrica_fluxo()
-    corpo = salvar_grafo(cliente_coordenador, f2, _sem(copy.deepcopy(grafo_valido), "saida")).json()
+    # v2 (MV2-12 L4): sem Saída não é mais pendência; a global (no=None) agora é "exatamente um gatilho".
+    corpo = salvar_grafo(cliente_coordenador, f2, _sem(copy.deepcopy(grafo_valido), "gatilho")).json()
     assert any(p["no"] is None for p in corpo["pendencias"])
 
 
@@ -270,10 +439,12 @@ CONFIG_INVALIDA = {
     "header_valor_com_crlf": _cfg(headers=[{"nome": "X", "valor": "a\r\nInjetado: 1"}]),
     "header_valor_4097": _cfg(headers=[{"nome": "X", "valor": "v" * 4097}]),
     "query_valor_com_lf": _cfg(query=[{"nome": "q", "valor": "a\nb"}]),
-    "corpo_json_invalido": _cfg(metodo="POST", corpo="{nao json"),
-    "corpo_em_get": _cfg(metodo="GET", corpo='{"a": 1}'),
-    "corpo_em_delete": _cfg(metodo="DELETE", corpo='{"a": 1}'),
-    "corpo_acima_de_100kb": _cfg(metodo="POST", corpo=json.dumps({"a": "x" * (101 * 1024)})),
+    # NOV-05/MV2-14 (1): o corpo v2 é {"tipo", "conteudo"} (antes: string); GRF-04 segue valendo para o conteúdo json.
+    "corpo_json_invalido": _cfg(metodo="POST", corpo={"tipo": "json", "conteudo": "{nao json"}),
+    "corpo_em_get": _cfg(metodo="GET", corpo={"tipo": "json", "conteudo": '{"a": 1}'}),
+    "corpo_em_delete": _cfg(metodo="DELETE", corpo={"tipo": "json", "conteudo": '{"a": 1}'}),
+    "corpo_acima_de_100kb": _cfg(metodo="POST",
+                                 corpo={"tipo": "json", "conteudo": json.dumps({"a": "x" * (101 * 1024)})}),
     "titulo_vazio": _titulo(""),
     "titulo_81": _titulo("t" * 81),
 }
@@ -295,13 +466,13 @@ def test_config_invalida_vira_pendencia_no_no(nome, cliente_coordenador, fabrica
 VALIDAS = {
     "url_http_maiusculo": _cfg(url="HTTP://api.exemplo.test/x"),
     "url_https_misto": _cfg(url="HtTpS://api.exemplo.test/x"),
-    "url_com_placeholder": _cfg(url="https://api.exemplo.test/pedidos/{{ anterior.corpo.id }}"),
+    "url_com_placeholder": _cfg(url="https://api.exemplo.test/pedidos/{{ $json.id }}"),  # MV2-03: anterior → $json
     "url_2048": _cfg(url="https://exemplo.test/" + "a" * (2048 - 21)),
     "headers_30": _cfg(headers=[{"nome": f"H{i}", "valor": "v"} for i in range(30)]),
     "header_valor_4096": _cfg(headers=[{"nome": "X", "valor": "v" * 4096}]),
-    "post_com_corpo_json": _cfg(metodo="POST", corpo='{"a": "{{ anterior.status }}"}'),
-    "put_corpo_vazio": _cfg(metodo="PUT", corpo=""),
-    "patch_com_corpo": _cfg(metodo="PATCH", corpo='{"x": 1}'),
+    "post_com_corpo_json": _cfg(metodo="POST", corpo={"tipo": "json", "conteudo": '{"a": "{{ $json.status }}"}'}),
+    "put_corpo_vazio": _cfg(metodo="PUT", corpo={"tipo": "nenhum", "conteudo": ""}),
+    "patch_com_corpo": _cfg(metodo="PATCH", corpo={"tipo": "json", "conteudo": '{"x": 1}'}),
     "titulo_80": _titulo("t" * 80),
     "titulo_unicode": _titulo("Consulta ção 😀"),
 }

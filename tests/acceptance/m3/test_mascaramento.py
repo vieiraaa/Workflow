@@ -24,29 +24,47 @@ def _h(r):
     return r.content.decode()
 
 
+# T-060 (migração v2): com o nó HTTP em resposta_completa=true (MV2-12 L1), a SAÍDA é [{"json": {status, headers, corpo}}]
+# e a requisição enviada (mascarada, SEG-09) fica em ExecucaoNo.requisicoes[] (MV2-15 B10) com a resposta em
+# requisicoes[].resposta (MV2-22). O que o v1 chamava de "entrada gravada" do nó HTTP é requisicoes[].
+def _j(n):
+    assert len(n.saida) == 1, n.saida
+    return n.saida[0]["json"]
+
+
 @pytest.mark.modulo("m3")
 def test_headers_sensiveis_mascarados_na_entrada_mas_enviados_de_verdade(cliente_coordenador, liberado, executar, cadeia, cfg_http, no):
-    """SEG-09: headers sensíveis (nomes da lista e qualquer nome com token/secret/senha/password/api-key) → '••••' na entrada; o valor real vai ao servidor."""
+    """SEG-09: headers sensíveis (nomes da lista e qualquer nome com token/secret/senha/password/api-key) → '••••' na
+    requisição gravada (MV2-15 B10: requisicoes[].headers); o valor real vai ao servidor. SEG-21: o valor digitado
+    (≥ 4 caracteres) refletido pelo servidor também sai mascarado da saída e de requisicoes[].resposta."""
     hs = [{"nome": n, "valor": f"SEGREDO-{i}"} for i, n in enumerate(HEADERS_SENSIVEIS)] + [{"nome": "X-Publico", "valor": "visivel-ok"}]
     _, e, _ = executar(cliente_coordenador, cadeia(cfg_http(f"{liberado.base}/eco", headers=hs)))
-    entrada = {h["nome"]: h["valor"] for h in no(e, "h1").entrada["headers"]}
+    h1 = no(e, "h1")
+    assert len(h1.requisicoes) == 1
+    entrada = {h["nome"]: h["valor"] for h in h1.requisicoes[0]["headers"]}
     for n in HEADERS_SENSIVEIS:
         assert entrada[n] == MASCARA, n
     assert entrada["X-Publico"] == "visivel-ok"
     enviados = liberado.requisicoes[-1]["headers"]
     assert enviados["authorization"] == "SEGREDO-0" and enviados["x-api-key"].startswith("SEGREDO-")
+    # SEG-21: o /eco devolve os headers no corpo; os valores digitados não podem ficar em claro em lugar nenhum.
+    assert "SEGREDO-" not in json.dumps(h1.requisicoes) and "SEGREDO-" not in json.dumps(h1.saida)
+    assert _j(h1)["corpo"]["headers"]["x-publico"] == "visivel-ok"
 
 
 @pytest.mark.modulo("m3")
 def test_query_sensivel_mascarada_na_entrada_e_na_url_gravada(cliente_coordenador, liberado, executar, cadeia, cfg_http, no):
-    """SEG-09: parâmetros de query sensíveis mascarados na entrada gravada (lista e URL final); o valor real vai ao servidor."""
+    """SEG-09: parâmetros de query sensíveis mascarados na requisição gravada (requisicoes[].query e url, MV2-15 B10);
+    o valor real vai ao servidor. SEG-21: o valor refletido (/eco devolve a query) também sai mascarado."""
     q = [{"nome": n, "valor": f"QSEGREDO-{i}"} for i, n in enumerate(QUERY_SENSIVEIS)] + [{"nome": "busca", "valor": "livre"}]
     _, e, _ = executar(cliente_coordenador, cadeia(cfg_http(f"{liberado.base}/eco", query=q)))
     h1 = no(e, "h1")
-    entrada = {p["nome"]: p["valor"] for p in h1.entrada["query"]}
+    assert len(h1.requisicoes) == 1
+    entrada = {p["nome"]: p["valor"] for p in h1.requisicoes[0]["query"]}
     for n in QUERY_SENSIVEIS:
         assert entrada[n] == MASCARA, n
     assert entrada["busca"] == "livre"
+    assert "QSEGREDO" not in json.dumps(h1.requisicoes) and "QSEGREDO" not in json.dumps(h1.saida)  # SEG-21
     assert "QSEGREDO" not in json.dumps(h1.entrada)
     assert "QSEGREDO-0" in liberado.requisicoes[-1]["path"]
 
@@ -55,12 +73,14 @@ def test_query_sensivel_mascarada_na_entrada_e_na_url_gravada(cliente_coordenado
 def test_headers_sensiveis_da_resposta_mascarados_na_saida(cliente_coordenador, liberado, executar, cadeia, cfg_http, no):
     """SEG-09: Set-Cookie, X-Api-Key e qualquer header com 'token' na RESPOSTA → '••••' na saída; header público fica."""
     _, e, _ = executar(cliente_coordenador, cadeia(cfg_http(f"{liberado.base}/cabecalhos")))
-    saida = no(e, "h1").saida
-    assert saida["headers"]["set-cookie"] == MASCARA
-    assert saida["headers"]["x-api-key"] == MASCARA
-    assert saida["headers"]["x-token-interno"] == MASCARA
-    assert saida["headers"]["x-publico"] == "visivel"
-    assert "SEGREDO" not in json.dumps(no(e, "s").saida)
+    h1 = no(e, "h1")
+    saida = _j(h1)  # MV2-12 L1: resposta_completa → {status, headers, corpo}
+    for hs in (saida["headers"], h1.requisicoes[0]["resposta"]["headers"]):  # MV2-22: também na resposta gravada
+        assert hs["set-cookie"] == MASCARA
+        assert hs["x-api-key"] == MASCARA
+        assert hs["x-token-interno"] == MASCARA
+        assert hs["x-publico"] == "visivel"
+    assert "SEGREDO" not in json.dumps(no(e, "s").saida) and "SEGREDO" not in json.dumps(h1.requisicoes)
 
 
 @pytest.mark.modulo("m3")
@@ -79,9 +99,10 @@ def test_nenhuma_tela_mostra_segredo(cliente_coordenador, cliente_adm, liberado,
 @pytest.mark.modulo("m3")
 def test_placeholder_em_header_sensivel_tambem_e_mascarado(cliente_coordenador, liberado, executar, cadeia, cfg_http, no):
     """SEG-09/EXE-12: valor vindo de placeholder num header sensível é gravado mascarado (entrada já resolvida)."""
-    g = cadeia(cfg_http(f"{liberado.base}/valores"), cfg_http(f"{liberado.base}/eco", headers=[{"nome": "Authorization", "valor": "Bearer {{ anterior.corpo.v }}"}]))
+    g = cadeia(cfg_http(f"{liberado.base}/valores"), cfg_http(f"{liberado.base}/eco", headers=[{"nome": "Authorization", "valor": "Bearer {{ $json.corpo.v }}"}]))  # MV2-03: anterior → $json
     _, e, _ = executar(cliente_coordenador, g)
-    assert no(e, "h2").entrada["headers"] == [{"nome": "Authorization", "valor": MASCARA}]
+    # MV2-15 B10: a requisição já resolvida e mascarada fica em requisicoes[]
+    assert no(e, "h2").requisicoes[0]["headers"] == [{"nome": "Authorization", "valor": MASCARA}]
 
 
 @pytest.mark.modulo("m3")
@@ -155,8 +176,49 @@ def test_grafo_snapshot_tambem_e_mascarado(cliente_coordenador, liberado, execut
 
 
 @pytest.mark.modulo("m3")
-def test_segredo_refletido_no_corpo_da_resposta_nao_e_mascarado(cliente_coordenador, liberado, executar, cadeia, cfg_http, no):
-    """SEG-16.6: limitação documentada — só headers e query são mascarados; o corpo remoto é gravado como veio."""
-    g = cadeia(cfg_http(f"{liberado.base}/eco", headers=[{"nome": "X-Publico", "valor": "ECO-NO-CORPO"}]))
+def test_segredo_digitado_refletido_no_corpo_da_resposta_e_mascarado_por_valor(cliente_coordenador, cliente_adm, liberado, executar, cadeia, cfg_http, no):
+    """SEG-21 (SUBSTITUI o teste da SEG-16 item 6, que afirmava que o segredo refletido NÃO era mascarado): valores
+    digitados em header/query sensíveis — inclusive na query da própria url — com ≥ 4 caracteres são mascarados POR VALOR
+    ('••••') onde reaparecerem: saída do nó, requisicoes[].resposta (headers e corpo) e tela. Header público refletido
+    continua visível (SEG-09 só cobre os sensíveis)."""
+    g = cadeia(cfg_http(f"{liberado.base}/eco?token=SEGREDO-NA-URL-77",
+                        headers=[{"nome": "Authorization", "valor": "Bearer SEGREDO-REFLETIDO-123"},
+                                 {"nome": "X-Api-Key", "valor": "SEGREDO-APIKEY-456"},
+                                 {"nome": "X-Publico", "valor": "ECO-NO-CORPO"}],
+                        query=[{"nome": "password", "valor": "SEGREDO-QUERY-789"}]))
     _, e, _ = executar(cliente_coordenador, g)
-    assert no(e, "h1").saida["corpo"]["headers"]["x-publico"] == "ECO-NO-CORPO"
+    h1 = no(e, "h1")
+    assert e.status == "sucesso"
+    segredos = ("SEGREDO-REFLETIDO-123", "SEGREDO-APIKEY-456", "SEGREDO-QUERY-789", "SEGREDO-NA-URL-77")
+    # o servidor recebeu os valores reais (o mascaramento é só na gravação)
+    assert liberado.requisicoes[-1]["headers"]["x-api-key"] == "SEGREDO-APIKEY-456"
+    for onde, bruto in (("saida", json.dumps(h1.saida)), ("requisicoes", json.dumps(h1.requisicoes)),
+                        ("saida do nó Saída", json.dumps(no(e, "s").saida)), ("entrada do nó Saída", json.dumps(no(e, "s").entrada))):
+        for seg in segredos:
+            assert seg not in bruto, (onde, seg)
+    corpo = _j(h1)["corpo"]
+    assert MASCARA in json.dumps(corpo, ensure_ascii=False)
+    assert corpo["headers"]["x-publico"] == "ECO-NO-CORPO"
+    assert MASCARA in h1.requisicoes[0]["resposta"]["corpo"]
+    for c in (cliente_coordenador, cliente_adm):
+        h = _h(c.get(reverse("execucoes:detalhe", kwargs={"pk": e.pk})))
+        for seg in segredos:
+            assert seg not in h, seg
+        assert MASCARA in h
+
+
+@pytest.mark.modulo("m3")
+def test_mascara_por_valor_so_a_partir_de_4_caracteres(cliente_coordenador, liberado, executar, cadeia, cfg_http, no):
+    """SEG-21 (limite): valor digitado com 4 caracteres é mascarado por valor onde reaparecer; com 3 não é (o header
+    segue mascarado POR NOME em requisicoes[].headers, SEG-09)."""
+    g = cadeia(cfg_http(f"{liberado.base}/eco", headers=[{"nome": "X-Api-Key", "valor": "Zq7"}, {"nome": "X-Token", "valor": "Yw8L"},
+                                                          {"nome": "X-Publico-A", "valor": "Zq7"}, {"nome": "X-Publico-B", "valor": "Yw8L"}]))
+    _, e, _ = executar(cliente_coordenador, g)
+    h1 = no(e, "h1")
+    hs = {h["nome"]: h["valor"] for h in h1.requisicoes[0]["headers"]}
+    assert hs["X-Api-Key"] == MASCARA and hs["X-Token"] == MASCARA
+    # o /eco devolve os headers; os públicos só podem ser escondidos por VALOR (nome não sensível)
+    refletido = _j(h1)["corpo"]["headers"]
+    assert refletido["x-publico-a"] == "Zq7"  # 3 caracteres: sem mascaramento por valor
+    assert refletido["x-publico-b"] == MASCARA  # 4 caracteres: mascarado por valor
+    assert "Yw8L" not in json.dumps(h1.saida) and "Yw8L" not in json.dumps(h1.requisicoes)

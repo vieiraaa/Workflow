@@ -68,6 +68,11 @@ class _Handler(BaseHTTPRequestHandler):
                 "num": 7,
             }
             self._enviar(200, json.dumps(valores).encode(), {**json_h, "X-Marcador": "ABC"})
+        elif caminho == "/reflete":
+            auth = self.headers.get("Authorization", "")
+            self._enviar(200, json.dumps({"auth": auth, "path": self.path}).encode(), {**json_h, "X-Eco-Auth": auth})
+        elif caminho == "/status-xss":
+            self._enviar(500, b"<script>window.__pwn=1</script><img src=x onerror=window.__pwn=1>", {"Content-Type": "text/html"})
         elif caminho == "/alvo":
             self._enviar(200, json.dumps({"v": parse_qs(partes.query).get("v", [""])[0]}).encode(), json_h)
         elif caminho == "/infinito":
@@ -199,15 +204,21 @@ def liberado(servidor, settings):
 
 
 def _no(id_, tipo, config=None, x=0):
-    return {"id": id_, "tipo": tipo, "titulo": id_.upper(), "posicao": {"x": x, "y": 0}, "config": config or {}}
+    """Nó v2 (MV2-02): os campos novos com o padrão."""
+    return {"id": id_, "tipo": tipo, "titulo": id_.upper(), "posicao": {"x": x, "y": 0}, "config": config or {},
+            "desativado": False, "executar_uma_vez": False, "em_erro": "parar"}
 
 
 def _cfg_http(url, metodo="GET", headers=None, query=None, corpo=""):
-    return {"metodo": metodo, "url": url, "headers": headers or [], "query": query or [], "corpo": corpo}
+    """Config HTTP v2 (NOV-05). `corpo` string vira {"tipo": "json", ...} (MV2-14 (1)). `resposta_completa=True`
+    reproduz a saída do v1 ({status, headers, corpo}), como a migração v1→v2 marca os nós (MV2-12 L1)."""
+    return {"metodo": metodo, "url": url, "headers": headers or [], "query": query or [],
+            "corpo": {"tipo": "json", "conteudo": corpo} if corpo else {"tipo": "nenhum", "conteudo": ""},
+            "credencial": None, "resposta": "automatica", "paginacao": None, "resposta_completa": True}
 
 
 def _cadeia(*configs_http):
-    """gatilho → http1 → http2 … → saida (ids g, h1.., s)."""
+    """gatilho → http1 → http2 … → saida (ids g, h1.., s), grafo v2."""
     nos = [_no("g", "gatilho")]
     ids = ["g"]
     for i, c in enumerate(configs_http, 1):
@@ -215,7 +226,9 @@ def _cadeia(*configs_http):
         ids.append(f"h{i}")
     nos.append(_no("s", "saida", x=900))
     ids.append("s")
-    return {"versao": 1, "nos": nos, "arestas": [{"de": a, "para": b} for a, b in zip(ids, ids[1:], strict=False)]}
+    return {"versao": 2, "nos": nos,
+            "arestas": [{"de": a, "saida": 0, "para": b, "entrada": 0} for a, b in zip(ids, ids[1:], strict=False)],
+            "notas": [], "dados_fixos": {}}
 
 
 @pytest.fixture

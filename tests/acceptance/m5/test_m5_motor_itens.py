@@ -167,6 +167,8 @@ def _grafo_falha_por_item(h, em_erro, alca=False):
     ars = [("g", "d"), ("d", "c"), ("c", "bons")]
     if alca:
         ars.append(h.aresta("c", "falhas", 1, 0))
+    else:  # sem a alça de erro, "falhas" ficaria solto (pendência "nó solto", MV2-12 L4): liga-o ao nó Dados
+        ars.append(("d", "falhas"))
     return h.grafo2(nos, ars, {"d": h.itens(*ENTRADA_ERRO)})
 
 

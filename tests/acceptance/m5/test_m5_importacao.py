@@ -132,12 +132,17 @@ def test_importar_nativo_define_dono_setor_e_status_de_quem_importa(logar, setor
     assert f.setor == setor_a and f.status == "rascunho"
 
 
-def test_adm_sem_setor_importa_com_setor_nulo(importar, cliente_adm, fabrica_fluxo, h, modelos, usuario_adm):
-    """C6: Adm sem setor → fluxo com setor nulo."""
+def test_adm_sem_setor_importa_com_setor_nulo(logar, importar, cliente_adm, fabrica_fluxo, h, modelos):
+    """C6/SEG-19: Adm SEM setor (criado aqui; usuario_adm tem 'Geral') → fluxo importado com setor nulo e dono = quem importou."""
+    adm_sem_setor, u = logar("Adm")
+    assert u.setor is None
     conteudo = cliente_adm.get(reverse("fluxos:exportar", kwargs={"pk": fabrica_fluxo(grafo=h.cadeia2()).pk})).content
-    importar(conteudo)
-    assert modelos.Fluxo.objects.exclude(nome__startswith="Fluxo Fictício").filter(dono=usuario_adm).exists() or True
-    assert modelos.Fluxo.objects.order_by("pk").last().setor is None
+    antes = set(modelos.Fluxo.objects.values_list("pk", flat=True))
+    importar(conteudo, cliente=adm_sem_setor)
+    novos = modelos.Fluxo.objects.exclude(pk__in=antes)
+    assert novos.count() == 1
+    f = novos.get()
+    assert f.dono == u and f.setor is None and f.status == "rascunho"
 
 
 @pytest.mark.parametrize("extra", [{"dono": 1}, {"setor": 1}, {"id": 99}, {"status": "ativo"}])
@@ -369,7 +374,8 @@ def test_n8n_com_chaves_extras_na_raiz_nao_escolhe_nada(importado, usuario_adm):
     obj = n8n([n8n_no("Início", "manualTrigger")], nome="Chamados de Teste", id="777", active=True, tags=[{"name": "x"}],
               versionId="v", meta={"templateCredsSetupCompleted": True}, owner=1, status="ativo", setor=99, pk=1234)
     f = importado(obj)
-    assert (f.nome, f.status, f.dono) == ("Chamados de Teste", "rascunho", usuario_adm) and f.pk != 1234 and f.setor is None
+    assert (f.nome, f.status, f.dono) == ("Chamados de Teste", "rascunho", usuario_adm) and f.pk != 1234
+    assert f.setor == usuario_adm.setor  # setor = o de quem importou (SEG-19/C8), não o 99 do arquivo
 
 
 def test_n8n_sem_nome_usa_nome_padrao(importado):

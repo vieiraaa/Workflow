@@ -16,6 +16,10 @@ def _Fluxo():
     return apps.get_model("fluxos", "Fluxo")
 
 
+# MV2-02: grafo vazio no contrato v2 (antes: {"versao": 1, "nos": [], "arestas": []}).
+GRAFO_VAZIO_V2 = {"versao": 2, "nos": [], "arestas": [], "notas": [], "dados_fixos": {}}
+
+
 def _gatilhos(f):
     return [n for n in f.grafo["nos"] if n["tipo"] == "gatilho"]
 
@@ -33,7 +37,8 @@ def test_criar_fluxo_sucesso(request, cliente, quem):
     assert r.redirect_chain[-1][0] == reverse("fluxos:editor", kwargs={"pk": f.pk})
     assert "Fluxo Meu Fluxo criado." in _h(r)
     assert f.status == "rascunho" and f.dono_id == dono.pk and f.descricao == "Para testar"
-    assert f.grafo["versao"] == 1 and f.grafo["arestas"] == []
+    # MV2-02/MV2-03: o fluxo novo já nasce no grafo v2 (antes: versao 1).
+    assert f.grafo["versao"] == 2 and f.grafo["arestas"] == [] and f.grafo["notas"] == []
     assert [n["tipo"] for n in f.grafo["nos"]] == ["gatilho"]
 
 
@@ -226,10 +231,17 @@ def test_ativar_grafo_sem_pendencias(request, cliente, fabrica_fluxo):
 
 @pytest.mark.modulo("m2")
 def test_ativar_com_pendencias_json_400(cliente_adm, fabrica_fluxo):
-    """FLX-04/FLX-06: com pendências → 400 JSON {ok:false, pendencias:[...]} e segue rascunho."""
-    f = fabrica_fluxo(grafo={"versao": 1, "nos": [
-        {"id": "n1", "tipo": "gatilho", "titulo": "Início", "posicao": {"x": 0, "y": 0}, "config": {}}],
-        "arestas": []})
+    """FLX-04/FLX-06: com pendências → 400 JSON {ok:false, pendencias:[...]} e segue rascunho.
+
+    v2 (MV2-12 L4): gatilho sozinho deixou de ser pendência (Saída não é mais obrigatória); a pendência agora é o
+    nó sem caminho a partir do gatilho ("Este nó não está ligado ao gatilho.").
+    """
+    f = fabrica_fluxo(grafo={"versao": 2, "nos": [
+        {"id": "n1", "tipo": "gatilho", "titulo": "Início", "posicao": {"x": 0, "y": 0}, "config": {},
+         "desativado": False, "executar_uma_vez": False, "em_erro": "parar"},
+        {"id": "n2", "tipo": "sem_operacao", "titulo": "Solto", "posicao": {"x": 200, "y": 0}, "config": {},
+         "desativado": False, "executar_uma_vez": False, "em_erro": "parar"}],
+        "arestas": [], "notas": [], "dados_fixos": {}})
     r = cliente_adm.post(reverse("fluxos:status", kwargs={"pk": f.pk}), {"status": "ativo"},
                          HTTP_ACCEPT="application/json")
     assert r.status_code == 400
@@ -242,7 +254,7 @@ def test_ativar_com_pendencias_json_400(cliente_adm, fabrica_fluxo):
 @pytest.mark.modulo("m2")
 def test_ativar_com_pendencias_html_redireciona_ao_editor(cliente_adm, fabrica_fluxo):
     """FLX-06: sem Accept JSON → redirect para o editor com erro; continua rascunho."""
-    f = fabrica_fluxo(grafo={"versao": 1, "nos": [], "arestas": []})
+    f = fabrica_fluxo(grafo=GRAFO_VAZIO_V2)
     r = cliente_adm.post(reverse("fluxos:status", kwargs={"pk": f.pk}), {"status": "ativo"})
     assert r.status_code == 302 and r.url == reverse("fluxos:editor", kwargs={"pk": f.pk})
     f.refresh_from_db()
@@ -252,7 +264,7 @@ def test_ativar_com_pendencias_html_redireciona_ao_editor(cliente_adm, fabrica_f
 @pytest.mark.modulo("m2")
 def test_voltar_para_rascunho_sempre_permitido(cliente_adm, fabrica_fluxo):
     """FLX-04/estados: ativo → rascunho sempre, mesmo com grafo inválido."""
-    f = fabrica_fluxo(status="ativo", grafo={"versao": 1, "nos": [], "arestas": []})
+    f = fabrica_fluxo(status="ativo", grafo=GRAFO_VAZIO_V2)
     r = cliente_adm.post(reverse("fluxos:status", kwargs={"pk": f.pk}), {"status": "rascunho"})
     assert r.status_code in (200, 302)
     f.refresh_from_db()
@@ -298,10 +310,13 @@ def test_status_sem_csrf(usuario_adm, fabrica_fluxo):
 
 @pytest.mark.modulo("m2")
 def test_est01_salvar_grafo_com_pendencia_derruba_ativo_para_rascunho(cliente_coordenador, fabrica_fluxo, grafo_valido, salvar_grafo):
-    """EST-01: fluxo ativo salvo com pendências volta para rascunho."""
+    """EST-01: fluxo ativo salvo com pendências volta para rascunho.
+
+    v2 (MV2-12 L4): sem Saída deixou de ser pendência; a pendência é agora um nó sem caminho a partir do gatilho.
+    """
     f = fabrica_fluxo(status="ativo")
-    grafo_valido["nos"] = [n for n in grafo_valido["nos"] if n["tipo"] != "saida"]
-    grafo_valido["arestas"] = [{"de": "n1", "para": "n2"}]
+    grafo_valido["nos"].append({"id": "n9", "tipo": "sem_operacao", "titulo": "Solto", "posicao": {"x": 900, "y": 0},
+                                "config": {}, "desativado": False, "executar_uma_vez": False, "em_erro": "parar"})
     r = salvar_grafo(cliente_coordenador, f, grafo_valido)
     assert r.status_code == 200 and r.json()["ok"] is True and r.json()["pendencias"]
     f.refresh_from_db()
