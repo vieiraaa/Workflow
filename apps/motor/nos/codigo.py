@@ -32,7 +32,7 @@ def codigo(ctx, no, entradas):
         "agora": ctx.agora.isoformat(),
         "execucao_id": ctx.execucao.pk,
         "fluxo_nome": ctx.fluxo_nome,
-        "parametros": {},
+        "parametros": getattr(ctx, "parametros", {}),
     }
     modo_erro = no.get("em_erro", "parar")
     saidas = [[], []] if modo_erro == "saida_de_erro" else [[]]

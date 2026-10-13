@@ -18,7 +18,7 @@ PAPEIS_LIBERAVEIS = [("coordenador", "Coordenador"), ("base", "Usuário base")]
 
 
 class Funcao(models.Model):
-    """Fluxo publicado com cara de botão (FUN-01..13). `grafo_publicado` é cópia congelada (FUN-04)."""
+    """Fluxo publicado com cara de botão (FUN-01..13); `grafo_publicado` é cópia congelada."""
 
     TODOS, SETORES, PAPEIS = "todos", "setores", "papeis"
     LIBERAR_PARA = [(TODOS, "Todos"), (SETORES, "Setores"), (PAPEIS, "Papéis")]

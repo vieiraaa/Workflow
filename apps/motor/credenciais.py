@@ -2,6 +2,8 @@
 
 import base64
 
+from django.db.models import Q
+
 from apps.credenciais import cofre
 from apps.credenciais.models import Credencial
 
@@ -36,3 +38,14 @@ def cabecalho_http(tipo, dados):
         return dados.get("header_nome") or "X-Api-Key", valor, {valor}
     basico = base64.b64encode(f"{dados.get('usuario', '')}:{valor}".encode()).decode()
     return "Authorization", f"Basic {basico}", {valor, basico}
+
+
+def segredos_do_setor(setor_id):
+    """Valores de todas as credenciais visíveis ao setor (para mascarar o que é gravado)."""
+    segredos = set()
+    for credencial in Credencial.objects.filter(Q(setor__isnull=True) | Q(setor_id=setor_id)):
+        try:
+            segredos |= cabecalho_http(credencial.tipo, credencial.dados())[2]
+        except cofre.ErroCofre, KeyError, TypeError, AttributeError:
+            continue
+    return {s for s in segredos if isinstance(s, str) and len(s) >= 4}
