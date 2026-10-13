@@ -286,3 +286,4 @@ h2 { font-size: var(--text-h2); font-weight: 600; }
 .relatorio__secao--erro .relatorio__secao-titulo { color: var(--danger); }
 .relatorio__contagem { color: var(--text-2); font-weight: 400; }
 .relatorio__lista { margin: var(--sp-2) 0 0; padding-left: var(--sp-4); font-size: var(--text-sm); overflow-wrap: anywhere; }
+.etiqueta-funcao { margin-left: var(--sp-2); }

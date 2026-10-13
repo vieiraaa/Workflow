@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% load static %}
+{% block estilos %}<link rel="stylesheet" href="{% static 'css/funcoes.css' %}">{% endblock %}
+{% block titulo %}{% if funcao %}Editar função{% else %}Nova função{% endif %} · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}{% if funcao %}Editar função{% else %}Nova função{% endif %}{% endblock %}
+{% block scripts %}<script src="{% static 'js/funcoes.js' %}" defer></script>{% endblock %}
+{% block conteudo %}
+{% url "funcoes:catalogo" as url_catalogo %}
+<form class="formulario funcao-form" method="post" novalidate data-form-funcao>
+  {% csrf_token %}
+  {% include "componentes/alerta.html" with erros=form.non_field_errors estado="erro_validacao" %}
+  <section class="card">
+    <h2 class="card__titulo">Identificação</h2>
+    {% include "componentes/campo.html" with campo=form.nome %}
+    {% include "componentes/campo.html" with campo=form.descricao %}
+    <fieldset class="campo icones-escolha">
+      <legend class="campo__rotulo">Ícone</legend>
+      <div class="icones-escolha__lista">
+        {% for i in icones %}<label class="icones-escolha__opcao" title="{{ i }}"><input type="radio" name="icone" value="{{ i }}"{% if i == form.icone.value|default:"zap" %} checked{% endif %}><span>{% include "componentes/icone.html" with nome=i %}</span><span class="sr-only">{{ i }}</span></label>{% endfor %}
+      </div>
+      {% for erro in form.icone.errors %}<p class="campo__erro" role="alert">{{ erro }}</p>{% endfor %}
+    </fieldset>
+    {% include "componentes/campo.html" with campo=form.fluxo ajuda="O fluxo é copiado ao publicar; editar o fluxo depois não muda a função até uma nova publicação." %}
+    {% include "componentes/toggle.html" with nome="ativa" rotulo="Função ativa" marcado=form.ativa.value erros=form.ativa.errors %}
+  </section>
+
+  <section class="card">
+    <h2 class="card__titulo">Entradas</h2>
+    <p class="texto-2">Campos que a pessoa preenche antes de executar. Os fluxos leem cada um em <code>$parametros.nome</code>. Máximo de 10.</p>
+    <div class="entradas" data-entradas>
+      <div class="entradas__lista" data-entradas-lista></div>
+      <p class="entradas__vazio texto-2" data-entradas-vazio>Sem entradas: a função executa com um clique.</p>
+      <button class="botao botao--secundario" type="button" data-entrada-adicionar>{% include "componentes/icone.html" with nome="plus" tamanho=16 %}<span>Adicionar entrada</span></button>
+      <p class="campo__erro" role="alert" data-entradas-erro{% if not form.entradas.errors %} hidden{% endif %}>{% for e in form.entradas.errors %}{{ e }} {% endfor %}</p>
+    </div>
+    <input type="hidden" name="entradas" value="{{ entradas_json }}" data-entradas-json>
+  </section>
+
+  <section class="card">
+    <h2 class="card__titulo">Quem pode executar</h2>
+    <div class="campo">
+      <label class="campo__rotulo" for="id_liberar_para">Liberar para</label>
+      <div class="campo__select"><select id="id_liberar_para" name="liberar_para" data-liberar>
+        {% for valor, rotulo in form.fields.liberar_para.choices %}<option value="{{ valor }}"{% if valor == form.liberar_para.value|default:"todos" %} selected{% endif %}>{{ rotulo }}</option>{% endfor %}
+      </select>{% include "componentes/icone.html" with nome="chevron-down" tamanho=16 %}</div>
+      {% for erro in form.liberar_para.errors %}<p class="campo__erro" role="alert">{{ erro }}</p>{% endfor %}
+    </div>
+    <fieldset class="campo" data-liberar-para="setores">
+      <legend class="campo__rotulo">Setores</legend>
+      <div class="grupo">
+        {% for s in setores %}<label class="grupo__linha escolha"><span>{{ s.nome }}</span><input type="checkbox" name="setores" value="{{ s.pk }}"{% if s.marcado %} checked{% endif %}></label>{% empty %}<p class="grupo__linha texto-2">Nenhum setor cadastrado.</p>{% endfor %}
+      </div>
+      {% for erro in form.setores.errors %}<p class="campo__erro" role="alert">{{ erro }}</p>{% endfor %}
+    </fieldset>
+    <fieldset class="campo" data-liberar-para="papeis">
+      <legend class="campo__rotulo">Papéis</legend>
+      <div class="grupo">
+        {% for p in papeis %}<label class="grupo__linha escolha"><span>{{ p.rotulo }}</span><input type="checkbox" name="papeis" value="{{ p.valor }}"{% if p.marcado %} checked{% endif %}></label>{% endfor %}
+      </div>
+      {% for erro in form.papeis.errors %}<p class="campo__erro" role="alert">{{ erro }}</p>{% endfor %}
+    </fieldset>
+  </section>
+
+  <div class="formulario__acoes">
+    {% include "componentes/botao.html" with rotulo="Cancelar" href=url_catalogo %}
+    <button class="botao botao--primario" type="submit" data-carregando data-texto-carregando="Salvando…">Salvar</button>
+  </div>
+</form>
+
+<template data-entrada-modelo>
+  <div class="entrada" data-entrada>
+    <div class="entrada__grade">
+      <div class="campo"><label class="campo__rotulo">Nome técnico</label><input type="text" data-f="nome" maxlength="30" placeholder="ex.: dia" autocomplete="off"></div>
+      <div class="campo"><label class="campo__rotulo">Rótulo</label><input type="text" data-f="rotulo" maxlength="80" placeholder="ex.: Dia" autocomplete="off"></div>
+      <div class="campo"><label class="campo__rotulo">Tipo</label><div class="campo__select"><select data-f="tipo">
+        <option value="texto">Texto</option><option value="numero">Número</option><option value="data">Data</option><option value="booleano">Sim/Não</option><option value="lista">Lista</option>
+      </select>{% include "componentes/icone.html" with nome="chevron-down" tamanho=16 %}</div></div>
+      <div class="campo"><label class="campo__rotulo">Padrão</label><input type="text" data-f="padrao" autocomplete="off"><select data-f="padrao-bool" hidden><option value="">Sem padrão</option><option value="true">Sim</option><option value="false">Não</option></select></div>
+    </div>
+    <div class="campo" data-so-lista hidden><label class="campo__rotulo">Opções (uma por linha)</label><textarea data-f="opcoes" rows="3" placeholder="Opção 1&#10;Opção 2"></textarea></div>
+    <div class="entrada__rodape">
+      <label class="toggle"><span>Obrigatória</span><input type="checkbox" data-f="obrigatoria"><span class="toggle__trilho"></span></label>
+      <button class="botao botao--destrutivo" type="button" data-entrada-remover>{% include "componentes/icone.html" with nome="trash" tamanho=16 %}<span>Remover</span></button>
+    </div>
+  </div>
+</template>
+{% endblock %}

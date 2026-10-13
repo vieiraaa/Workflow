@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load static %}
+{% block estilos %}<link rel="stylesheet" href="{% static 'css/funcoes.css' %}">{% endblock %}
+{% block titulo %}Resultado · {{ funcao.nome }} · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}Resultado · {{ funcao.nome }}{% endblock %}
+{% block acoes %}
+{% url "funcoes:catalogo" as url_catalogo %}
+{% include "componentes/botao.html" with rotulo="Funções" icone="chevron-left" href=url_catalogo %}
+{% if url_detalhe %}{% include "componentes/botao.html" with rotulo="Detalhe técnico" icone="workflow" href=url_detalhe %}{% endif %}
+{% endblock %}
+{% block conteudo %}
+<section class="grupo" aria-label="Resumo da execução">
+  <div class="grupo__linha"><span>Função</span><span class="grupo__valor resultado__funcao">{% include "componentes/icone.html" with nome=funcao.icone|default:"zap" tamanho=16 %}{{ funcao.nome }}{% if execucao.funcao_versao %} · versão {{ execucao.funcao_versao }}{% endif %}</span></div>
+  <div class="grupo__linha"><span>Status</span><span>{% include "componentes/badge_status.html" with status=execucao.status rotulo=execucao.status_rotulo %}</span></div>
+  <div class="grupo__linha"><span>Quando</span><span class="grupo__valor">{{ execucao.iniciada_em|date:"d/m/Y H:i:s" }}</span></div>
+  <div class="grupo__linha"><span>Duração</span><span class="grupo__valor">{{ execucao.duracao_texto|default:"—" }}</span></div>
+</section>
+
+{% if execucao.status == "executando" %}
+<section class="card" data-estado="carregando">{% include "componentes/carregando.html" with texto="Executando…" %}</section>
+{% endif %}
+
+{% if erro %}
+<div class="alerta alerta--erro" role="alert" data-estado="erro_execucao">
+  {% include "componentes/icone.html" with nome="circle-alert" tamanho=16 %}
+  <span><strong>{{ erro.categoria }}</strong>{% if erro.categoria and erro.mensagem %}: {% endif %}{{ erro.mensagem }}</span>
+</div>
+{% endif %}
+
+{% if parametros %}
+<section class="grupo" aria-label="Parâmetros usados">
+  <h2 class="grupo__titulo">Parâmetros usados</h2>
+  {% for p in parametros %}<div class="grupo__linha"><span>{{ p.rotulo }}</span><span class="grupo__valor">{{ p.valor }}</span></div>{% endfor %}
+</section>
+{% endif %}
+
+{% if colunas and linhas %}
+<section class="card card--semrecuo" aria-label="Resultado" data-estado="sucesso">
+  <h2 class="nos__titulo">Resultado</h2>
+  <div class="tabela-rolagem tabela-rolagem--resultado" tabindex="0" role="region" aria-label="Tabela do resultado, role para ver mais">
+    <table class="tabela tabela--resultado">
+      <thead><tr>{% for c in colunas %}<th scope="col">{{ c }}</th>{% endfor %}</tr></thead>
+      <tbody>{% for linha in linhas %}<tr>{% for celula in linha %}<td>{{ celula }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  {% if total_itens > linhas|length %}<p class="resultado__rodape texto-2 texto-sm">Mostrando {{ linhas|length }} de {{ total_itens }} itens</p>{% endif %}
+</section>
+{% elif execucao.status == "sucesso" %}
+<div class="card">{% include "componentes/vazio.html" with icone="inbox" titulo="Sem itens no resultado" texto="A função terminou, mas não devolveu nenhum item." %}</div>
+{% endif %}
+
+<div class="formulario__acoes resultado__acoes">
+  {% if url_executar_de_novo %}{% include "componentes/botao.html" with rotulo="Executar de novo" icone="rotate-cw" variante="primario" href=url_executar_de_novo %}{% endif %}
+</div>
+{% endblock %}
