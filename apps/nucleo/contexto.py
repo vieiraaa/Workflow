@@ -11,6 +11,14 @@ ITENS_MENU = [
     ("execucoes", "Execuções", "execucoes:lista", "clock", "execucoes", "execucoes.ver"),
     ("usuarios", "Usuários", "contas:usuarios", "users", "contas", "usuarios.gerenciar"),
     ("setores", "Setores", "contas:setores", "layers", "contas", "setores.gerenciar"),
+    (
+        "credenciais",
+        "Credenciais",
+        "credenciais:lista",
+        "key-round",
+        "credenciais",
+        "credenciais.gerenciar",
+    ),
 ]
 
 
