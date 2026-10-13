@@ -93,7 +93,7 @@
   }
 
   function novoId(ids) {
-    var usados = {};
+    var usados = Object.create(null);
     ids.forEach(function (id) { usados[id] = true; });
     var n = ids.length + 1;
     while (usados["n" + n]) n += 1;
@@ -102,7 +102,7 @@
 
   /* Título único no fluxo (MV2-02): "Se", "Se 2", "Se 3"... */
   function tituloUnico(base, titulos, ignorar) {
-    var usados = {};
+    var usados = Object.create(null);
     titulos.forEach(function (t) { if (t !== ignorar) usados[String(t).toLowerCase()] = true; });
     if (!usados[base.toLowerCase()]) return base;
     var n = 2;
@@ -152,8 +152,15 @@
       cid: no.id, tipo: no.tipo, titulo: no.titulo, config: clonar(no.config || {}),
       desativado: !!no.desativado, executar_uma_vez: !!no.executar_uma_vez,
       em_erro: EM_ERRO.indexOf(no.em_erro) >= 0 ? no.em_erro : "parar",
-      fixos: no.fixos === undefined ? null : clonar(no.fixos)
+      fixos: no.fixos === undefined || no.fixos === null ? null : JSON.stringify(no.fixos)
     };
+  }
+
+  /* Os dados fixos guardam chaves do usuário: o Drawflow monta seletores [df-<chave>] para todo objeto aninhado em `data`,
+     então eles ficam como texto JSON no nó e só viram objeto aqui (nunca monte seletor com dado do usuário). */
+  function lerFixos(nd) {
+    if (!nd || typeof nd.fixos !== "string") return Array.isArray(nd && nd.fixos) ? nd.fixos : null;
+    try { var v = JSON.parse(nd.fixos); return Array.isArray(v) ? v : null; } catch (_) { return null; }
   }
 
   /* Nó canônico -> especificação para Drawflow.addNode. */
@@ -204,7 +211,7 @@
     var ids = Object.keys(dados).sort(function (a, b) { return Number(a) - Number(b); });
     var cid = {};
     ids.forEach(function (id) { cid[id] = dados[id].data.cid; });
-    var nos = [], arestas = [], notas = [], fixos = {};
+    var nos = [], arestas = [], notas = [], fixos = Object.create(null);
     ids.forEach(function (id) {
       var d = dados[id], nd = d.data;
       var posicao = { x: Math.round(d.pos_x), y: Math.round(d.pos_y) };
@@ -217,7 +224,8 @@
         config: normalizarConfig(nd.tipo, nd.config), desativado: !!nd.desativado, executar_uma_vez: !!nd.executar_uma_vez,
         em_erro: nd.em_erro || "parar"
       });
-      if (Array.isArray(nd.fixos) && nd.fixos.length) fixos[nd.cid] = clonar(nd.fixos);
+      var fx = lerFixos(nd);
+      if (fx && fx.length) fixos[nd.cid] = fx;
       Object.keys(d.outputs || {}).forEach(function (saida) {
         d.outputs[saida].connections.forEach(function (conexao) {
           arestas.push({
@@ -230,7 +238,9 @@
     arestas.sort(function (a, b) {
       return a.de < b.de ? -1 : a.de > b.de ? 1 : a.saida - b.saida || (a.para < b.para ? -1 : a.para > b.para ? 1 : a.entrada - b.entrada);
     });
-    return { versao: 2, nos: nos, arestas: arestas, notas: notas, dados_fixos: fixos };
+    var dadosFixos = {}; // objeto comum na saída; defineProperty mantém chaves como __proto__ como dado
+    Object.keys(fixos).forEach(function (k) { Object.defineProperty(dadosFixos, k, { value: fixos[k], enumerable: true, writable: true, configurable: true }); });
+    return { versao: 2, nos: nos, arestas: arestas, notas: notas, dados_fixos: dadosFixos };
   }
 
   /* v1 -> v2 (MV2-03). Grafo já v2 passa por um preenchimento de padrões. */
@@ -238,7 +248,7 @@
     if (typeof valor === "string") return valor.replace(/\{\{\s*anterior\.([^}]*?)\s*\}\}/g, "{{ $json.$1 }}");
     if (Array.isArray(valor)) return valor.map(trocarAnterior);
     if (valor && typeof valor === "object") {
-      var saida = {};
+      var saida = Object.create(null);
       Object.keys(valor).forEach(function (k) { saida[k] = trocarAnterior(valor[k]); });
       return saida;
     }
@@ -269,7 +279,7 @@
 
   /* Nós que alimentam `cid` (para a lista de variáveis do inspector), do mais próximo ao mais distante. */
   function anteriores(grafo, cid) {
-    var porPara = {}, ordem = [], visto = {};
+    var porPara = Object.create(null), ordem = [], visto = Object.create(null);
     grafo.arestas.forEach(function (a) { (porPara[a.para] = porPara[a.para] || []).push(a.de); });
     var fila = (porPara[cid] || []).slice();
     while (fila.length) {
@@ -278,7 +288,7 @@
       visto[id] = true; ordem.push(id);
       (porPara[id] || []).forEach(function (p) { fila.push(p); });
     }
-    var titulos = {};
+    var titulos = Object.create(null);
     grafo.nos.forEach(function (n) { titulos[n.id] = n.titulo; });
     return ordem.map(function (id) { return { id: id, titulo: titulos[id] }; }).filter(function (x) { return x.titulo; });
   }
@@ -287,7 +297,7 @@
     GRUPOS: GRUPOS, TIPOS: TIPOS, ORDEM_TIPOS: ORDEM_TIPOS, METODOS: METODOS, CORES_NOTA: CORES_NOTA, EM_ERRO: EM_ERRO,
     LIMITE_REGRAS: LIMITE_REGRAS, normalizarPaginacao: normalizarPaginacao, clonar: clonar, tipoDe: tipoDe, configPadrao: configPadrao, condicaoPadrao: condicaoPadrao,
     portas: portas, novoId: novoId, tituloUnico: tituloUnico, resumo: resumo, extrair: extrair, especificacao: especificacao,
-    especificacaoNota: especificacaoNota, tamanhoNota: tamanhoNota, migrar: migrar, anteriores: anteriores, dadosDoNo: dadosDoNo
+    especificacaoNota: especificacaoNota, tamanhoNota: tamanhoNota, migrar: migrar, anteriores: anteriores, dadosDoNo: dadosDoNo, lerFixos: lerFixos
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else raiz.ConversorGrafo = API;

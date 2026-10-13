@@ -39,9 +39,9 @@
   editor.start();
 
   var carregando = true, sujo = false, selecionado = null, pendencias = [];
-  var resultados = {};      // cid -> resultado do último teste (executar este nó)
+  var resultados = Object.create(null);      // cid -> resultado do último teste (executar este nó)
   var contagemArestas = []; // [{de, saida, para, entrada, itens}]
-  var multi = {};           // dfId -> true (seleção múltipla com Shift)
+  var multi = Object.create(null);           // dfId -> true (seleção múltipla com Shift)
 
   /* ---------- utilidades de DOM ---------- */
   function criar(tag, classe, texto) {
@@ -135,7 +135,7 @@
     caixa.querySelector(".no__erro").hidden = pend.length === 0;
     caixa.classList.toggle("no--erro", pend.length > 0);
     caixa.classList.toggle("no--desativado", !!d.desativado);
-    var fixo = caixa.querySelector(".no__fixo"); fixo.hidden = !(d.fixos && d.fixos.length);
+    var fixo = caixa.querySelector(".no__fixo"); var fx = C.lerFixos(d); fixo.hidden = !(fx && fx.length);
     var r = resultados[d.cid], itens = caixa.querySelector(".no__itens");
     itens.hidden = !r;
     caixa.classList.toggle("no--teste-ok", !!r && !r.erro);
@@ -268,9 +268,9 @@
   function carregar(grafo) {
     carregando = true;
     editor.clear();
-    selecionado = null; multi = {}; montarInspector(null);
+    selecionado = null; multi = Object.create(null); montarInspector(null);
     var g = C.migrar(grafo);
-    var mapa = {};
+    var mapa = Object.create(null);
     g.notas.forEach(function (n) { adicionarNota(n); });
     g.nos.forEach(function (no) { mapa[no.id] = adicionarNo(no); });
     g.arestas.forEach(function (a) {
@@ -398,10 +398,10 @@
     if (d.tipo === "nota") { window.InspectorNos.montarNota(inspector, Object.assign(ctxBase, { dados: C.clonar(d) })); return; }
     var grafo = grafoAtual();
     ctxBase.acoes.executarNo = urlExecutarNo ? function () { executarNo(dfId); } : null;
-    ctxBase.acoes.fixar = function (saida) { atualizarDados(dfId, function (x) { x.fixos = C.clonar(saida); }); montarInspector(dfId); };
+    ctxBase.acoes.fixar = function (saida) { atualizarDados(dfId, function (x) { x.fixos = JSON.stringify(saida); }); montarInspector(dfId); };
     ctxBase.acoes.limpar = function () { atualizarDados(dfId, function (x) { x.fixos = null; }); montarInspector(dfId); };
     window.InspectorNos.montar(inspector, Object.assign(ctxBase, {
-      dados: C.clonar(d), credenciais: credenciais, podeCodigo: podeCodigo, urlCredenciais: urlCredenciais,
+      dados: Object.assign(C.clonar(d), { fixos: C.lerFixos(d) }), credenciais: credenciais, podeCodigo: podeCodigo, urlCredenciais: urlCredenciais,
       anteriores: C.anteriores(grafo, d.cid), previa: previaDeExpressao, resultado: resultados[d.cid] || null,
       aoMudarPortas: function () { /* portas já sincronizadas por atualizarDados */ }
     }));
@@ -417,12 +417,12 @@
     var alvos = Object.keys(multi);
     if (!alvos.length && selecionado) alvos = [selecionado];
     alvos.forEach(function (id) { if (dadosTodos()[id]) editor.removeNodeId("node-" + id); });
-    multi = {};
+    multi = Object.create(null);
   }
 
   /* ---------- duplicar / copiar / colar (EDV-03) ---------- */
   function trecho(dfIds) {
-    var g = grafoAtual(), cids = {};
+    var g = grafoAtual(), cids = Object.create(null);
     dfIds.forEach(function (id) { if (dadosTodos()[id]) cids[dadosDo(id).cid] = true; });
     return {
       formato: "construtor-workflows-trecho", versao: 2,
@@ -436,7 +436,7 @@
     var g = grafoAtual();
     var ids = g.nos.map(function (n) { return n.id; }).concat(g.notas.map(function (n) { return n.id; }));
     var titulos = g.nos.map(function (n) { return n.titulo; });
-    var mapa = {}, criados = [], tem = false;
+    var mapa = Object.create(null), criados = [], tem = false;
     (t.nos || []).slice(0, 50).forEach(function (n) {
       if (!TIPOS[n.tipo] || (n.tipo === "gatilho" && g.nos.some(function (x) { return x.tipo === "gatilho"; }))) return;
       var novo = C.novoId(ids); ids.push(novo); mapa[n.id] = novo;
@@ -511,7 +511,7 @@
   }, true);
   function limparMulti() {
     Object.keys(multi).forEach(function (id) { var c = caixaDe(id); if (c) c.classList.remove("multi"); });
-    multi = {};
+    multi = Object.create(null);
   }
 
   /* ---------- paleta agrupada com busca (EDV-01) ---------- */
@@ -658,7 +658,7 @@
 
   /* ---------- executar este nó (MV2-06) ---------- */
   function aplicarResultado(corpo) {
-    resultados = {};
+    resultados = Object.create(null);
     var nos = corpo.nos || {};
     Object.keys(nos).forEach(function (cid) { resultados[cid] = nos[cid]; });
     contagemArestas = corpo.arestas || [];
@@ -675,7 +675,7 @@
         var e = doc.getElementById("nos-execucao"), g = doc.getElementById("grafo-execucao");
         if (!e) return null;
         try {
-          var lista = JSON.parse(e.textContent), nos = {}, arestas = [];
+          var lista = JSON.parse(e.textContent), nos = Object.create(null), arestas = [];
           lista.forEach(function (n) {
             nos[n.no_id] = { status: n.status, itens_entrada: n.itens_entrada, itens_saida: n.itens_saida, saida: n.saida || [], erro: n.erro, logs: n.logs || [] };
           });

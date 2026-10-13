@@ -220,7 +220,7 @@
       return comErros(caixa, "regras");
     }
     function credencial(f) {
-      var nomes = ctx.credenciais || [];
+      var nomes = (ctx.credenciais || []).map(function (c) { return typeof c === "string" ? c : c.nome; }); // [{id, nome, tipo}] do servidor
       var caixa = criar("div", "campo"), i = id("credencial");
       rotulo(caixa, f.rotulo, i);
       var sel = criar("select"); sel.id = i;

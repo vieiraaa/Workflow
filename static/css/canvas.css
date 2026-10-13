@@ -79,7 +79,7 @@
   .toolbar [data-acao="paleta"] { display: none; }
   /* Sem nó selecionado o inspector recolhe e o canvas ganha a largura (revisão visual M5). */
   .editor:not(.editor--inspector) { grid-template-columns: var(--paleta-w) minmax(0, 1fr) 0; }
-  .editor:not(.editor--inspector) .editor__inspector { visibility: hidden; padding: 0; border: 0; overflow: hidden; }
+  .editor:not(.editor--inspector) .editor__inspector { display: none; }
 }
 
 @media (max-width: 800px) {

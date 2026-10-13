@@ -43,7 +43,7 @@ grafo.notas.forEach((n) => adicionar(C.especificacaoNota(n), i++));
 grafo.arestas.forEach((a) => data[dfId[a.de]].outputs["output_" + (a.saida + 1)].connections.push({ node: dfId[a.para], output: "input_" + (a.entrada + 1) }));
 
 assert.deepStrictEqual(C.extrair({ drawflow: { Home: { data } } }), grafo);
-assert.strictEqual(data[1].data.fixos.length, 1);
+assert.strictEqual(C.lerFixos(data[1].data).length, 1);
 
 // Portas (EDV-01)
 assert.deepStrictEqual(C.portas("se", {}, "parar").saidas, ["verdadeiro", "falso"]);
