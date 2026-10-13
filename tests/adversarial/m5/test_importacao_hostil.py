@@ -272,3 +272,103 @@ def test_segredo_com_caracteres_invisiveis_ou_partido_nao_passa_pelo_detector_se
     for f in imp.novos(antes):
         bruto = json.dumps(f.grafo, ensure_ascii=False)
         assert JWT[:20] not in bruto and JWT[20:] not in bruto
+
+
+# ---------------- MV2-25 (b): detector ampliado ----------------
+
+def _http_n8n(imp, params):
+    params = {"method": "GET", "url": "https://api.exemplo.test/x", **params}
+    return imp.n8n([imp.n8n_no("Início", "manualTrigger"), imp.n8n_no("Chama", "httpRequest", params, pos=(200, 0), versao=4)],
+                   [imp.liga("Início", ["Chama"])])
+
+
+def _importar_e_gravado(cliente, imp, obj):
+    antes = imp.pks()
+    r = imp.importar(cliente, obj)
+    assert r.status_code in (200, 302, 400)
+    fluxos = list(imp.novos(antes))
+    return r, fluxos
+
+
+@pytest.mark.parametrize("trecho,segredo", [
+    ("https://api.exemplo.test/x?token=Zk9fQ2xhdmVGaWN0aWNpYTEyMw", "Zk9fQ2xhdmVGaWN0aWNpYTEyMw"),
+    ("https://api.exemplo.test/x?a=1&key=Qm9sYUZpY3RpY2lhOTg3NjU0", "Qm9sYUZpY3RpY2lhOTg3NjU0"),
+    ("https://api.exemplo.test/x?apikey=TmFvRWhSZWFsMDAwMTExMjIy", "TmFvRWhSZWFsMDAwMTExMjIy"),
+    ("https://api.exemplo.test/x?TOKEN=Mhd7Qx92LpVa0Ntz", "Mhd7Qx92LpVa0Ntz"),
+], ids=["token", "key", "apikey", "TOKEN_maiusculo"])
+def test_token_key_apikey_embutidos_na_url_sao_detectados(trecho, segredo, cliente_adm, imp):
+    """MV2-25 (b): `token=`, `key=`, `apikey=` dentro da URL → valor substituído por {{ $credencial }} + pendência (o fluxo não ativa);
+    o valor original não fica no fluxo, no relatório nem na resposta."""
+    r, fluxos = _importar_e_gravado(cliente_adm, imp, _http_n8n(imp, {"url": trecho}))
+    assert fluxos, r.content[:200]
+    for f in fluxos:
+        assert segredo not in _gravado(f) and "{{ $credencial }}" in _gravado(f)
+        assert cliente_adm.post(reverse("fluxos:status", kwargs={"pk": f.pk}), {"status": "ativo"}, HTTP_ACCEPT="application/json").status_code == 400
+    assert segredo not in r.content.decode()
+
+
+@pytest.mark.parametrize("corpo,segredo", [
+    ('{"token=": "x"}', None),
+    ("grant_type=client&token=Vd3Jf8sKq2LmNp0xTz", "Vd3Jf8sKq2LmNp0xTz"),
+    ("apikey=Rg5Hh1BnCc7DdEe9Ff", "Rg5Hh1BnCc7DdEe9Ff"),
+    ('{"texto": "use key=Lq8Wm2Xn4Yp6Zr0Ts na chamada"}', "Lq8Wm2Xn4Yp6Zr0Ts"),
+], ids=["so_a_chave", "token_form", "apikey_form", "key_no_json"])
+def test_token_key_apikey_embutidos_no_corpo_sao_detectados(corpo, segredo, cliente_adm, imp):
+    """MV2-25 (b): `token=`/`key=`/`apikey=` dentro do corpo (JSON ou formulário em texto) são detectados; o valor não é gravado."""
+    obj = _http_n8n(imp, {"sendBody": True, "specifyBody": "json", "jsonBody": corpo, "method": "POST"})
+    r, fluxos = _importar_e_gravado(cliente_adm, imp, obj)
+    if segredo is None:
+        return  # só a chave, sem valor: não pode derrubar
+    assert fluxos, r.content[:200]
+    for f in fluxos:
+        assert segredo not in _gravado(f) and "{{ $credencial }}" in _gravado(f)
+    assert segredo not in r.content.decode()
+
+
+@pytest.mark.parametrize("onde,nome", [("headers", "X-Api-Key"), ("headers", "Authorization"), ("headers", "X-Senha-Interna"),
+                                       ("query", "token"), ("query", "client_secret"), ("query", "password")])
+def test_valor_de_16_ou_mais_em_nome_sensivel_e_detectado_mas_curto_nao(onde, nome, cliente_adm, imp):
+    """MV2-25 (b): valor ≥ 16 caracteres (não precisa ter 32) em header/query de NOME sensível (SEG-09) → detectado e substituído;
+    valor com 15 caracteres fica como está (controle do limite)."""
+    def obj(valor):
+        if onde == "headers":
+            return _http_n8n(imp, {"sendHeaders": True, "headerParameters": {"parameters": [{"name": nome, "value": valor}]}})
+        return _http_n8n(imp, {"sendQuery": True, "queryParameters": {"parameters": [{"name": nome, "value": valor}]}})
+    longo, curto = "Abc123Def456Ghi7", "Abc123Def456Gh1"  # 16 e 15
+    assert len(longo) == 16 and len(curto) == 15
+    _, fl = _importar_e_gravado(cliente_adm, imp, obj(longo))
+    assert fl and longo not in _gravado(fl[0]) and "{{ $credencial }}" in _gravado(fl[0])
+    _, fc = _importar_e_gravado(cliente_adm, imp, obj(curto))
+    assert fc and curto in _gravado(fc[0])
+
+
+def test_valor_curto_de_parametro_comum_nao_e_tratado_como_segredo(cliente_adm, imp):
+    """MV2-25 (b) (falso positivo): `page=1`, `busca=Livre` e um header público não viram {{ $credencial }}."""
+    obj = _http_n8n(imp, {"url": "https://api.exemplo.test/x?page=1&busca=LivreTexto&keyword=abcdef", "sendHeaders": True,
+                          "headerParameters": {"parameters": [{"name": "Accept", "value": "application/json"}]}})
+    _, fl = _importar_e_gravado(cliente_adm, imp, obj)
+    assert fl and "{{ $credencial }}" not in _gravado(fl[0])
+
+
+@pytest.mark.parametrize("onde", ["pindata", "nota", "dados_fixos_nativo"])
+def test_segredo_com_zero_width_em_dados_fixos_e_notas_e_detectado(onde, cliente_adm, imp):
+    """MV2-25 (b): o detector varre dados_fixos e notas e remove caracteres Cf (zero-width) antes de detectar: um JWT com U+200B,
+    U+200D ou U+FEFF no meio não é gravado nem reconstituível."""
+    tok = JWT[:15] + "​" + JWT[15:30] + "‍" + JWT[30:45] + "﻿" + JWT[45:]
+    obj = imp.n8n([imp.n8n_no("Início", "manualTrigger"), imp.n8n_no("Fim", "noOp", pos=(200, 0))], [imp.liga("Início", ["Fim"])])
+    if onde == "pindata":
+        obj["pinData"] = {"Fim": [{"json": {"t": tok}}]}
+    elif onde == "nota":
+        obj["nodes"].append({"id": "n", "name": "N", "type": "n8n-nodes-base.stickyNote", "typeVersion": 1, "position": [0, 100],
+                             "parameters": {"content": tok, "width": 100, "height": 100, "color": 1}})
+    else:
+        obj = {"formato": "construtor-workflows", "versao": 2, "fluxo": {"nome": "Nativo", "descricao": ""}, "credenciais_usadas": [],
+               "grafo": {"versao": 2, "nos": [{"id": "g", "tipo": "gatilho", "titulo": "Início", "posicao": {"x": 0, "y": 0}, "config": {},
+                                              "desativado": False, "executar_uma_vez": False, "em_erro": "parar"}],
+                         "arestas": [], "notas": [], "dados_fixos": {"g": [{"json": {"t": tok}}]}}}
+    _, fl = _importar_e_gravado(cliente_adm, imp, obj)
+    assert fl
+    for f in fl:
+        bruto = _gravado(f)
+        for pedaco in (JWT[:15], JWT[15:30], JWT[30:45], JWT[45:]):
+            assert pedaco not in bruto, onde
