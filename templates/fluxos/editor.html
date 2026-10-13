@@ -56,7 +56,8 @@
       <button class="botao botao--primario" type="button" data-acao="salvar" data-salvar aria-label="Salvar">{% include "componentes/icone.html" with nome="save" tamanho=16 %}<span class="botao__rotulo-desktop">Salvar</span></button>
     </div>
     {% include "componentes/relatorio_importacao.html" with relatorio=relatorio_importacao %}
-    <div class="canvas" data-canvas></div>
+    <div class="parent-drawflow canvas" data-canvas></div>
+    <p class="canvas__legenda">Arraste o fundo ou use dois dedos para mover · <span class="canvas__legenda-extra"><span data-tecla-mod>Ctrl</span> + rolagem ou </span>pinça para zoom<span class="canvas__legenda-extra"> · Espaço + arrastar · Ajustar centraliza</span></p>
     <p class="editor__vazio" data-dica-vazio hidden>Adicione nós pela paleta e conecte as portas.</p>
     <div class="banner" data-banner role="alert" hidden>
       {% include "componentes/icone.html" with nome="circle-alert" tamanho=16 %}<span></span>

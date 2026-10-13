@@ -593,6 +593,72 @@
     }
   });
 
+
+  /* ---------- navegação infinita (T-067) ---------- */
+  var MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || "");
+  function pintarGrade(x, y) {
+    areaCanvas.style.setProperty("--grade-x", (x === undefined ? editor.canvas_x : x) + "px");
+    areaCanvas.style.setProperty("--grade-y", (y === undefined ? editor.canvas_y : y) + "px");
+    areaCanvas.style.setProperty("--grade-z", String(editor.zoom));
+  }
+  var zoomRefreshOriginal = editor.zoom_refresh.bind(editor);
+  editor.zoom_refresh = function () { zoomRefreshOriginal(); pintarGrade(); };
+  editor.on("translate", function (p) { pintarGrade(p.x, p.y); });
+  pintarGrade();
+  [].forEach.call(raiz.querySelectorAll("[data-tecla-mod]"), function (e) { e.textContent = MAC ? "⌘" : "Ctrl"; });
+
+  function moverCanvas(dx, dy) {
+    editor.canvas_x += dx; editor.canvas_y += dy;
+    editor.precanvas.style.transform = "translate(" + editor.canvas_x + "px, " + editor.canvas_y + "px) scale(" + editor.zoom + ")";
+    pintarGrade();
+  }
+
+  // Drawflow só escuta mousemove/mouseup dentro do container: encaminha os de fora enquanto há arraste do fundo/nó.
+  window.addEventListener("mousemove", function (ev) {
+    if (areaCanvas.contains(ev.target) || !(editor.editor_selected || editor.drag || editor.connection || editor.drag_point)) return;
+    editor.position(ev);
+  });
+  window.addEventListener("mouseup", function (ev) {
+    if (areaCanvas.contains(ev.target) || !(editor.editor_selected || editor.drag || editor.connection || editor.drag_point)) return;
+    editor.dragEnd(ev);
+  });
+
+  // Roda/trackpad: pan; Ctrl/⌘ + roda (e pinça, que chega como ctrl+wheel): zoom.
+  areaCanvas.addEventListener("wheel", function (ev) {
+    if (ev.target.closest && ev.target.closest("textarea, input, select, .nota__texto")) return;
+    ev.preventDefault();
+    if (ev.ctrlKey || ev.metaKey) {
+      if (ev.metaKey && !ev.ctrlKey) { ev.stopPropagation(); if (ev.deltaY > 0) editor.zoom_out(); else editor.zoom_in(); }
+      return; // com Ctrl o próprio Drawflow faz o zoom
+    }
+    ev.stopPropagation();
+    var dx = ev.deltaX, dy = ev.deltaY;
+    if (ev.shiftKey && !dx) { dx = dy; dy = 0; }
+    moverCanvas(-dx, -dy);
+  }, { passive: false, capture: true });
+
+  // Espaço + arrastar e botão do meio movem o canvas (inclusive sobre um nó).
+  var espaco = false, pan = null;
+  function alternarMao(ligado) { espaco = ligado; areaCanvas.classList.toggle("canvas--mao", ligado); }
+  document.addEventListener("keydown", function (ev) {
+    if (ev.code !== "Space" || emCampo() || ev.repeat && espaco) { if (ev.code === "Space" && espaco) ev.preventDefault(); return; }
+    ev.preventDefault(); alternarMao(true);
+  });
+  document.addEventListener("keyup", function (ev) { if (ev.code === "Space") alternarMao(false); });
+  window.addEventListener("blur", function () { alternarMao(false); });
+  areaCanvas.addEventListener("mousedown", function (ev) {
+    if (!(ev.button === 1 || (ev.button === 0 && espaco))) return;
+    ev.preventDefault(); ev.stopPropagation();
+    pan = { x: ev.clientX, y: ev.clientY };
+    areaCanvas.classList.add("canvas--arrastando");
+  }, true);
+  window.addEventListener("mousemove", function (ev) {
+    if (!pan) return;
+    moverCanvas(ev.clientX - pan.x, ev.clientY - pan.y);
+    pan.x = ev.clientX; pan.y = ev.clientY;
+  });
+  window.addEventListener("mouseup", function () { if (pan) { pan = null; areaCanvas.classList.remove("canvas--arrastando"); } });
+
   /* ---------- salvar / status ---------- */
   function mensagensDe(corpo) {
     return ((corpo && corpo.erros) || []).map(function (e) { return e.mensagem; }).filter(Boolean);

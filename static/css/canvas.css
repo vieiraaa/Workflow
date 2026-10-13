@@ -28,7 +28,10 @@
 .no__icone--canvas { --cor: var(--cor-canvas); }
 
 /* Canvas */
-.canvas { width: 100%; height: 100%; background-color: var(--bg); background-image: radial-gradient(var(--hairline) 1px, transparent 1px); background-size: var(--sp-6) var(--sp-6); }
+.canvas { width: 100%; height: 100%; overscroll-behavior: contain; background-color: var(--bg); background-image: radial-gradient(var(--hairline) 1px, transparent 1px); background-size: calc(var(--sp-6) * var(--grade-z, 1)) calc(var(--sp-6) * var(--grade-z, 1)); background-position: var(--grade-x, 0) var(--grade-y, 0); }
+.canvas--mao, .canvas--mao .drawflow-node { cursor: grab; }
+.canvas--arrastando, .canvas--arrastando .drawflow-node { cursor: grabbing; }
+.canvas__legenda { position: absolute; z-index: 4; left: var(--sp-3); bottom: var(--sp-3); max-width: calc(100% - var(--sp-6)); margin: 0; padding: var(--sp-1) var(--sp-3); font-size: var(--text-sm); color: var(--text-2); background: var(--surface); border-radius: var(--r-m); box-shadow: var(--shadow-1); pointer-events: none; }
 .drawflow .drawflow-node { width: var(--no-w); min-height: 0; padding: var(--sp-3); background: var(--surface); color: var(--text); border: 1px solid var(--hairline); border-radius: var(--r-l); box-shadow: var(--shadow-1); transition: box-shadow var(--dur) var(--ease); }
 .drawflow .drawflow-node:hover { cursor: grab; box-shadow: var(--shadow-2); }
 .drawflow .drawflow-node.selected { background: var(--surface); border-color: var(--accent); box-shadow: var(--ring); }
@@ -88,6 +91,7 @@
   .editor--paleta .editor__paleta, .editor--inspector .editor__inspector { transform: none; visibility: visible; }
   .editor__fechar { display: inline-flex; align-self: flex-end; }
   .toolbar { top: var(--sp-2); }
+  .canvas__legenda-extra { display: none; }
   .relatorio { top: calc(var(--sp-12) * 2 + var(--sp-8)); }
   .toolbar .botao__rotulo-desktop { display: none; }
 }
