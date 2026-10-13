@@ -348,9 +348,9 @@ def test_paginacao_valida_salva_sem_pendencia(salvar_http):
 
 
 @pytest.mark.parametrize("alteracao", [{"limite_paginas": 0}, {"limite_paginas": 101}, {"intervalo_ms": 5001}, {"intervalo_ms": -1},
-                                       {"onde": "cookie"}, {"parar_quando": "nunca"}, {"nome": None}])
+                                       {"nome": None}])
 def test_paginacao_valor_fora_da_faixa_ou_ausente_e_pendencia(alteracao, salvar_http):
-    """MV2-16: valor fora da faixa / chave obrigatória do modo ausente = pendência (200)."""
+    """MV2-16: valor fora da faixa / chave obrigatória do modo ausente = pendência (200). (ENUM inválido é 400: MV2-25 d.)"""
     p = pag()
     for k, v in alteracao.items():
         if v is None:
@@ -359,6 +359,15 @@ def test_paginacao_valor_fora_da_faixa_ou_ausente_e_pendencia(alteracao, salvar_
             p[k] = v
     r = salvar_http(p)
     assert r.status_code == 200 and r.json()["pendencias"]
+
+
+@pytest.mark.parametrize("alteracao", [{"modo": "xyz"}, {"onde": "cookie"}, {"parar_quando": "nunca"}])
+def test_paginacao_enum_invalido_e_400_de_formato(alteracao, salvar_http):
+    """MV2-25 (d)/MV2-12 L3: ENUM inválido em config.paginacao (modo, onde, parar_quando) = 400 de formato, ok=false."""
+    p = pag()
+    p.update(alteracao)
+    r = salvar_http(p)
+    assert r.status_code == 400 and r.json()["ok"] is False
 
 
 @pytest.mark.parametrize("alteracao", [{"extra": 1}, {"limite_paginas": "10"}, {"codigos": "404"}, {"intervalo_ms": 1.5}])
