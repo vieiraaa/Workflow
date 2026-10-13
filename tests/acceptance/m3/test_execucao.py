@@ -20,9 +20,8 @@ def _j(n):
 
 
 def _truncou(n):
-    """SEG-07 no v2: a marca de truncamento está em ExecucaoNo.truncado (MV2-12 L2) ou em
-    requisicoes[].resposta.truncado (MV2-22)."""
-    return bool(n.truncado or any(r["resposta"]["truncado"] for r in n.requisicoes))
+    """MV2-24 (d): a marca é requisicoes[].resposta.truncado (ExecucaoNo.truncado fala só dos 50 itens gravados)."""
+    return any(r["resposta"]["truncado"] for r in n.requisicoes)
 
 
 def _h(r):
@@ -308,3 +307,30 @@ def test_nao_usa_proxy_do_ambiente(cliente_coordenador, liberado, executar, monk
     monkeypatch.setenv("ALL_PROXY", "http://127.0.0.1:9")
     _, e, _ = executar(cliente_coordenador, cadeia(cfg_http(f"{liberado.base}/ok")))
     assert e.status == "sucesso" and liberado.contagem("/ok") == 1
+
+
+@pytest.mark.modulo("m3")
+def test_corpo_truncado_no_limite_padrao_de_1mb_tambem_falha_o_no_seguinte(cliente_coordenador, liberado, executar, no, cadeia, cfg_http):
+    """MV2-24 (d)/SEG-07: o nó seguinte que usa o corpo cortado no limite lido falha com resposta_grande em QUALQUER
+    valor de MOTOR_LIMITE_RESPOSTA — aqui o padrão (1 MiB), sem setting."""
+    g = cadeia(cfg_http(f"{liberado.base}/grande"), cfg_http(f"{liberado.base}/eco", "POST", corpo='{"a": "{{ $json.corpo }}"}'))
+    _, e, _ = executar(cliente_coordenador, g)
+    assert no(e, "h1").status == "sucesso" and no(e, "h1").requisicoes[0]["resposta"]["truncado"] is True
+    assert no(e, "h2").status == "erro" and no(e, "h2").erro_categoria == "resposta_grande"
+    assert no(e, "s").status == "nao_executado" and liberado.contagem("/eco") == 0
+
+
+@pytest.mark.modulo("m3")
+def test_corte_so_dos_8kb_gravados_marca_truncado_mas_nao_e_resposta_grande(cliente_coordenador, liberado, executar, no, cadeia, cfg_http):
+    """MV2-24 (d)/MV2-22: corpo de 20 KB (dentro do limite lido) é gravado cortado em 8 KB com
+    requisicoes[].resposta.truncado=true, mas NÃO conta como "cortado no limite lido": o nó seguinte usa o corpo
+    completo e roda. ExecucaoNo.truncado fala só dos 50 itens (aqui false)."""
+    g = cadeia(cfg_http(f"{liberado.base}/medio"), cfg_http(f"{liberado.base}/eco", query=[{"nome": "n", "valor": "{{ $json.corpo.length }}"}]))
+    _, e, _ = executar(cliente_coordenador, g)
+    h1 = no(e, "h1")
+    r = h1.requisicoes[0]["resposta"]
+    assert r["truncado"] is True and len(r["corpo"].encode()) <= 8 * 1024
+    assert h1.truncado is False
+    assert len(_j(h1)["corpo"]) == 20 * 1024  # a saída do nó tem o corpo inteiro
+    assert no(e, "h2").status == "sucesso", no(e, "h2").erro_mensagem
+    assert no(e, "h2").requisicoes[0]["query"] == [{"nome": "n", "valor": str(20 * 1024)}]

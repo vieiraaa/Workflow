@@ -21,8 +21,8 @@ def _h(r):
 
 
 def _truncou(n):
-    """SEG-07 no v2: marca em ExecucaoNo.truncado (MV2-12 L2) ou em requisicoes[].resposta.truncado (MV2-22)."""
-    return bool(n.truncado or any(r["resposta"]["truncado"] for r in n.requisicoes))
+    """MV2-24 (d): a marca é requisicoes[].resposta.truncado (ExecucaoNo.truncado fala só dos 50 itens gravados)."""
+    return any(r["resposta"]["truncado"] for r in n.requisicoes)
 
 
 # ---------- IDOR ----------

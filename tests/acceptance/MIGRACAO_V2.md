@@ -64,3 +64,12 @@ Regra de ouro: atualizar, não apagar. Nenhum teste foi removido; os que testava
 
 ## Removidos
 Nenhum teste removido.
+
+## Adendo MV2-24 (Task T-060)
+| Teste | Mudança | Regra |
+|---|---|---|
+| test_grafo::test_ligacao_para_no_inexistente_e_pendencia | → `..._e_400_de_formato` (nó inexistente = 400, nada gravado); novo `test_ligacao_para_alca_inexistente_e_pendencia` (saida/entrada ≥ nº = pendência) | MV2-24 (a), MV2-19 |
+| test_grafo NOVOS | `test_aresta_sem_saida_ou_entrada_vale_zero`, `test_aresta_repetida_e_pendencia` ("Ligação repetida.") | MV2-24 (b)(c) |
+| adversarial m2 arestas duplicadas | duplicada passa a exigir pendência + não ativa | MV2-24 (c) |
+| _truncou (acc/adv m3) | só `requisicoes[].resposta.truncado` | MV2-24 (d) |
+| test_execucao NOVOS | resposta_grande no limite padrão de 1 MiB; corte só dos 8 KB marca truncado sem ser resposta_grande | MV2-24 (d), SEG-07, MV2-22 |

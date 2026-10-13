@@ -315,27 +315,69 @@ PENDENCIAS = {
     "dados_fixos_de_no_inexistente": lambda g: (g["dados_fixos"].update(zzz=[{"json": {"a": 1}}]), g)[-1],
 }
 
-# MV2-12 L3: "aresta para nó/alça inexistente = PENDÊNCIA (200)" (no v1 era FORMATO 400, GRF-02).
-LIGACAO_INEXISTENTE = {
+# MV2-24 (a) (MV2-19 prevalece sobre MV2-12 L3): aresta para NÓ inexistente = 400 de FORMATO (GRF-02), nada gravado;
+# aresta para ALÇA inexistente (saida/entrada ≥ nº do tipo) = pendência (200).
+LIGACAO_NO_INEXISTENTE = {
     "para_no_inexistente": lambda g: (g["arestas"].append(_ar("n2", "zzz")), g)[-1],
     "de_no_inexistente": lambda g: (g["arestas"].append(_ar("zzz", "n3")), g)[-1],
+}
+LIGACAO_ALCA_INEXISTENTE = {
+    "saida_inexistente": lambda g: (g["arestas"].append(_ar("n2", "n3", saida=5)), g)[-1],
+    "entrada_inexistente": lambda g: (g["arestas"].append(_ar("n2", "n3", entrada=5)), g)[-1],
 }
 
 
 @pytest.mark.modulo("m2")
-@pytest.mark.parametrize("nome", sorted(LIGACAO_INEXISTENTE))
-def test_ligacao_para_no_inexistente_e_pendencia(nome, cliente_coordenador, fabrica_fluxo, grafo_valido,
-                                                 salvar_grafo):
-    """MV2-12 L3 (revoga o 400 da GRF-02 para aresta com nó inexistente): 200 ok=true com pendência; grava;
-    não ativa."""
+@pytest.mark.parametrize("nome", sorted(LIGACAO_NO_INEXISTENTE))
+def test_ligacao_para_no_inexistente_e_400_de_formato(nome, cliente_coordenador, fabrica_fluxo, grafo_valido, salvar_grafo):
+    """MV2-24 (a)/MV2-19/GRF-02: aresta de/para NÓ inexistente → 400, ok=false, nada gravado."""
     f = fabrica_fluxo()
-    g = LIGACAO_INEXISTENTE[nome](grafo_valido)
+    antes = copy.deepcopy(f.grafo)
+    r = salvar_grafo(cliente_coordenador, f, LIGACAO_NO_INEXISTENTE[nome](grafo_valido))
+    assert r.status_code == 400 and r.json()["ok"] is False, nome
+    assert _salvo(f) == antes
+
+
+@pytest.mark.modulo("m2")
+@pytest.mark.parametrize("nome", sorted(LIGACAO_ALCA_INEXISTENTE))
+def test_ligacao_para_alca_inexistente_e_pendencia(nome, cliente_coordenador, fabrica_fluxo, grafo_valido, salvar_grafo):
+    """MV2-24 (a)/MV2-19/MV2-12 L3: aresta para ALÇA inexistente → 200 ok=true com pendência (grava; não ativa)."""
+    f = fabrica_fluxo()
+    g = LIGACAO_ALCA_INEXISTENTE[nome](grafo_valido)
     r = salvar_grafo(cliente_coordenador, f, g)
-    assert r.status_code == 200, nome
-    assert r.json()["ok"] is True and r.json()["pendencias"]
+    assert r.status_code == 200 and r.json()["ok"] is True and r.json()["pendencias"], nome
+    assert any("Ligação para uma saída que este nó não tem." in p["mensagem"] or "alça" in p["mensagem"].lower()
+               or "entrada" in p["mensagem"].lower() for p in r.json()["pendencias"])
     assert _salvo(f) == g
-    a = cliente_coordenador.post(reverse("fluxos:status", kwargs={"pk": f.pk}), {"status": "ativo"},
-                                 HTTP_ACCEPT="application/json")
+    a = cliente_coordenador.post(reverse("fluxos:status", kwargs={"pk": f.pk}), {"status": "ativo"}, HTTP_ACCEPT="application/json")
+    assert a.status_code == 400
+
+
+@pytest.mark.modulo("m2")
+@pytest.mark.parametrize("omitir", [("saida",), ("entrada",), ("saida", "entrada")])
+def test_aresta_sem_saida_ou_entrada_vale_zero(omitir, cliente_coordenador, fabrica_fluxo, grafo_valido, salvar_grafo):
+    """MV2-24 (b): aresta v2 sem `saida` e/ou `entrada` = 0 (padrão, não é erro): 200 sem pendências."""
+    f = fabrica_fluxo()
+    for a in grafo_valido["arestas"]:
+        for k in omitir:
+            a.pop(k)
+    r = salvar_grafo(cliente_coordenador, f, grafo_valido)
+    assert r.status_code == 200 and r.json()["ok"] is True and r.json()["pendencias"] == []
+    for a in _salvo(f)["arestas"]:
+        assert a.get("saida", 0) == 0 and a.get("entrada", 0) == 0
+
+
+@pytest.mark.modulo("m2")
+def test_aresta_repetida_e_pendencia(cliente_coordenador, fabrica_fluxo, grafo_valido, salvar_grafo):
+    """MV2-24 (c): mesma (de, saida, para, entrada) duas vezes → pendência "Ligação repetida."; grava; não ativa.
+    (Ligações DIFERENTES entre os mesmos nós, por outra alça, não são repetidas.)"""
+    f = fabrica_fluxo()
+    grafo_valido["arestas"].append(_ar("n1", "n2"))
+    r = salvar_grafo(cliente_coordenador, f, grafo_valido)
+    assert r.status_code == 200 and r.json()["ok"] is True
+    assert any(p["mensagem"] == "Ligação repetida." for p in r.json()["pendencias"])
+    assert _salvo(f) == grafo_valido
+    a = cliente_coordenador.post(reverse("fluxos:status", kwargs={"pk": f.pk}), {"status": "ativo"}, HTTP_ACCEPT="application/json")
     assert a.status_code == 400
 
 

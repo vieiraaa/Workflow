@@ -77,6 +77,8 @@ class _Handler(BaseHTTPRequestHandler):
                 json.dumps({"ok": True}).encode(),
                 {**json_h, "Set-Cookie": "sessao=SEGREDO-COOKIE-RESP", "X-Api-Key": "SEGREDO-APIKEY-RESP", "X-Token-Interno": "SEGREDO-TOKEN-RESP", "X-Publico": "visivel"},
             )
+        elif caminho == "/medio":
+            self._enviar(200, b"y" * (20 * 1024), {"Content-Type": "text/plain"})
         elif caminho == "/grande":
             self._enviar(200, b"x" * (1536 * 1024), {"Content-Type": "text/plain"})
         elif caminho == "/gzip":

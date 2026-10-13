@@ -275,8 +275,7 @@ def test_ids_perigosos_para_js_sao_salvos_sem_quebrar_o_servidor(cliente_coorden
 
 def test_arestas_duplicadas_auto_aresta_e_ciclo_longo(cliente_coordenador, fabrica_fluxo, grafo_valido, salvar_grafo):
     """GRF-03 → MV2-12 L4: auto-aresta e ciclo de 48 nós → pendência (200) ou 400; nunca 500; ativar recusado.
-    Aresta duplicada: várias entradas/fan-out são permitidos no v2 (MV2-12 L4), então só não pode dar 500 nem gravar
-    lixo (200 ou 400)."""
+    Aresta duplicada: pendência "Ligação repetida." (MV2-24 c)."""
     casos = {}
     g = copy.deepcopy(grafo_valido)
     g["arestas"].append({"de": "n1", "saida": 0, "para": "n2", "entrada": 0})
@@ -295,7 +294,7 @@ def test_arestas_duplicadas_auto_aresta_e_ciclo_longo(cliente_coordenador, fabri
         f = fabrica_fluxo()
         r = salvar_grafo(cliente_coordenador, f, grafo)
         assert r.status_code in (200, 400), nome
-        if r.status_code == 200 and nome != "duplicada":
+        if r.status_code == 200:  # MV2-24 (c): duplicada = pendência "Ligação repetida."
             assert r.json()["pendencias"], nome
             r2 = cliente_coordenador.post(_u("fluxos:status", f.pk), {"status": "ativo"}, HTTP_ACCEPT="application/json")
             assert r2.status_code == 400, nome
