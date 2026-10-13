@@ -4,9 +4,9 @@ from django.db import models
 
 
 def grafo_inicial():
-    """Grafo de um fluxo novo: só o gatilho (FLX-02)."""
+    """Grafo v2 de um fluxo novo: só o gatilho (FLX-02)."""
     return {
-        "versao": 1,
+        "versao": 2,
         "nos": [
             {
                 "id": "n1",
@@ -14,9 +14,14 @@ def grafo_inicial():
                 "titulo": "Início",
                 "posicao": {"x": 80, "y": 120},
                 "config": {},
+                "desativado": False,
+                "executar_uma_vez": False,
+                "em_erro": "parar",
             }
         ],
         "arestas": [],
+        "notas": [],
+        "dados_fixos": {},
     }
 
 
@@ -46,6 +51,7 @@ class Fluxo(models.Model):
     )
     status = models.CharField("status", max_length=10, choices=STATUS, default=RASCUNHO)
     grafo = models.JSONField("grafo", default=grafo_inicial)
+    relatorio_importacao = models.JSONField("relatório de importação", null=True, blank=True)
     criado_em = models.DateTimeField("criado em", auto_now_add=True)
     atualizado_em = models.DateTimeField("atualizado em", auto_now=True)
 

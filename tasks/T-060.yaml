@@ -1,0 +1,16 @@
+id: T-060
+titulo: M5 · Migrar o aceite e o adversarial de M2/M3 para o contrato v2
+dono: Lupa (qa)
+contexto: >
+  Com o motor v2 (T-052..T-055), 75 testes de aceite (m2: test_grafo 18, test_grafo_formato_fechado 4, test_fluxos_crud 4;
+  m3: test_execucao 19, test_placeholders 21, test_mascaramento 5, test_fluxo_executado 2, test_historico 1, test_ssrf 1) e
+  28 adversariais (m2 17, m3 ataques 9, concorrência 2) asserem o contrato v1.
+regra_de_ouro: >
+  Atualizar, NÃO apagar. Cada asserção alterada cita a regra v2 que mudou o comportamento: versao 1 → MV2-02/MV2-12 L3;
+  Saída obrigatória e 1 entrada/1 saída → MV2-12 L4; {{ anterior.x }} → MV2-03/MV2-12 L1 (resposta_completa);
+  entrada/saida como dict → MV2-12 L2 + requisicoes (MV2-15 B10); corpo da resposta de erro → MV2-22. Teste cujo
+  comportamento foi REMOVIDO pela spec é removido só com a regra citada no commit. Garantias de segurança (SSRF, CSRF, IDOR,
+  XSS, mascaramento, concorrência) se mantêm iguais ou mais fortes. Registre a lista (teste → regra) em
+  tests/acceptance/MIGRACAO_V2.md.
+extra: corrigir test_m5_motor_itens.py::test_continuar_entrega_itens_bons_normais_e_o_que_falhou_com_erro (nó 'falhas' sem ligação → pendência 'nó solto'; ligue-o).
+arquivos: [tests/acceptance/, tests/adversarial/]

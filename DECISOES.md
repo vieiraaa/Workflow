@@ -20,3 +20,11 @@
 - D-018 · 08/10 · Servidor da APLICAÇÃO (Supabase) roda numa cópia estável (git worktree destacado em main: ../construtor-workflows-estavel, .env por link simbólico) no terminal "Servidor · Supabase (estável)", porta 8000. O time desenvolve na pasta principal; código em desenvolvimento nunca chega ao banco real. Motivo: ProgrammingError setor_id às 17:49 (servidor recarregou o M4 sem migration). Atualizar a cópia só depois de merge na main + migrate aprovado pelo usuário.
 - D-019 · 08/10 · Gráficos da Home em SVG próprio (static/js/graficos.js), cores sucesso/erro dos tokens + hachura 45° no erro como canal secundário (daltonismo); sem biblioteca vendorizada (Vitral, T-044).
 - D-020 · 09/10 · Usuário autorizou aplicar as migrations do M4 no Supabase após o merge na main (setores + vínculo 'Geral'), atualizar a cópia estável e reiniciar a 8000.
+- D-021 · 09/10 · Nó Código em JavaScript (compatível com o n8n), em runtime isolado fora do processo do Django (docs/ROADMAP-n8n.md).
+- D-022 · 09/10 · CSLog e Digisac são sistemas diferentes; o CSLog depende da documentação da API.
+- D-023 · 09/10 · Papéis Gerente e TI separados, mantendo o Adm (divisão proposta no ROADMAP §4, a confirmar).
+- D-024 · 09/10 · Ordem: M5 Motor v2 completo → M6 segundo plano/gatilhos → M7 Funções → M8 Digisac/CSLog + painel.
+- D-025 · 09/10 · Expressões v2 (T-053): aceitam também optional chaining `?.`; String.replace só com texto (sem regex); undefined/NaN/Infinity viram null ao serializar em JSON.
+- D-026 · 09/10 · Usuário autorizou internet SÓ para o pip/PyPI instalar 'cryptography' (cofre Fernet, T-054); app e testes seguem sem internet. Atalaia trocou para Opus 4.8 nesta sessão (filtros do Opus 5.5 barraram o teste defensivo de isolamento), sem mudar a configuração global.
+- D-027 · 09/10 · Nó Código: Node 24 + vm (T-050) com SEGUNDA parede de rede do SO (SEG-20): sandbox-exec no macOS, unshare --net no Linux; sem camada (Windows hoje) = falha fechada. Decide D-i a favor do Node; QuickJS fica como plano B.
+- D-028 · 13/10 · Proibidos git stash/restore/clean/checkout -- no diretório compartilhado (deny em .claude/settings.json + CLAUDE.md): o Vitral rodou git stash por engano e devolveu com pop (nada perdido).

@@ -1,0 +1,5 @@
+id: T-054
+titulo: M5 · Cofre de credenciais e HTTP v2 com paginação
+dono: Forja (back)
+regras: [CRD-01, CRD-02, NOV-05, SEG-18, SEG-01..16]
+arquivos: [apps/, config/settings/, requirements*.txt, tests/unit/]

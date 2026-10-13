@@ -1,9 +1,27 @@
 """Aceite M3: execução. Fontes: EXE-01..07, EXE-11, EXE-12, PRM-01/02/03/08, SEG-07."""
 
+import json
+
 import pytest
 from django.urls import reverse
 
 pytestmark = pytest.mark.django_db
+
+# T-060 (migração v2): o nó HTTP dos fluxos deste arquivo roda com resposta_completa=true (como a migração v1→v2
+# marca os nós, MV2-12 L1). Logo a SAÍDA do nó é a LISTA [{"json": {"status", "headers", "corpo"}}] (MV2-12 L2/L13),
+# a ENTRADA é a lista de itens do nó anterior, e a requisição enviada + a resposta ficam em ExecucaoNo.requisicoes
+# (MV2-15 B10, MV2-22).
+
+
+def _j(n):
+    """Item único da saída do nó HTTP (MV2-12 L13: ExecucaoNo.saida[i]["json"])."""
+    assert len(n.saida) == 1, n.saida
+    return n.saida[0]["json"]
+
+
+def _truncou(n):
+    """MV2-24 (d): a marca é requisicoes[].resposta.truncado (ExecucaoNo.truncado fala só dos 50 itens gravados)."""
+    return any(r["resposta"]["truncado"] for r in n.requisicoes)
 
 
 def _h(r):
@@ -45,19 +63,29 @@ def test_um_execucao_no_por_no_em_ordem_com_duracao(cliente_coordenador, liberad
 
 @pytest.mark.modulo("m3")
 def test_formato_gravado_do_no_http(cliente_coordenador, liberado, executar, no, cadeia, cfg_http):
-    """EXE-12: entrada {metodo,url,headers,query,corpo} e saída {status,headers(minúsculos),corpo,truncado}."""
+    """EXE-12 → v2: a requisição {metodo,url,headers,query,corpo,status} vai para ExecucaoNo.requisicoes (MV2-15 B10),
+    a resposta para requisicoes[].resposta (MV2-22: status, headers minúsculos, corpo, truncado), a saída do nó é a lista
+    de itens com {status,headers(minúsculos),corpo} (MV2-12 L1) e a entrada é a lista de itens recebidos (MV2-12 L2)."""
     g = cadeia(cfg_http(f"{liberado.base}/eco", "POST", [{"nome": "X-Meu", "valor": "v1"}], [{"nome": "q", "valor": "1"}], '{"a": 1}'))
     _, e, _ = executar(cliente_coordenador, g)
     h1 = no(e, "h1")
-    assert {"metodo", "url", "headers", "query", "corpo"} <= set(h1.entrada)
-    assert h1.entrada["metodo"] == "POST" and h1.entrada["headers"] == [{"nome": "X-Meu", "valor": "v1"}]
-    assert h1.entrada["query"] == [{"nome": "q", "valor": "1"}]
-    assert h1.saida["status"] == 200 and h1.saida["truncado"] is False
-    assert all(k == k.lower() for k in h1.saida["headers"])
-    assert h1.saida["corpo"]["metodo"] == "POST"
-    assert h1.saida["corpo"]["query"] == {"q": ["1"]}
-    assert h1.saida["corpo"]["headers"]["x-meu"] == "v1"
-    assert h1.saida["corpo"]["corpo"] == '{"a": 1}'
+    assert [i["json"].keys() >= {"disparado_em", "executado_por"} for i in h1.entrada] == [True]  # MV2-12 L2
+    assert len(h1.requisicoes) == 1
+    req = h1.requisicoes[0]
+    assert {"metodo", "url", "headers", "query", "corpo", "status", "resposta"} <= set(req)
+    assert req["metodo"] == "POST" and req["headers"] == [{"nome": "X-Meu", "valor": "v1"}]
+    assert req["query"] == [{"nome": "q", "valor": "1"}] and req["status"] == 200
+    assert req["url"].startswith(f"{liberado.base}/eco")
+    assert req["corpo"] == '{"a": 1}'
+    assert req["resposta"]["status"] == 200 and req["resposta"]["truncado"] is False  # MV2-22
+    assert all(k == k.lower() for k in req["resposta"]["headers"])
+    assert json.loads(req["resposta"]["corpo"])["metodo"] == "POST"
+    j = _j(h1)
+    assert j["status"] == 200 and all(k == k.lower() for k in j["headers"])
+    assert j["corpo"]["metodo"] == "POST"
+    assert j["corpo"]["query"] == {"q": ["1"]}
+    assert j["corpo"]["headers"]["x-meu"] == "v1"
+    assert j["corpo"]["corpo"] == '{"a": 1}'
 
 
 @pytest.mark.modulo("m3")
@@ -67,14 +95,15 @@ def test_todos_os_metodos(cliente_coordenador, liberado, executar, no, metodo, c
     corpo = '{"a": 1}' if metodo in ("POST", "PUT", "PATCH") else ""
     _, e, _ = executar(cliente_coordenador, cadeia(cfg_http(f"{liberado.base}/eco", metodo, corpo=corpo)))
     assert e.status == "sucesso"
-    assert no(e, "h1").saida["corpo"]["metodo"] == metodo
+    assert _j(no(e, "h1"))["corpo"]["metodo"] == metodo  # MV2-12 L1/L13
 
 
 @pytest.mark.modulo("m3")
 def test_corpo_texto_nao_json_e_gravado_como_texto(cliente_coordenador, liberado, executar, no, cadeia, cfg_http):
     """EXE-12: corpo não-JSON da resposta é gravado como texto."""
     _, e, _ = executar(cliente_coordenador, cadeia(cfg_http(f"{liberado.base}/texto")))
-    assert no(e, "h1").saida["corpo"] == "texto simples, nao json"
+    assert _j(no(e, "h1"))["corpo"] == "texto simples, nao json"  # MV2-12 L1 (resposta_completa) / L13
+    assert no(e, "h1").requisicoes[0]["resposta"]["corpo"] == "texto simples, nao json"  # MV2-22
 
 
 @pytest.mark.modulo("m3")
@@ -83,7 +112,8 @@ def test_gatilho_grava_saida_plh02(cliente_coordenador, usuario_coordenador, lib
     from datetime import datetime
 
     _, e, _ = executar(cliente_coordenador, cadeia(cfg_http(f"{liberado.base}/ok")))
-    s = no(e, "g").saida
+    assert len(no(e, "g").saida) == 1  # MV2-01: o gatilho produz 1 item
+    s = no(e, "g").saida[0]["json"]  # MV2-12 L2/L13
     assert s["executado_por"] == usuario_coordenador.email
     datetime.fromisoformat(s["disparado_em"])
     assert e.executado_por_id == usuario_coordenador.pk
@@ -99,13 +129,16 @@ def test_saida_e_a_saida_completa_do_anterior(cliente_coordenador, liberado, exe
 @pytest.mark.modulo("m3")
 @pytest.mark.parametrize("codigo,categoria", [(400, "http_4xx"), (404, "http_4xx"), (429, "http_4xx"), (500, "http_5xx"), (503, "http_5xx")])
 def test_http_4xx_5xx_e_erro_do_no_mas_grava_a_resposta(cliente_coordenador, liberado, executar, no, nos_de, codigo, categoria, cadeia, cfg_http):
-    """EXE-06/EXE-05: 4xx/5xx = erro do nó com categoria; status, headers e corpo ficam na saída; seguintes nao_executado."""
+    """EXE-06/EXE-05: 4xx/5xx = erro do nó com categoria; seguintes nao_executado. v2 (MV2-22): status, headers
+    e corpo da resposta de ERRO ficam em requisicoes[].resposta (a saída do nó com erro é vazia)."""
     g = cadeia(cfg_http(f"{liberado.base}/status/{codigo}"), cfg_http(f"{liberado.base}/ok"))
     _, e, _ = executar(cliente_coordenador, g)
     h1 = no(e, "h1")
     assert h1.status == "erro" and h1.erro_categoria == categoria and h1.erro_mensagem
-    assert h1.saida["status"] == codigo
-    assert h1.saida["corpo"]["codigo"] == codigo and "content-type" in h1.saida["headers"]
+    assert len(h1.requisicoes) == 1 and h1.requisicoes[0]["status"] == codigo
+    resp = h1.requisicoes[0]["resposta"]
+    assert resp["status"] == codigo and "content-type" in resp["headers"]
+    assert json.loads(resp["corpo"])["codigo"] == codigo and resp["truncado"] is False
     assert e.status == "erro"
     assert [n.status for n in nos_de(e)] == ["sucesso", "erro", "nao_executado", "nao_executado"]
     assert liberado.contagem("/ok") == 0
@@ -116,7 +149,7 @@ def test_falha_mantem_o_que_ja_rodou(cliente_coordenador, liberado, executar, no
     """EXE-05: o que rodou antes da falha é mantido."""
     g = cadeia(cfg_http(f"{liberado.base}/ok"), cfg_http(f"{liberado.base}/status/500"))
     _, e, _ = executar(cliente_coordenador, g)
-    assert no(e, "h1").status == "sucesso" and no(e, "h1").saida["status"] == 200
+    assert no(e, "h1").status == "sucesso" and _j(no(e, "h1"))["status"] == 200
     assert no(e, "h2").status == "erro"
     assert no(e, "s").status == "nao_executado"
 
@@ -124,7 +157,7 @@ def test_falha_mantem_o_que_ja_rodou(cliente_coordenador, liberado, executar, no
 @pytest.mark.modulo("m3")
 def test_pendencias_nao_criam_execucao(cliente_coordenador, executar, modelos):
     """EXE-02/EXE-11: grafo com pendências → nenhuma execução, volta com erro."""
-    g = {"versao": 1, "nos": [], "arestas": []}
+    g = {"versao": 2, "nos": [], "arestas": [], "notas": [], "dados_fixos": {}}  # MV2-02
     r, e, f = executar(cliente_coordenador, g, status="rascunho", follow=True)
     assert e is None and modelos.Execucao.objects.count() == 0
     assert r.status_code == 200
@@ -172,24 +205,27 @@ def test_executar_anonimo_get_csrf_e_pk_inexistente(cliente_anonimo, cliente_adm
 def test_resposta_grande_e_truncada_em_1mb_sem_erro(cliente_coordenador, liberado, executar, no, cadeia, cfg_http):
     """SEG-07: resposta > 1 MB é cortada em 1 MB, gravada com truncado=true e NÃO é erro."""
     _, e, _ = executar(cliente_coordenador, cadeia(cfg_http(f"{liberado.base}/grande")))
-    s = no(e, "h1").saida
-    assert e.status == "sucesso" and s["truncado"] is True
-    assert len(s["corpo"]) <= 1024 * 1024
+    h1 = no(e, "h1")
+    assert e.status == "sucesso" and _truncou(h1)  # MV2-12 L2 / MV2-22
+    assert len(_j(h1)["corpo"]) <= 1024 * 1024
 
 
 @pytest.mark.modulo("m3")
 def test_limite_conta_corpo_descompactado(cliente_coordenador, liberado, executar, no, cadeia, cfg_http):
     """SEG-07: gzip de 6 MB descompactado (poucos KB no fio) é cortado em 1 MB e marcado truncado."""
     _, e, _ = executar(cliente_coordenador, cadeia(cfg_http(f"{liberado.base}/gzip")))
-    s = no(e, "h1").saida
-    assert s["truncado"] is True and len(s["corpo"]) <= 1024 * 1024
+    h1 = no(e, "h1")
+    assert _truncou(h1) and len(_j(h1)["corpo"]) <= 1024 * 1024
     assert e.status == "sucesso"
 
 
 @pytest.mark.modulo("m3")
-def test_corpo_truncado_usado_em_placeholder_falha_o_no_seguinte(cliente_coordenador, liberado, executar, no, cadeia, cfg_http):
-    """SEG-07: placeholder que precisa do corpo truncado → nó seguinte falha com resposta_grande."""
-    g = cadeia(cfg_http(f"{liberado.base}/grande"), cfg_http(f"{liberado.base}/eco", "POST", corpo='{"a": "{{ anterior.corpo }}"}'))
+def test_corpo_truncado_usado_em_placeholder_falha_o_no_seguinte(cliente_coordenador, liberado, settings, executar, no, cadeia, cfg_http):
+    """SEG-07: placeholder que precisa do corpo truncado → nó seguinte falha com resposta_grande.
+    (v2: limite reduzido por MOTOR_LIMITE_RESPOSTA para o corte não se confundir com o limite de 1 MB do resultado
+    de uma expressão, MV2-10.)"""
+    settings.MOTOR_LIMITE_RESPOSTA = 2048
+    g = cadeia(cfg_http(f"{liberado.base}/grande"), cfg_http(f"{liberado.base}/eco", "POST", corpo='{"a": "{{ $json.corpo }}"}'))  # MV2-03: anterior → $json
     _, e, _ = executar(cliente_coordenador, g)
     assert no(e, "h1").status == "sucesso"
     assert no(e, "h2").status == "erro" and no(e, "h2").erro_categoria == "resposta_grande"
@@ -233,8 +269,8 @@ def test_limite_de_resposta_por_setting(cliente_coordenador, liberado, settings,
     """SEG-07/SEG-16.7: MOTOR_LIMITE_RESPOSTA (padrão 1 MiB; aqui 2048) corta e marca truncado sem erro."""
     settings.MOTOR_LIMITE_RESPOSTA = 2048
     _, e, _ = executar(cliente_coordenador, cadeia(cfg_http(f"{liberado.base}/grande")))
-    s = no(e, "h1").saida
-    assert e.status == "sucesso" and s["truncado"] is True and len(s["corpo"]) <= 2048
+    h1 = no(e, "h1")
+    assert e.status == "sucesso" and _truncou(h1) and len(_j(h1)["corpo"]) <= 2048
 
 
 @pytest.mark.modulo("m3")
@@ -251,7 +287,7 @@ def test_max_redirects_por_setting(cliente_coordenador, liberado, settings, exec
 def test_redirects_ate_5_seguidos(cliente_coordenador, liberado, executar, no, cadeia, cfg_http):
     """SEG-05: 5 redirects seguidos até a resposta final funcionam."""
     _, e5, _ = executar(cliente_coordenador, cadeia(cfg_http(f"{liberado.base}/redir/5")))
-    assert e5.status == "sucesso" and no(e5, "h1").saida["status"] == 200
+    assert e5.status == "sucesso" and _j(no(e5, "h1"))["status"] == 200
 
 
 @pytest.mark.modulo("m3")
@@ -271,3 +307,30 @@ def test_nao_usa_proxy_do_ambiente(cliente_coordenador, liberado, executar, monk
     monkeypatch.setenv("ALL_PROXY", "http://127.0.0.1:9")
     _, e, _ = executar(cliente_coordenador, cadeia(cfg_http(f"{liberado.base}/ok")))
     assert e.status == "sucesso" and liberado.contagem("/ok") == 1
+
+
+@pytest.mark.modulo("m3")
+def test_corpo_truncado_no_limite_padrao_de_1mb_tambem_falha_o_no_seguinte(cliente_coordenador, liberado, executar, no, cadeia, cfg_http):
+    """MV2-24 (d)/SEG-07: o nó seguinte que usa o corpo cortado no limite lido falha com resposta_grande em QUALQUER
+    valor de MOTOR_LIMITE_RESPOSTA — aqui o padrão (1 MiB), sem setting."""
+    g = cadeia(cfg_http(f"{liberado.base}/grande"), cfg_http(f"{liberado.base}/eco", "POST", corpo='{"a": "{{ $json.corpo }}"}'))
+    _, e, _ = executar(cliente_coordenador, g)
+    assert no(e, "h1").status == "sucesso" and no(e, "h1").requisicoes[0]["resposta"]["truncado"] is True
+    assert no(e, "h2").status == "erro" and no(e, "h2").erro_categoria == "resposta_grande"
+    assert no(e, "s").status == "nao_executado" and liberado.contagem("/eco") == 0
+
+
+@pytest.mark.modulo("m3")
+def test_corte_so_dos_8kb_gravados_marca_truncado_mas_nao_e_resposta_grande(cliente_coordenador, liberado, executar, no, cadeia, cfg_http):
+    """MV2-24 (d)/MV2-22: corpo de 20 KB (dentro do limite lido) é gravado cortado em 8 KB com
+    requisicoes[].resposta.truncado=true, mas NÃO conta como "cortado no limite lido": o nó seguinte usa o corpo
+    completo e roda. ExecucaoNo.truncado fala só dos 50 itens (aqui false)."""
+    g = cadeia(cfg_http(f"{liberado.base}/medio"), cfg_http(f"{liberado.base}/eco", query=[{"nome": "n", "valor": "{{ $json.corpo.length }}"}]))
+    _, e, _ = executar(cliente_coordenador, g)
+    h1 = no(e, "h1")
+    r = h1.requisicoes[0]["resposta"]
+    assert r["truncado"] is True and len(r["corpo"].encode()) <= 8 * 1024
+    assert h1.truncado is False
+    assert len(_j(h1)["corpo"]) == 20 * 1024  # a saída do nó tem o corpo inteiro
+    assert no(e, "h2").status == "sucesso", no(e, "h2").erro_mensagem
+    assert no(e, "h2").requisicoes[0]["query"] == [{"nome": "n", "valor": str(20 * 1024)}]

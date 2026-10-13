@@ -103,7 +103,26 @@ def navegador_movel(request, live_server, cliente_base):
 
 
 def grafo_minimo_valido():
-    """Cadeia gatilho → http → saída sem pendências (exemplo da spec)."""
+    """Cadeia gatilho → http → saída sem pendências, no contrato v2 (MV2-02; migrado do v1 pela T-060)."""
+    return {"versao": 2, "nos": [
+        {"id": "n1", "tipo": "gatilho", "titulo": "Início", "posicao": {"x": 80, "y": 120}, "config": {},
+         "desativado": False, "executar_uma_vez": False, "em_erro": "parar"},
+        {"id": "n2", "tipo": "http", "titulo": "Buscar pedido", "posicao": {"x": 360, "y": 120},
+         "config": {"metodo": "GET", "url": "https://api.exemplo.test/pedidos/1",
+                    "headers": [{"nome": "Accept", "valor": "application/json"}],
+                    "query": [{"nome": "detalhe", "valor": "completo"}],
+                    "corpo": {"tipo": "nenhum", "conteudo": ""}, "credencial": None, "resposta": "automatica",
+                    "paginacao": None, "resposta_completa": False},
+         "desativado": False, "executar_uma_vez": False, "em_erro": "parar"},
+        {"id": "n3", "tipo": "saida", "titulo": "Resultado", "posicao": {"x": 640, "y": 120}, "config": {},
+         "desativado": False, "executar_uma_vez": False, "em_erro": "parar"}],
+        "arestas": [{"de": "n1", "saida": 0, "para": "n2", "entrada": 0},
+                    {"de": "n2", "saida": 0, "para": "n3", "entrada": 0}],
+        "notas": [], "dados_fixos": {}}
+
+
+def grafo_minimo_valido_v1():
+    """O mesmo fluxo no formato v1 (versao 1), para provar a migração v1→v2 (MV2-03, MV2-12 L3)."""
     return {"versao": 1, "nos": [
         {"id": "n1", "tipo": "gatilho", "titulo": "Início", "posicao": {"x": 80, "y": 120}, "config": {}},
         {"id": "n2", "tipo": "http", "titulo": "Buscar pedido", "posicao": {"x": 360, "y": 120},
@@ -120,6 +139,11 @@ def grafo_valido():
 
 
 @pytest.fixture
+def grafo_valido_v1():
+    return copy.deepcopy(grafo_minimo_valido_v1())
+
+
+@pytest.fixture
 def fabrica_fluxo(db, usuario_adm):
     """Cria Fluxo fictício direto no modelo fluxos.Fluxo (campos: docs/spec/grafo.yaml)."""
     from django.apps import apps
@@ -128,9 +152,11 @@ def fabrica_fluxo(db, usuario_adm):
 
     def _criar(nome=None, status="rascunho", dono=None, grafo=None, descricao="Descrição fictícia"):
         n = next(contador)
+        # SET-04/SET-06: fluxo nasce no setor "Geral" (SET-01).
         return Fluxo.objects.create(
             nome=nome or f"Fluxo Fictício {n}", descricao=descricao, dono=dono or usuario_adm,
-            status=status, grafo=copy.deepcopy(grafo if grafo is not None else grafo_minimo_valido()))
+            status=status, grafo=copy.deepcopy(grafo if grafo is not None else grafo_minimo_valido()),
+            setor=apps.get_model("contas", "Setor").objects.get(nome="Geral"))
 
     return _criar
 

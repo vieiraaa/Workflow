@@ -79,3 +79,38 @@ lacunas_m3:
       (8) Esquema não-http salvo no editor = pendência (GRF-04); alcançado por redirect na execução = bloqueado_ssrf.
       (9) Toast de fluxos:executar com pendências: "Este fluxo tem pendências. Corrija no editor antes de executar."
 
+motor_v2:
+  - id: SEG-17
+    texto: >
+      CÓDIGO ISOLADO (D-021/D-i): o JavaScript do nó Código roda num PROCESSO separado por execução de nó (Node.js com o
+      modelo de permissões ativo e nenhuma permissão concedida, ou QuickJS embutido — decisão D-i com prova do Revisor de
+      Segurança), sem rede, sem sistema de arquivos, sem variáveis de ambiente, sem child_process/worker/require/import,
+      com limite de CPU (5 s), memória (128 MB) e saída (5 MB); entrada e saída só por JSON pelo stdin/stdout. Nunca eval
+      ou vm no processo do Django. Falha do isolamento (ex.: conseguir ler um arquivo ou abrir socket) é achado CRÍTICO.
+  - id: SEG-18
+    texto: >
+      COFRE: credenciais cifradas em repouso (Fernet, chave só no ambiente, nunca no banco, no repo ou em log);
+      mascaradas por nome E por valor em entrada, saída, snapshot, export, erro e log; a tela nunca devolve o valor
+      salvo; testes usam chave de teste gerada na fixture.
+  - id: SEG-19
+    texto: >
+      IMPORTAÇÃO: JSON externo é dado não confiável — validação fechada (MV2-02), limite 2 MB, nó Código importado
+      desativado até revisão do Adm, segredos detectados substituídos por pendência (IMP-04), nenhum campo do arquivo
+      escolhe dono, setor, id ou status do fluxo criado.
+  - id: SEG-20
+    texto: >
+      SEGUNDA PAREDE DE REDE do nó Código (achado ALTA da T-058: o --permission do Node 24 não cobre rede). O processo do
+      runtime JS roda dentro de uma camada do SISTEMA OPERACIONAL que nega rede, independente do vm: macOS → sandbox-exec
+      com perfil que nega network*; Linux → namespace de rede vazio (unshare --net, ou systemd PrivateNetwork / container
+      --network=none). FALHA FECHADA: se nenhuma camada estiver disponível (ex.: Windows hoje), o nó Código não roda e dá
+      erro categoria "codigo_indisponivel" com a mensagem "O nó Código não está disponível neste servidor (sem isolamento de
+      rede)."; não existe opção para rodar sem a camada fora dos testes de unidade do próprio runner. O teste
+      test_modelo_de_permissao_do_node_nao_barra_rede (processo com os flags exatos do runner não conecta no servidor
+      local) tem de ficar VERDE.
+  - id: SEG-21
+    texto: >
+      SUBSTITUI o item 6 da SEG-16 (T-061): valores DIGITADOS em header ou query sensíveis (SEG-09) — inclusive na query da
+      própria url — com 4 ou mais caracteres também são mascarados POR VALOR ("••••") onde quer que reapareçam: saída do
+      nó, requisicoes[].resposta (headers e corpo) e tela. Junto com o mascaramento por valor de credencial (CRD-02,
+      MV2-18 C4), segredo refletido pelo servidor remoto não fica gravado em claro.
+

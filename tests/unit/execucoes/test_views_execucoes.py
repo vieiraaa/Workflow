@@ -209,7 +209,13 @@ def test_detalhe_grafo_execucao_e_resumo_sucesso(
     http = grafo["nos"][1]
     assert http["status"] == "sucesso" and http["metodo"] == "GET" and http["http_status"] == 200
     assert http["host"] == "api.exemplo.test" and http["posicao"] == {"x": 360, "y": 120}
-    assert "config" not in http and grafo["arestas"][0] == {"de": "n1", "para": "n2"}
+    assert "config" not in http and grafo["arestas"][0] == {
+        "de": "n1",
+        "saida": 0,
+        "para": "n2",
+        "entrada": 0,
+        "itens": 0,
+    }
     assert contexto["resumo_texto"].startswith("3 de 3 nós executados com sucesso em ")
     assert contexto["resumo_texto"].endswith("· GET api.exemplo.test → 200")
 

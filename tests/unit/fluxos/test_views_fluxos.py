@@ -31,11 +31,11 @@ def test_listagem_pagina_valida_e_consulta():
 
 def test_salvar_resposta_traz_status_e_volta_para_rascunho(cliente_adm, usuario_adm):
     fluxo = demo.criar_fluxo(usuario_adm, "F", "ativo", demo.grafo_exemplo())
-    sem_saida = demo.grafo_exemplo()
-    sem_saida["nos"].pop()
-    sem_saida["arestas"].pop()
+    com_pendencia = demo.grafo_com_url_invalida()
     resposta = _post(
-        cliente_adm, fluxo, {"grafo": sem_saida, "atualizado_em": fluxo.atualizado_em.isoformat()}
+        cliente_adm,
+        fluxo,
+        {"grafo": com_pendencia, "atualizado_em": fluxo.atualizado_em.isoformat()},
     )
     corpo = resposta.json()
     assert corpo["voltou_para_rascunho"] is True and corpo["status"] == "rascunho"
@@ -135,7 +135,7 @@ def test_modelo_valida_o_grafo_em_qualquer_entrada(usuario_adm):
         fluxo.full_clean()
     assert "grafo" in erro.value.message_dict
     with pytest.raises(ValidationError):
-        demo.criar_fluxo(usuario_adm, "G", grafo={"versao": 2, "nos": [], "arestas": []})
+        demo.criar_fluxo(usuario_adm, "G", grafo={"versao": 3, "nos": [], "arestas": []})
 
 
 def test_demo_historico_respeita_o_setor_de_cada_pessoa():

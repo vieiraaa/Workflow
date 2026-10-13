@@ -1,0 +1,6 @@
+id: T-052
+titulo: M5 · Grafo v2, itens no executor, ordem topológica, erro e migração v1→v2
+dono: Forja (back)
+regras: [MV2-01..07, GRF-09]
+objetivo: Validador do grafo v2 (schema fechado), migration de dados v1→v2, executor por itens com ramos/entradas múltiplas, em_erro, dados fixos, "executar este nó", histórico v2; nós existentes (gatilho, http v1, saida) portados.
+arquivos: [apps/fluxos/, apps/motor/, apps/execucoes/, tests/unit/]

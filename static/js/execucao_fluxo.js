@@ -16,8 +16,10 @@
   if (!palco || !nos.length) { if (vazio) vazio.hidden = false; return; }
 
   var SPRITE = raiz.dataset.sprite;
-  var ICONES = { gatilho: "zap", http: "globe", saida: "flag" };
-  var ROTULO = { sucesso: "Sucesso", erro: "Erro", nao_executado: "Não executado" };
+  var C = window.ConversorGrafo;
+  var ROTULO = { sucesso: "Sucesso", erro: "Erro", nao_executado: "Não executado", sem_itens: "Sem itens", desativado: "Desativado", fixo: "Dados fixos" };
+  function infoTipo(tipo) { return C ? C.tipoDe(tipo) : { icone: "workflow", grupo: "fluxo" }; }
+  function plural(n) { return n + (n === 1 ? " item" : " itens"); }
   var LARG = 220, ALT = 64, MARGEM = 24, NS = "http://www.w3.org/2000/svg";
 
   function criar(tag, classe, texto) {
@@ -46,11 +48,44 @@
   var vertical = null, larguraHorizontal = null, mundo = null, larguraTotal = 0, alturaTotal = 0;
   var LIMITE_ESCALA = 0.6;
 
-  /* Posições: as do snapshot (horizontal) ou, se precisariam encolher demais, uma coluna na ordem de x. */
+  /* Posições: as do snapshot (horizontal) ou, se precisariam encolher demais, em camadas (celular):
+     uma linha por profundidade, ramos lado a lado em colunas, para que nada cruze um nó. */
+  var CALHA = 28, VAO = 40;
+  function emCamadas() {
+    var porId = {}, pais = {}, prof = {};
+    nos.forEach(function (n) { porId[n.id] = n; pais[n.id] = []; });
+    arestas.forEach(function (a) { if (porId[a.de] && porId[a.para]) pais[a.para].push(a.de); });
+    function profundidade(id, visitando) {
+      if (prof[id] !== undefined) return prof[id];
+      if (visitando[id]) return 0;
+      visitando[id] = true;
+      var m = 0;
+      pais[id].forEach(function (p) { m = Math.max(m, profundidade(p, visitando) + 1); });
+      visitando[id] = false;
+      return (prof[id] = m);
+    }
+    nos.forEach(function (n) { n._lin = profundidade(n.id, {}); });
+    var linhas = {};
+    nos.forEach(function (n) { (linhas[n._lin] = linhas[n._lin] || []).push(n); });
+    Object.keys(linhas).map(Number).sort(function (a, b) { return a - b; }).forEach(function (l) {
+      var usadas = {};
+      linhas[l].forEach(function (n) {
+        var p = pais[n.id].map(function (id) { return porId[id]._col; }).filter(function (c) { return c !== undefined; });
+        n._desejo = p.length ? Math.min.apply(null, p) : 0;
+      });
+      linhas[l].sort(function (a, b) {
+        return (a._desejo - b._desejo) || ((Number(a.posicao && a.posicao.y) || 0) - (Number(b.posicao && b.posicao.y) || 0));
+      }).forEach(function (n) {
+        var c = n._desejo; while (usadas[c]) c++;
+        usadas[c] = true; n._col = c;
+      });
+    });
+    nos.forEach(function (n) { n._x = CALHA + n._col * (LARG + 24); n._y = n._lin * (ALT + VAO); });
+  }
+
   function posicionar(emColuna) {
-    var ordenados = nos.slice().sort(function (a, b) { return (Number(a.posicao && a.posicao.x) || 0) - (Number(b.posicao && b.posicao.x) || 0); });
     if (emColuna) {
-      ordenados.forEach(function (n, i) { n._x = 0; n._y = i * (ALT + 36); });
+      emCamadas();
     } else {
       nos.forEach(function (n) { var p = n.posicao || {}; n._x = Number(p.x) || 0; n._y = Number(p.y) || 0; });
     }
@@ -59,6 +94,7 @@
       minX = Math.min(minX, n._x); minY = Math.min(minY, n._y);
       maxX = Math.max(maxX, n._x + LARG); maxY = Math.max(maxY, n._y + ALT);
     });
+    if (emColuna) { minX = 0; minY = 0; } // camadas já partem de 0; a calha das arestas depende disso
     nos.forEach(function (n) { n._x = n._x - minX + MARGEM; n._y = n._y - minY + MARGEM; });
     larguraTotal = maxX - minX + 2 * MARGEM; alturaTotal = maxY - minY + 2 * MARGEM;
   }
@@ -85,8 +121,9 @@
       b.setAttribute("aria-label", (n.ordem ? "Nó " + n.ordem + ": " : "Nó não executado: ") + n.titulo +
         ", " + (ROTULO[n.status] || "") + ". Ver detalhes.");
       var no = criar("div", "no");
-      var ic = criar("div", "no__icone no__icone--" + n.tipo);
-      ic.appendChild(icone(ICONES[n.tipo] || "workflow"));
+      var info = infoTipo(n.tipo);
+      var ic = criar("div", "no__icone no__icone--" + info.grupo);
+      ic.appendChild(icone(info.icone || "workflow"));
       var textos = criar("div", "no__textos");
       textos.appendChild(criar("div", "no__titulo", n.titulo));
       textos.appendChild(criar("div", "no__resumo", resumoDe(n)));
@@ -97,22 +134,46 @@
       mundo.appendChild(b);
     });
 
+    var nSaidas = {}, nEntradas = {};
+    arestas.forEach(function (a) {
+      nSaidas[a.de] = Math.max(nSaidas[a.de] || 1, (a.saida || 0) + 1);
+      nEntradas[a.para] = Math.max(nEntradas[a.para] || 1, (a.entrada || 0) + 1);
+    });
     arestas.forEach(function (a) {
       var de = porId[a.de], para = porId[a.para];
       if (!de || !para) return;
+      var fy1 = ALT * ((a.saida || 0) + 1) / ((nSaidas[a.de] || 1) + 1), fy2 = ALT * ((a.entrada || 0) + 1) / ((nEntradas[a.para] || 1) + 1);
       var d;
+      var ponto = null;
       if (emColuna) {
         var cx = LARG / 2, y1 = de._y + ALT, y2 = para._y, dy = Math.max(16, Math.abs(y2 - y1) / 2);
-        d = "M" + (de._x + cx) + " " + y1 + " C" + (de._x + cx) + " " + (y1 + dy) + " " + (para._x + cx) + " " + (y2 - dy) + " " + (para._x + cx) + " " + y2;
+        if (para._lin - de._lin > 1) { // pula camadas: desce pela calha à esquerda e entra por cima
+          var yc = y2 - VAO / 2;
+          d = "M" + (de._x + cx) + " " + y1 + " L" + (de._x + cx) + " " + (y1 + VAO / 2) + " L" + ((MARGEM + CALHA / 2)) + " " + (y1 + VAO / 2) +
+            " L" + ((MARGEM + CALHA / 2)) + " " + yc + " L" + (para._x + cx) + " " + yc + " L" + (para._x + cx) + " " + y2;
+          ponto = { x: ((MARGEM + CALHA / 2) + para._x + cx) / 2, y: yc };
+        } else {
+          d = "M" + (de._x + cx) + " " + y1 + " C" + (de._x + cx) + " " + (y1 + dy) + " " + (para._x + cx) + " " + (y2 - dy) + " " + (para._x + cx) + " " + y2;
+        }
       } else {
-        var x1 = de._x + LARG, y1h = de._y + ALT / 2, x2 = para._x, y2h = para._y + ALT / 2;
+        var x1 = de._x + LARG, y1h = de._y + fy1, x2 = para._x, y2h = para._y + fy2;
         var dx = Math.max(40, Math.abs(x2 - x1) / 2);
         d = "M" + x1 + " " + y1h + " C" + (x1 + dx) + " " + y1h + " " + (x2 - dx) + " " + y2h + " " + x2 + " " + y2h;
       }
       var path = document.createElementNS(NS, "path");
       path.setAttribute("d", d);
-      path.setAttribute("class", "fluxo-exec__aresta" + (para.status === "nao_executado" ? " fluxo-exec__aresta--inativa" : ""));
+      path.setAttribute("class", "fluxo-exec__aresta" + (para.status === "nao_executado" || (typeof a.itens === "number" && a.itens === 0) ? " fluxo-exec__aresta--inativa" : ""));
       svg.appendChild(path);
+      if (typeof a.itens === "number") {
+        if (!ponto) ponto = path.getTotalLength ? path.getPointAtLength(path.getTotalLength() / 2) : null;
+        var g = document.createElementNS(NS, "g");
+        g.setAttribute("class", "fluxo-exec__aresta-itens"); g.setAttribute("data-itens", String(a.itens));
+        var t = document.createElementNS(NS, "text");
+        t.textContent = plural(a.itens);
+        if (ponto) { t.setAttribute("x", ponto.x); t.setAttribute("y", ponto.y); }
+        t.setAttribute("text-anchor", "middle"); t.setAttribute("dominant-baseline", "central");
+        g.appendChild(t); svg.appendChild(g);
+      }
     });
     palco.appendChild(mundo);
   }

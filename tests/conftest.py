@@ -1,8 +1,24 @@
+import os
+
 import pytest
 from django.contrib.auth.models import Group
 from django.test import Client
 
 from apps.contas.models import Setor, Usuario
+
+
+def _node_com_parede_de_rede():
+    """NODE_BIN dos testes que lançam o node por conta própria (prova de rede do Revisor):
+    um lançador que o executa DENTRO da camada de rede do SO (SEG-20), como o produto faz."""
+    from apps.motor.codigo import isolamento
+
+    if not os.environ.get("NODE_BIN"):
+        lancador = isolamento.criar_lancador()
+        if lancador:
+            os.environ["NODE_BIN"] = lancador
+
+
+_node_com_parede_de_rede()
 
 
 def pytest_addoption(parser):
@@ -103,3 +119,12 @@ def cliente_base(usuario_base):
 @pytest.fixture
 def cliente_sem_papel(usuario_sem_papel):
     return _cliente_logado(usuario_sem_papel)
+
+
+@pytest.fixture
+def chave_credenciais(settings):
+    """Chave Fernet de teste gerada na hora (SEG-18): nunca uma chave real."""
+    from cryptography.fernet import Fernet
+
+    settings.CREDENCIAIS_CHAVE = Fernet.generate_key().decode()
+    return settings.CREDENCIAIS_CHAVE

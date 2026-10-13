@@ -15,6 +15,14 @@ TRECHOS = ("token", "secret", "senha", "password", "api-key", "api_key", "apikey
 _QUERY_NA_URL = re.compile(r"([?&])([^=&#]*)(=)([^&#]*)")
 
 
+_INVALIDOS = re.compile("[\x00\ud800-\udfff]")
+
+
+def higienizar(texto):
+    """Texto sem NUL nem surrogate solto (o banco recusa): vira U+FFFD. MV2-25 c."""
+    return _INVALIDOS.sub("\ufffd", texto) if isinstance(texto, str) else texto
+
+
 def sensivel(nome, decodificar=False):
     """`decodificar=True` compara o nome após percent-decode (nomes de query dentro de URLs)."""
     nome = unquote_plus(str(nome)) if decodificar else str(nome)
@@ -83,6 +91,23 @@ def valores_sensiveis(headers):
     return {a for a in achados if len(a) >= 4}
 
 
+def valores_sensiveis_da_requisicao(resolvido):
+    """Valores digitados em headers/query sensíveis (e na query da URL) da requisição: servem para
+    mascarar o que o servidor devolve refletido na resposta (SEG-09 por valor)."""
+    achados = set()
+    pares = [(p["nome"], p["valor"]) for c in ("headers", "query") for p in resolvido.get(c) or []]
+    pares += [
+        (nome, valor)
+        for _, nome, _, valor in _QUERY_NA_URL.findall(resolvido.get("url", ""))
+        if sensivel(unquote_plus(nome))
+    ]
+    for nome, valor in pares:
+        if sensivel(nome):
+            achados.add(valor)
+            achados.update(parte for parte in valor.split() if len(parte) >= 4)
+    return {a for a in achados if len(a) >= 4}
+
+
 def ocultar_valores(entrada, segredos):
     """Troca por `••••` qualquer ocorrência dos `segredos` (crus, JSON-escapados ou percent-encoded)
     no texto de url, nomes e valores de headers/query e corpo da entrada gravada."""
@@ -112,6 +137,52 @@ def ocultar_valores(entrada, segredos):
             for par in resultado.get(campo) or []
         ]
     return resultado
+
+
+def _limpar_texto(texto, variantes):
+    texto = higienizar(texto)
+    for variante in variantes:
+        texto = texto.replace(variante, MASCARA)
+    return texto
+
+
+def _variantes(segredos):
+    achadas = set()
+    for segredo in segredos:
+        achadas |= {
+            segredo,
+            json.dumps(segredo, ensure_ascii=False)[1:-1],
+            quote(segredo, safe=""),
+        }
+    return sorted((v for v in achadas if v), key=len, reverse=True)
+
+
+def ocultar_em_texto(texto, segredos):
+    """`texto` com qualquer ocorrência dos `segredos` (crus, JSON-escapados ou percent-encoded)
+    trocada por `••••`."""
+    if not texto:
+        return texto
+    return _limpar_texto(texto, _variantes(segredos)) if segredos else higienizar(texto)
+
+
+def mascarar_itens(itens, segredos=()):
+    """Cópia dos itens para gravar/exibir: dicts `headers` com nomes sensíveis mascarados e
+    qualquer ocorrência dos `segredos` (valores de credencial etc.) trocada por `••••`."""
+    variantes = _variantes(segredos)
+
+    def percorrer(valor):
+        if isinstance(valor, str):
+            return _limpar_texto(valor, variantes)
+        if isinstance(valor, list):
+            return [percorrer(v) for v in valor]
+        if isinstance(valor, dict):
+            copia = {k: percorrer(v) for k, v in valor.items()}
+            if isinstance(copia.get("headers"), dict):
+                copia["headers"] = mascarar_headers_dict(copia["headers"])
+            return copia
+        return valor
+
+    return percorrer(itens)
 
 
 def mascarar_saida_http(saida):

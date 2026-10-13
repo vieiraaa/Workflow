@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% load static %}
+{% block titulo %}{% if credencial %}Editar credencial{% else %}Nova credencial{% endif %} · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}{% if credencial %}Editar credencial{% else %}Nova credencial{% endif %}{% endblock %}
+{% block scripts %}<script src="{% static 'js/credenciais.js' %}" defer></script>{% endblock %}
+{% block conteudo %}
+<section class="card card--formulario">
+  {% if chave_ausente %}<div class="alerta alerta--erro" role="alert" data-estado="chave_ausente">{% include "componentes/icone.html" with nome="circle-alert" tamanho=16 %}<span>A chave de criptografia do servidor não está configurada (CREDENCIAIS_CHAVE). Não é possível salvar credenciais.</span></div>{% endif %}
+  <form class="formulario" method="post" novalidate data-form-credencial>
+    {% csrf_token %}
+    {% include "componentes/alerta.html" with erros=form.non_field_errors estado="erro_validacao" %}
+    {% include "componentes/campo.html" with campo=form.nome %}
+    {% include "componentes/campo.html" with campo=form.tipo %}
+    {% include "componentes/campo.html" with campo=form.setor ajuda="Vazio: vale para todos os setores." %}
+    <div data-tipos="header"{% if form.header_nome %}{% endif %}>{% include "componentes/campo.html" with campo=form.header_nome %}</div>
+    <div data-tipos="basic smtp">{% include "componentes/campo.html" with campo=form.usuario %}</div>
+    <div data-tipos="smtp">
+      {% include "componentes/campo.html" with campo=form.host %}
+      {% include "componentes/campo.html" with campo=form.porta %}
+      {% include "componentes/toggle.html" with nome="tls" rotulo="Usar TLS" marcado=form.tls.value erros=form.tls.errors %}
+    </div>
+    {% include "componentes/campo.html" with campo=form.valor ajuda=ajuda_valor|default:"O valor é guardado cifrado e não aparece depois de salvo." %}
+    {% if credencial %}<p class="campo__ajuda">Deixe o valor em branco para manter o atual. O valor antigo nunca é mostrado.</p>{% endif %}
+    <div class="formulario__acoes">
+      {% include "componentes/botao.html" with rotulo="Cancelar" href=url_lista %}
+      <button class="botao botao--primario" type="submit" data-carregando>{% if credencial %}Salvar{% else %}Criar credencial{% endif %}</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

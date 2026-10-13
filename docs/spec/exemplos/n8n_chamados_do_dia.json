@@ -1,0 +1,241 @@
+{
+  "name": "Chamados do dia (exemplo sanitizado)",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// ===== EDITE AQUI =====\nconst baseUrl = 'https://eem.digisac.co'; // sem barra no final\nconst token = 'TOKEN_FICTICIO_DIGISAC'; // só o token, sem a palavra \"Bearer\"\nconst diasAtras = 1; // 1 = ontem, 0 = hoje\n// ======================\n\nconst offsetMin = -180; // Horário de Brasília (UTC-3)\nconst agoraLocal = new Date(Date.now() + offsetMin * 60000);\nconst y = agoraLocal.getUTCFullYear();\nconst m = agoraLocal.getUTCMonth();\nconst d = agoraLocal.getUTCDate() - diasAtras;\n\nconst inicio = new Date(Date.UTC(y, m, d, 0, 0, 0) - offsetMin * 60000);\nconst fim = new Date(inicio.getTime() + 24 * 60 * 60 * 1000 - 1);\n\nreturn [{\n  json: {\n    baseUrl,\n    token,\n    porPagina: 500, // limite observado na API do Digisac\n    dia: new Date(Date.UTC(y, m, d)).toISOString().slice(0, 10),\n    inicio: inicio.toISOString(),\n    fim: fim.toISOString(),\n  },\n}];\n"
+      },
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        -80
+      ],
+      "id": "0d801a65-d807-4155-bf66-b17d7de850bb"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Config').first().json.baseUrl }}/api/v1/me",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Config').first().json.token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Usuário do token",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        112,
+        -80
+      ],
+      "executeOnce": true,
+      "id": "0c1bba75-b898-44f8-aad7-1b9a07814991"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Junta a configuração com o usuário dono do token (a IA, \"Maggy\").\nconst cfg = $('Config').first().json;\nconst meRaw = $('Usuário do token').first().json;\nconst me = meRaw.data && meRaw.data.id ? meRaw.data : meRaw;\n\nif (!me.id) throw new Error('Não foi possível ler o id do usuário do token em /api/v1/me.');\n\nreturn [{ json: { ...cfg, iaUserId: me.id, iaNome: me.name } }];\n"
+      },
+      "name": "Contexto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        -80
+      ],
+      "id": "6b48c44a-5727-4d36-af1c-9b5a1803d8af"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Contexto').first().json.baseUrl }}/api/v1/users",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ JSON.stringify({ perPage: $('Contexto').first().json.porPagina }) }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Contexto').first().json.token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Usuários",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        496,
+        -80
+      ],
+      "id": "b83377ca-8a01-4430-82d2-3f2d4cb7db16",
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Contexto').first().json.baseUrl }}/api/v1/tickets",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ JSON.stringify({ where: { startedAt: { '$gte': $('Contexto').first().json.inicio, '$lte': $('Contexto').first().json.fim } }, include: [{ model: 'contact', attributes: ['id', 'name'] }, { model: 'department', attributes: ['id', 'name'] }, { model: 'user', attributes: ['id', 'name'] }], order: [['startedAt', 'ASC']], page: 1, perPage: $('Contexto').first().json.porPagina }) }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Contexto').first().json.token }}"
+            }
+          ]
+        },
+        "options": {
+          "pagination": {
+            "pagination": {
+              "parameters": {
+                "parameters": [
+                  {
+                    "name": "query",
+                    "value": "={{ JSON.stringify({ where: { startedAt: { '$gte': $('Contexto').first().json.inicio, '$lte': $('Contexto').first().json.fim } }, include: [{ model: 'contact', attributes: ['id', 'name'] }, { model: 'department', attributes: ['id', 'name'] }, { model: 'user', attributes: ['id', 'name'] }], order: [['startedAt', 'ASC']], page: $pageCount + 1, perPage: $('Contexto').first().json.porPagina }) }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ (($response.body && $response.body.data) || $response.body || []).length < $('Contexto').first().json.porPagina }}",
+              "limitPagesFetched": true,
+              "maxRequests": 20
+            }
+          }
+        }
+      },
+      "name": "Chamados do dia",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        688,
+        -80
+      ],
+      "id": "29c5d350-63df-438f-b914-9156b74c3df6",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// A API devolve uma página por item ({ data: [...], total }); juntamos todas as páginas.\nconst chamados = [];\nlet total = null;\nfor (const item of $input.all()) {\n  const j = item.json;\n  if (Array.isArray(j.data)) {\n    chamados.push(...j.data);\n    if (typeof j.total === 'number') total = j.total;\n  } else if (j && j.id) {\n    chamados.push(j);\n  }\n}\n\n// Remove duplicados, caso a mesma página venha duas vezes\nconst unicos = [...new Map(chamados.map((t) => [t.id, t])).values()];\n\nreturn unicos.map((t) => ({\n  json: {\n    ticketId: t.id,\n    protocol: t.protocol,\n    isOpen: t.isOpen,\n    startedAt: t.startedAt,\n    endedAt: t.endedAt,\n    contato: t.contact ? t.contact.name : null,\n    departamento: t.department ? t.department.name : null,\n    atendenteDoChamado: t.user ? t.user.name : null,\n    totalInformadoPelaApi: total,\n    totalRecebido: unicos.length,\n  },\n}));\n"
+      },
+      "name": "Lista de chamados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        864,
+        -80
+      ],
+      "id": "f335487e-6d5d-4ad1-b597-27dd0ad281f7"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -272,
+        -80
+      ],
+      "id": "75982811-6f8f-4699-881b-23789896917f",
+      "name": "When clicking ‘Execute workflow’"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Usuário do token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Usuário do token": {
+      "main": [
+        [
+          {
+            "node": "Contexto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contexto": {
+      "main": [
+        [
+          {
+            "node": "Usuários",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Usuários": {
+      "main": [
+        [
+          {
+            "node": "Chamados do dia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chamados do dia": {
+      "main": [
+        [
+          {
+            "node": "Lista de chamados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "exemplo",
+  "id": "exemplo",
+  "tags": []
+}

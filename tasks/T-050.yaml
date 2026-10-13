@@ -1,0 +1,11 @@
+id: T-050
+titulo: M5 · Spike do runtime JS isolado (D-i) — Node.js com permissões x QuickJS
+dono: Forja (back) + Revisor de Segurança (prova)
+regras: [SEG-17, NOV-06]
+objetivo: >
+  Protótipo em apps/motor/codigo/ que roda o jsCode do exemplo n8n (Config, Contexto, Lista de chamados) com a API NOV-06,
+  em processo isolado (Node 24 está instalado: `node --permission` sem --allow-*; alternativa QuickJS via pacote com wheel
+  macOS+Windows). Medir: tempo de partida, limites CPU/memória/saída, bloqueio de fs/rede/env/child_process/require.
+  Entregar recomendação em docs? NÃO (docs é do Lead): resultado na linha de resposta + testes em tests/unit/motor/.
+aceite: os 3 códigos do exemplo rodam e devolvem itens; 10 tentativas de fuga (ler arquivo, socket, env, require, process, eval de import()) falham
+arquivos: [apps/motor/codigo/, tests/unit/motor/]

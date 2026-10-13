@@ -10,6 +10,26 @@ from django.urls import reverse
 
 pytestmark = [pytest.mark.django_db, pytest.mark.modulo("m2")]
 
+# MV2-02: raiz do grafo v2 / nó v2 (campos novos com o padrão) — migração T-060 (antes: versao 1).
+RAIZ_V2 = '"versao": 2, "nos": NOS, "arestas": [], "notas": [], "dados_fixos": {}'
+NO_V2 = '"desativado": false, "executar_uma_vez": false, "em_erro": "parar"'
+
+
+def _no_v2(id_, tipo, titulo, x, config=None):
+    return {"id": id_, "tipo": tipo, "titulo": titulo, "posicao": {"x": x, "y": 0}, "config": config or {},
+            "desativado": False, "executar_uma_vez": False, "em_erro": "parar"}
+
+
+def _http_v2(titulo, x):
+    return _no_v2(f"h{x}", "http", titulo, x, {
+        "metodo": "GET", "url": "https://a.exemplo.test/", "headers": [], "query": [],
+        "corpo": {"tipo": "nenhum", "conteudo": ""}, "credencial": None, "resposta": "automatica",
+        "paginacao": None, "resposta_completa": False})
+
+
+VAZIO = {"versao": 2, "nos": [], "arestas": [], "notas": [], "dados_fixos": {}}
+
+
 XSS = [
     "<script>alert(1)</script>",
     '"><img src=x onerror=window.__pwn=1>',
@@ -176,11 +196,12 @@ def test_content_type_errado(cliente_coordenador, fabrica_fluxo, grafo_valido, c
         assert _salvo(f) == antes
 
 
-def test_json_gigante_acima_de_256kb(cliente_coordenador, fabrica_fluxo, grafo_valido):
-    """SEG-14: JSON de 5 MB → 4xx (nunca 500), nada gravado."""
+def test_json_gigante_acima_de_2mb(cliente_coordenador, fabrica_fluxo, grafo_valido):
+    """SEG-14/MV2-02: JSON de 5 MB (> 2 MB) → 4xx (nunca 500), nada gravado."""
     f = fabrica_fluxo()
     antes = copy.deepcopy(f.grafo)
-    _http(grafo_valido)["config"]["corpo"] = "x" * (5 * 1024 * 1024)
+    # MV2-02: o limite agora é 2 MB (antes 256 KB); 5 MB em dados_fixos (tipo certo) → 400 de TAMANHO, não de formato.
+    grafo_valido["dados_fixos"] = {"n2": [{"json": {"x": "x" * (5 * 1024 * 1024)}}]}
     r = _post_bruto(cliente_coordenador, f, json.dumps({"grafo": grafo_valido, "atualizado_em": f.atualizado_em.isoformat()}))
     assert 400 <= r.status_code < 500
     assert _salvo(f) == antes
@@ -191,7 +212,7 @@ def test_json_profundamente_aninhado(cliente_coordenador, fabrica_fluxo, profund
     """GRF-02/SEG-14: aninhamento extremo ([[[...]]]) nunca dá 500 (recursão do parser ou limite de pilha do Postgres)."""
     f = fabrica_fluxo()
     aninhado = "[" * profundidade + "]" * profundidade
-    bruto = '{"grafo": {"versao": 1, "nos": [], "arestas": [], "extra": ANINHADO}, "atualizado_em": "TOKEN"}'.replace("ANINHADO", aninhado).replace("TOKEN", f.atualizado_em.isoformat())
+    bruto = '{"grafo": {"versao": 2, "nos": [], "arestas": [], "notas": [], "dados_fixos": {}, "extra": ANINHADO}, "atualizado_em": "TOKEN"}'.replace("ANINHADO", aninhado).replace("TOKEN", f.atualizado_em.isoformat())
     r = _post_bruto(cliente_coordenador, f, bruto)
     assert r.status_code < 500, r.status_code
 
@@ -201,24 +222,25 @@ def test_json_com_numeros_especiais(cliente_coordenador, fabrica_fluxo, num):
     """GRF-02: NaN, Infinity e números gigantes nunca dão 500."""
     f = fabrica_fluxo()
     bruto = (
-        '{"grafo": {"versao": 1, "nos": [{"id": "n1", "tipo": "gatilho", "titulo": "t", "posicao": {"x": NUM, "y": 0}, "config": {}}], "arestas": []}, "atualizado_em": "TOKEN"}'
+        '{"grafo": {"versao": 2, "nos": [{"id": "n1", "tipo": "gatilho", "titulo": "t", "posicao": {"x": NUM, "y": 0}, "config": {}, NOV2}], "arestas": [], "notas": [], "dados_fixos": {}}, "atualizado_em": "TOKEN"}'
         .replace("NUM", num)
+        .replace("NOV2", NO_V2)
         .replace("TOKEN", f.atualizado_em.isoformat())
     )
     assert _post_bruto(cliente_coordenador, f, bruto).status_code < 500
 
 
 def test_json_com_chaves_duplicadas(cliente_coordenador, fabrica_fluxo):
-    """GRF-02: chave duplicada ("versao": 1 e depois 2) nunca dá 500."""
+    """GRF-02/MV2-12 L3: chave duplicada ("versao": 1 e depois 2) nunca dá 500."""
     f = fabrica_fluxo()
-    bruto = '{"grafo": {"versao": 1, "versao": 2, "nos": [], "arestas": []}, "atualizado_em": "TOKEN"}'.replace("TOKEN", f.atualizado_em.isoformat())
+    bruto = '{"grafo": {"versao": 1, "versao": 2, "nos": [], "arestas": [], "notas": [], "dados_fixos": {}}, "atualizado_em": "TOKEN"}'.replace("TOKEN", f.atualizado_em.isoformat())
     assert _post_bruto(cliente_coordenador, f, bruto).status_code < 500
 
 
 def test_json_com_surrogate_solto(cliente_coordenador, fabrica_fluxo):
     """GRF-02: surrogate Unicode solto (\\ud800) no título nunca dá 500 (o Postgres recusa esse JSON)."""
     f = fabrica_fluxo()
-    bruto = '{"grafo": {"versao": 1, "nos": [{"id": "n1", "tipo": "gatilho", "titulo": "\\ud800", "posicao": {"x": 0, "y": 0}, "config": {}}], "arestas": []}, "atualizado_em": "TOKEN"}'.replace("TOKEN", f.atualizado_em.isoformat())
+    bruto = '{"grafo": {"versao": 2, "nos": [{"id": "n1", "tipo": "gatilho", "titulo": "\\ud800", "posicao": {"x": 0, "y": 0}, "config": {}, NOV2}], "arestas": [], "notas": [], "dados_fixos": {}}, "atualizado_em": "TOKEN"}'.replace("NOV2", NO_V2).replace("TOKEN", f.atualizado_em.isoformat())
     assert _post_bruto(cliente_coordenador, f, bruto).status_code < 500
 
 
@@ -252,24 +274,27 @@ def test_ids_perigosos_para_js_sao_salvos_sem_quebrar_o_servidor(cliente_coorden
 
 
 def test_arestas_duplicadas_auto_aresta_e_ciclo_longo(cliente_coordenador, fabrica_fluxo, grafo_valido, salvar_grafo):
-    """GRF-03: arestas duplicadas, auto-aresta e ciclo de 48 nós → pendência (200) ou 400; nunca 500; ativar recusado."""
+    """GRF-03 → MV2-12 L4: auto-aresta e ciclo de 48 nós → pendência (200) ou 400; nunca 500; ativar recusado.
+    Aresta duplicada: pendência "Ligação repetida." (MV2-24 c)."""
     casos = {}
     g = copy.deepcopy(grafo_valido)
-    g["arestas"].append({"de": "n1", "para": "n2"})
+    g["arestas"].append({"de": "n1", "saida": 0, "para": "n2", "entrada": 0})
     casos["duplicada"] = g
     g = copy.deepcopy(grafo_valido)
-    g["arestas"].append({"de": "n2", "para": "n2"})
+    g["arestas"].append({"de": "n2", "saida": 0, "para": "n2", "entrada": 0})
     casos["auto"] = g
     g = copy.deepcopy(grafo_valido)
-    ring = [{"id": f"h{i}", "tipo": "http", "titulo": "H", "posicao": {"x": i, "y": 0}, "config": {"metodo": "GET", "url": "https://a.exemplo.test/", "headers": [], "query": [], "corpo": ""}} for i in range(48)]
+    ring = [_http_v2(f"H{i}", i) for i in range(48)]
+    for i, n in enumerate(ring):
+        n["id"] = f"h{i}"
     g["nos"] += ring
-    g["arestas"] += [{"de": f"h{i}", "para": f"h{(i + 1) % 48}"} for i in range(48)]
+    g["arestas"] += [{"de": f"h{i}", "saida": 0, "para": f"h{(i + 1) % 48}", "entrada": 0} for i in range(48)]
     casos["ciclo_longo"] = g
     for nome, grafo in casos.items():
         f = fabrica_fluxo()
         r = salvar_grafo(cliente_coordenador, f, grafo)
         assert r.status_code in (200, 400), nome
-        if r.status_code == 200:
+        if r.status_code == 200:  # MV2-24 (c): duplicada = pendência "Ligação repetida."
             assert r.json()["pendencias"], nome
             r2 = cliente_coordenador.post(_u("fluxos:status", f.pk), {"status": "ativo"}, HTTP_ACCEPT="application/json")
             assert r2.status_code == 400, nome
@@ -277,13 +302,15 @@ def test_arestas_duplicadas_auto_aresta_e_ciclo_longo(cliente_coordenador, fabri
             assert f.status == "rascunho"
 
 
-def test_ciclo_profundo_cadeia_de_50_nos_nao_estoura(cliente_coordenador, fabrica_fluxo, salvar_grafo):
-    """GRF-02: cadeia linear de 50 nós (limite) é validada sem 500."""
-    nos = [{"id": "g", "tipo": "gatilho", "titulo": "G", "posicao": {"x": 0, "y": 0}, "config": {}}]
-    nos += [{"id": f"h{i}", "tipo": "http", "titulo": "H", "posicao": {"x": i, "y": 0}, "config": {"metodo": "GET", "url": "https://a.exemplo.test/", "headers": [], "query": [], "corpo": ""}} for i in range(48)]
-    nos += [{"id": "s", "tipo": "saida", "titulo": "S", "posicao": {"x": 99, "y": 0}, "config": {}}]
+def test_ciclo_profundo_cadeia_de_200_nos_nao_estoura(cliente_coordenador, fabrica_fluxo, salvar_grafo):
+    """GRF-02 → MV2-02: cadeia linear de 200 nós (o novo limite) é validada sem 500 e sem pendências."""
+    nos = [_no_v2("g", "gatilho", "G", 0)]
+    nos += [dict(_http_v2(f"H{i}", i), id=f"h{i}") for i in range(198)]
+    nos += [_no_v2("s", "saida", "S", 999)]
     ids = [n["id"] for n in nos]
-    grafo = {"versao": 1, "nos": nos, "arestas": [{"de": a, "para": b} for a, b in zip(ids, ids[1:], strict=False)]}
+    assert len(nos) == 200
+    grafo = {"versao": 2, "nos": nos, "notas": [], "dados_fixos": {},
+             "arestas": [{"de": a, "saida": 0, "para": b, "entrada": 0} for a, b in zip(ids, ids[1:], strict=False)]}
     f = fabrica_fluxo()
     r = salvar_grafo(cliente_coordenador, f, grafo)
     assert r.status_code == 200 and r.json()["pendencias"] == []
@@ -292,18 +319,18 @@ def test_ciclo_profundo_cadeia_de_50_nos_nao_estoura(cliente_coordenador, fabric
 @pytest.mark.parametrize("token", ["lixo", "", None, 0, [], {}, "9999-12-31T23:59:59+00:00", "2000-01-01T00:00:00+00:00", "2026-13-45T99:99:99", "0001-01-01T00:00:00+00:00", "x" * 10000])
 def test_atualizado_em_forjado(cliente_coordenador, fabrica_fluxo, grafo_valido, token):
     """GRF-07: token forjado/antigo/futuro/inválido → 4xx (409 ou 400), nunca 500, nunca grava."""
-    f = fabrica_fluxo(grafo={"versao": 1, "nos": [], "arestas": []})
+    f = fabrica_fluxo(grafo=VAZIO)
     r = _post_bruto(cliente_coordenador, f, json.dumps({"grafo": grafo_valido, "atualizado_em": token}))
     assert r.status_code in (400, 409), (token, r.status_code)
-    assert _salvo(f) == {"versao": 1, "nos": [], "arestas": []}
+    assert _salvo(f) == VAZIO
 
 
 def test_atualizado_em_ausente(cliente_coordenador, fabrica_fluxo, grafo_valido):
     """GRF-07: sem atualizado_em não dá para sobrescrever às cegas."""
-    f = fabrica_fluxo(grafo={"versao": 1, "nos": [], "arestas": []})
+    f = fabrica_fluxo(grafo=VAZIO)
     r = _post_bruto(cliente_coordenador, f, json.dumps({"grafo": grafo_valido}))
     assert r.status_code in (400, 409)
-    assert _salvo(f) == {"versao": 1, "nos": [], "arestas": []}
+    assert _salvo(f) == VAZIO
 
 
 def test_corrida_de_dois_salvamentos_com_o_mesmo_token(usuario_adm, usuario_coordenador, fabrica_fluxo, grafo_valido, salvar_grafo):
@@ -344,8 +371,11 @@ def test_campos_extras_no_grafo_nao_sao_gravados_como_estado(cliente_coordenador
 # ---------- status ----------
 
 PENDENTES = {
-    "vazio": {"versao": 1, "nos": [], "arestas": []},
-    "so_gatilho": {"versao": 1, "nos": [{"id": "g", "tipo": "gatilho", "titulo": "G", "posicao": {"x": 0, "y": 0}, "config": {}}], "arestas": []},
+    "vazio": VAZIO,
+    # MV2-12 L4: gatilho sozinho deixou de ser pendência (Saída não é obrigatória); o que sobra é o nó sem caminho
+    # a partir do gatilho.
+    "no_solto": {"versao": 2, "nos": [_no_v2("g", "gatilho", "G", 0), _no_v2("x", "sem_operacao", "X", 9)],
+                 "arestas": [], "notas": [], "dados_fixos": {}},
 }
 
 
@@ -394,7 +424,10 @@ def test_toctou_ativar_e_depois_salvar_grafo_invalido_desativa(cliente_coordenad
 PLH = [
     "{{ __import__('os').system('id') }}",
     "{{ anterior.__class__ }}",
-    "{{ anterior.__class__.__mro__[1].__subclasses__() }}",
+    "{{ $json.__proto__ }}",
+    "{{ $json.constructor.constructor('return process')() }}",
+    "{{ $('Nó que não existe').item.json }}",
+    "{{ $json.__class__.__mro__[1].__subclasses__() }}",
     "{{ ''.__class__ }}",
     "{{anterior.corpo.a.b.c.d.e.f.g.h.i.j.k.l.m}}",
     "{{ anterior..corpo }}",
@@ -415,19 +448,24 @@ def test_placeholders_hostis_so_sintaxe_nao_quebram_o_salvamento(cliente_coorden
     cfg["headers"] = [{"nome": "X-Teste", "valor": plh}]
     cfg["query"] = [{"nome": "q", "valor": plh}]
     cfg["metodo"] = "POST"
-    cfg["corpo"] = json.dumps({"campo": plh})
+    cfg["corpo"] = {"tipo": "json", "conteudo": json.dumps({"campo": plh})}  # NOV-05/MV2-14 (1)
     r = salvar_grafo(cliente_coordenador, f, grafo_valido)
     assert r.status_code == 200, plh
     saved = _salvo(f)["nos"][1]["config"]
     assert saved["headers"][0]["valor"] == plh and saved["query"][0]["valor"] == plh
 
 
-def test_placeholder_fora_de_string_no_corpo_e_pendencia(cliente_coordenador, fabrica_fluxo, grafo_valido, salvar_grafo):
-    """GRF-04: placeholder no corpo só dentro de valor string; fora disso o corpo é JSON inválido → pendência no nó."""
+def test_placeholder_fora_de_string_no_corpo_json_e_aceito_no_v2(cliente_coordenador, fabrica_fluxo, grafo_valido, salvar_grafo):
+    """GRF-04 (v1: placeholder no corpo só dentro de string; fora disso = pendência) → MV2-15 B6: o corpo json é um TEXTO
+    template validado como JSON DEPOIS de resolvido, então `{"a": {{ $json.x }}}` salva sem pendência. O que continua
+    pendência é JSON inválido sem placeholder (GRF-04)."""
     f = fabrica_fluxo()
     cfg = _http(grafo_valido)["config"]
     cfg["metodo"] = "POST"
-    cfg["corpo"] = '{"a": {{ anterior.corpo }}}'
+    cfg["corpo"] = {"tipo": "json", "conteudo": '{"a": {{ $json.corpo }}}'}
+    r = salvar_grafo(cliente_coordenador, f, grafo_valido)
+    assert r.status_code == 200 and not any(p["no"] == "n2" for p in r.json()["pendencias"])
+    cfg["corpo"] = {"tipo": "json", "conteudo": '{"a": }'}
     r = salvar_grafo(cliente_coordenador, f, grafo_valido)
     assert r.status_code == 200 and any(p["no"] == "n2" for p in r.json()["pendencias"])
 
@@ -486,16 +524,41 @@ def test_descricao_gigante_em_novo(cliente_coordenador):
 
 
 def _grafo_xss(payload):
+    """Grafo v2 hostil: payload em título, url, headers, query, corpo, em UMA NOTA (texto markdown, MV2-02) e em
+    dados_fixos (itens fixados) — vetores novos do v2 além dos do v1."""
+    http = _no_v2("n2", "http", payload[:80], 360, {
+        "metodo": "POST", "url": "https://api.exemplo.test/" + payload, "headers": [{"nome": "X-A", "valor": payload}],
+        "query": [{"nome": "q", "valor": payload}], "corpo": {"tipo": "json", "conteudo": json.dumps({"a": payload})},
+        "credencial": None, "resposta": "automatica", "paginacao": None, "resposta_completa": False})
     g = {
-        "versao": 1,
-        "nos": [
-            {"id": "n1", "tipo": "gatilho", "titulo": payload[:80], "posicao": {"x": 80, "y": 100}, "config": {}},
-            {"id": "n2", "tipo": "http", "titulo": payload[:80], "posicao": {"x": 360, "y": 100}, "config": {"metodo": "POST", "url": "https://api.exemplo.test/" + payload, "headers": [{"nome": "X-A", "valor": payload}], "query": [{"nome": "q", "valor": payload}], "corpo": json.dumps({"a": payload})}},
-            {"id": "n3", "tipo": "saida", "titulo": payload[:80], "posicao": {"x": 640, "y": 100}, "config": {}},
-        ],
-        "arestas": [{"de": "n1", "para": "n2"}, {"de": "n2", "para": "n3"}],
+        "versao": 2,
+        "nos": [_no_v2("n1", "gatilho", payload[:80], 80), http, _no_v2("n3", "saida", payload[:80], 640)],
+        "arestas": [{"de": "n1", "saida": 0, "para": "n2", "entrada": 0}, {"de": "n2", "saida": 0, "para": "n3", "entrada": 0}],
+        "notas": [{"id": "nt1", "texto": payload, "posicao": {"x": 100, "y": 250}, "tamanho": {"l": 240, "a": 120}, "cor": "amarela"}],
+        "dados_fixos": {"n2": [{"json": {"x": payload}}]},
     }
     return g
+
+
+@pytest.mark.parametrize("payload", XSS)
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
+def test_dados_fixos_com_chave_hostil_nao_quebra_o_editor(pagina_coordenador, fabrica_fluxo, payload):
+    """SEG-13 / MV2-02 (v2: dados_fixos): CHAVE de item fixado com HTML/aspas/colchetes carrega e abre no inspector sem
+    erro de JavaScript (o editor monta seletores a partir da chave) e sem executar script."""
+    pagina = pagina_coordenador
+    g = _grafo_xss("ok")
+    g["dados_fixos"] = {"n2": [{"json": {payload[:20]: "valor", "normal": payload}}]}
+    f = fabrica_fluxo(grafo=g)
+    pagina.goto(pagina.live_url + _u("fluxos:editor", f.pk))
+    pagina.wait_for_selector(".drawflow-node", timeout=10000)
+    nos = pagina.locator(".drawflow-node")
+    for i in range(nos.count()):
+        nos.nth(i).click(position={"x": 8, "y": 8})
+        pagina.wait_for_timeout(150)
+    pagina.wait_for_timeout(300)
+    assert pagina.dialogos == [], pagina.dialogos
+    assert pagina.evaluate("window.__pwn") is None
+    assert not pagina.erros_js, pagina.erros_js
 
 
 @pytest.mark.parametrize("payload", XSS)
@@ -524,12 +587,10 @@ def test_editor_carrega_com_ids_proto_e_constructor(pagina_coordenador, fabrica_
     """GRF-02/SEG-13: nós com id __proto__ e constructor (válidos pela regex) carregam no canvas sem erro de JS e sem perder nós."""
     pagina = pagina_coordenador
     g = {
-        "versao": 1,
-        "nos": [
-            {"id": "__proto__", "tipo": "gatilho", "titulo": "G", "posicao": {"x": 80, "y": 100}, "config": {}},
-            {"id": "constructor", "tipo": "saida", "titulo": "S", "posicao": {"x": 400, "y": 100}, "config": {}},
-        ],
-        "arestas": [{"de": "__proto__", "para": "constructor"}],
+        "versao": 2,
+        "nos": [_no_v2("__proto__", "gatilho", "G", 80), _no_v2("constructor", "saida", "S", 400)],
+        "arestas": [{"de": "__proto__", "saida": 0, "para": "constructor", "entrada": 0}],
+        "notas": [], "dados_fixos": {},
     }
     f = fabrica_fluxo(grafo=g)
     pagina.goto(pagina.live_url + _u("fluxos:editor", f.pk))
@@ -537,3 +598,55 @@ def test_editor_carrega_com_ids_proto_e_constructor(pagina_coordenador, fabrica_
     assert not pagina.erros_js, pagina.erros_js
     assert pagina.locator(".drawflow-node").count() == 2
     assert pagina.evaluate("({}).polluted") is None
+
+
+# ---------- v2 (T-060): ataques à migração v1→v2 e aos campos novos ----------
+
+@pytest.mark.parametrize("versao", [True, False, "1", "2", [1], {"v": 2}, None, 3, -1, 2**63])
+def test_versao_do_grafo_hostil_e_400(versao, cliente_coordenador, fabrica_fluxo, grafo_valido, salvar_grafo):
+    """MV2-12 L3: só versao 1 ou 2 (inteiro) é aceita; booleano (True == 1 em Python), texto, lista, objeto, null e
+    outros números → 400, nada gravado, nunca 500."""
+    f = fabrica_fluxo()
+    antes = copy.deepcopy(f.grafo)
+    grafo_valido["versao"] = versao
+    r = salvar_grafo(cliente_coordenador, f, grafo_valido)
+    assert r.status_code == 400, versao
+    assert _salvo(f) == antes
+
+
+def test_v1_hostil_nao_vira_v2_com_lixo(cliente_coordenador, fabrica_fluxo, grafo_valido_v1, salvar_grafo):
+    """MV2-03 / GRF-09: um grafo v1 com chave desconhecida (inclusive a do v2 fora de lugar) segue 400 — a conversão não
+    abre brecha no schema fechado."""
+    f = fabrica_fluxo()
+    antes = copy.deepcopy(f.grafo)
+    for mut in (lambda g: g.update(extra=1), lambda g: g["nos"][0].update(em_erro="continuar", extra=1),
+                lambda g: g["arestas"][0].update(saida=0, peso=1), lambda g: g.update(dados_fixos="x")):
+        g = copy.deepcopy(grafo_valido_v1)
+        mut(g)
+        r = salvar_grafo(cliente_coordenador, f, g)
+        assert r.status_code == 400
+        assert _salvo(f) == antes
+
+
+@pytest.mark.parametrize("payload", XSS)
+def test_xss_em_nota_e_dados_fixos_nao_aparece_cru_no_html_do_editor(cliente_coordenador, fabrica_fluxo, grafo_valido, salvar_grafo, payload):
+    """SEG-13 / MV2-02: texto de nota (markdown simples) e dados_fixos com payload não aparecem crus no HTML do editor."""
+    f = fabrica_fluxo()
+    grafo_valido["notas"] = [{"id": "t1", "texto": payload, "posicao": {"x": 0, "y": 0}, "tamanho": {"l": 1, "a": 1}, "cor": "azul"}]
+    grafo_valido["dados_fixos"] = {"n2": [{"json": {"k": payload}}]}
+    assert salvar_grafo(cliente_coordenador, f, grafo_valido).status_code == 200
+    html = _h(cliente_coordenador.get(_u("fluxos:editor", f.pk)))
+    assert payload not in html
+    assert "</script><script>" not in html
+
+
+def test_idor_base_nao_salva_v2_nem_le_dados_fixos(cliente_base, fabrica_fluxo, grafo_valido, salvar_grafo):
+    """PRM-02 (reforço no v2): Base não salva grafo nem lê dados_fixos pelo editor, em ativo ou rascunho; nada muda."""
+    for status in ("ativo", "rascunho"):
+        f = fabrica_fluxo(status=status)
+        antes = copy.deepcopy(f.grafo)
+        grafo_valido["dados_fixos"] = {"n2": [{"json": {"segredo": "DADO-FIXO-SECRETO"}}]}
+        assert salvar_grafo(cliente_base, f, grafo_valido).status_code == 403
+        assert _salvo(f) == antes
+        r = cliente_base.get(_u("fluxos:editor", f.pk))
+        assert r.status_code == 403 and "DADO-FIXO-SECRETO" not in _h(r)

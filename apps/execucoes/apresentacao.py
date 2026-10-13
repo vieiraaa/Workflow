@@ -14,8 +14,24 @@ ROTULOS_ERRO = {
     "http_5xx": "Erro HTTP 5xx",
     "placeholder": "Erro de placeholder",
     "json_invalido": "JSON inválido",
+    "expressao": "Erro de expressão",
+    "codigo": "Erro no código",
+    "codigo_limite": "Limite do código excedido",
+    "credencial": "Problema na credencial",
+    "limite_itens": "Itens demais",
+    "parado": "Parado pelo fluxo",
+    "paginacao": "Erro na paginação",
+    "laco_excessivo": "Laço excessivo",
+    "codigo_indisponivel": "Código indisponível neste servidor",
 }
-ROTULOS_NO = {"sucesso": "Sucesso", "erro": "Erro", "nao_executado": "Não executado"}
+ROTULOS_NO = {
+    "sucesso": "Sucesso",
+    "erro": "Erro",
+    "nao_executado": "Não executado",
+    "sem_itens": "Sem itens",
+    "desativado": "Desativado",
+    "fixo": "Dados fixos",
+}
 
 
 def duracao_texto(ms):

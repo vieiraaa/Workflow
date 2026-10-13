@@ -1,0 +1,11 @@
+id: T-057
+titulo: M5 · Editor v2 e telas (paleta, múltiplas saídas, inspector por tipo, expressões, notas, credenciais, importar/exportar, detalhe v2)
+dono: Vitral (front)
+skills: [design-base, frontend]
+regras: [EDV-01..03, MV2-07, CRD-01, IMP-02]
+objetivo: >
+  Comece pelo que não depende do back: paleta agrupada com busca, alças múltiplas rotuladas, notas (sticky), formulários do
+  inspector por tipo a partir dos schemas NOV-02..06 (conversor Drawflow ↔ grafo v2), editor de código monoespaçado. Integre
+  com as fatias do Forja (T-052..T-056): prévia de expressões, dados fixos, executar este nó, credenciais (tela), importar com
+  relatório, exportar, detalhe da execução v2 (itens por nó, ramos, contagem nas arestas). Playwright chromium+webkit.
+arquivos: [templates/, static/, tests/unit/frontend/, tests/e2e/]

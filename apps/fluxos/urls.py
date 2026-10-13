@@ -12,5 +12,10 @@ urlpatterns = [
     path("<int:pk>/excluir/", views.FluxoExcluirView.as_view(), name="excluir"),
     path("<int:pk>/status/", views.FluxoStatusView.as_view(), name="status"),
     path("<int:pk>/grafo/", views.SalvarGrafoView.as_view(), name="salvar_grafo"),
+    path("importar/", views.FluxoImportarView.as_view(), name="importar"),
+    path("<int:pk>/exportar/", views.FluxoExportarView.as_view(), name="exportar"),
+    path("<int:pk>/exportar-n8n/", views.FluxoExportarN8nView.as_view(), name="exportar_n8n"),
     path("<int:pk>/executar/", views.FluxoExecutarView.as_view(), name="executar"),
+    path("<int:pk>/previa/", views.FluxoPreviaExpressaoView.as_view(), name="previa_expressao"),
+    path("<int:pk>/executar-no/", views.FluxoExecutarNoView.as_view(), name="executar_no"),
 ]

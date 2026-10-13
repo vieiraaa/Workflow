@@ -1,0 +1,16 @@
+id: T-064
+titulo: M5 · Correções dos achados da T-060
+itens:
+  - dono: Forja
+    achado: SEG-07/MV2-24 d — placeholder que usa corpo truncado não falha com resposta_grande (segue "sucesso" com MOTOR_LIMITE_RESPOSTA=2048)
+    teste: tests/acceptance/m3/test_execucao.py::test_corpo_truncado_usado_em_placeholder...
+  - dono: Forja
+    achado: MV2-24 b/c — aresta sem saida/entrada = 0; aresta repetida = pendência "Ligação repetida."
+  - dono: Vitral
+    achado: editor quebra com ids de nó __proto__/constructor ('"undefined" is not valid JSON', chromium+webkit) — regressão do v2
+    teste: test_editor_carrega_com_ids_proto_e_constructor
+  - dono: Vitral
+    achado: dados_fixos com chave contendo < > aspas → querySelectorAll inválido, JS do editor quebra (10 testes test_dados_fixos_com_chave_hostil...)
+    correcao: nunca montar seletor com dado do usuário (usar data-atributos + comparação, Map em vez de objeto, Object.create(null))
+  - dono: Lupa
+    achado: test_grafo::test_ligacao_para_no_inexistente_e_pendencia (2) segue MV2-12 L3; vale MV2-19 → 400 (MV2-24 a)

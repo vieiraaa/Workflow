@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block titulo %}Fluxos · Construtor de Workflows{% endblock %}
 {% block titulo_pagina %}Fluxos{% endblock %}
-{% block acoes %}{% if pode_criar %}<button class="botao botao--primario" type="button" data-modal-abrir="modal-fluxo" data-form-action="{{ url_novo }}" data-valor-nome="" data-valor-descricao=""{% if pode_mover_setor %} data-valor-setor=""{% endif %} data-modo="novo" data-texto-titulo="Novo fluxo" data-texto-confirmar="Criar fluxo">{% include "componentes/icone.html" with nome="plus" tamanho=16 %}<span>Novo fluxo</span></button>{% endif %}{% endblock %}
+{% block acoes %}{% if pode_importar %}<button class="botao botao--secundario" type="button" data-modal-abrir="modal-importar">{% include "componentes/icone.html" with nome="upload" tamanho=16 %}<span>Importar</span></button>{% endif %}{% if pode_criar %}<button class="botao botao--primario" type="button" data-modal-abrir="modal-fluxo" data-form-action="{{ url_novo }}" data-valor-nome="" data-valor-descricao=""{% if pode_mover_setor %} data-valor-setor=""{% endif %} data-modo="novo" data-texto-titulo="Novo fluxo" data-texto-confirmar="Criar fluxo">{% include "componentes/icone.html" with nome="plus" tamanho=16 %}<span>Novo fluxo</span></button>{% endif %}{% endblock %}
 {% block conteudo %}
 <form class="filtros" method="get" role="search">
   <div class="campo filtros__busca">
@@ -41,6 +41,7 @@
             {% if f.url_status %}
             <form method="post" action="{{ f.url_status }}">{% csrf_token %}<input type="hidden" name="voltar" value="lista"><input type="hidden" name="status" value="{% if f.status == 'ativo' %}rascunho{% else %}ativo{% endif %}">{% if f.status == 'ativo' %}{% include "componentes/botao.html" with rotulo="Desativar" rotulo_acessivel="Voltar para rascunho" tipo="submit" %}{% else %}{% include "componentes/botao.html" with rotulo="Ativar" tipo="submit" %}{% endif %}</form>
             {% endif %}
+            {% if f.url_exportar %}<a class="botao botao--icone" href="{{ f.url_exportar }}" download aria-label="Exportar fluxo (JSON)">{% include "componentes/icone.html" with nome="download" %}</a>{% endif %}
             {% if f.url_editar %}<button class="botao botao--icone" type="button" aria-label="Editar nome e descrição" data-modal-abrir="modal-fluxo" data-form-action="{{ f.url_editar }}" data-valor-nome="{{ f.nome }}" data-valor-descricao="{{ f.descricao }}"{% if pode_mover_setor %} data-valor-setor="{{ f.setor_id }}"{% endif %} data-modo="editar" data-texto-titulo="Editar fluxo" data-texto-confirmar="Salvar">{% include "componentes/icone.html" with nome="pencil" %}</button>{% endif %}
             {% if f.url_excluir %}<button class="botao botao--icone" type="button" aria-label="Excluir fluxo" data-modal-abrir="modal-excluir" data-form-action="{{ f.url_excluir }}" data-texto-texto="Excluir o fluxo “{{ f.nome }}”? As execuções já feitas continuam no histórico.">{% include "componentes/icone.html" with nome="trash" %}</button>{% endif %}
           </div>
@@ -90,5 +91,6 @@
   </form>
 </dialog>
 {% endif %}
+{% if pode_importar %}{% include "componentes/modal_importar.html" with id="modal-importar" url_importar=url_importar %}{% endif %}
 {% if pode_excluir %}{% include "componentes/modal.html" with id="modal-excluir" titulo="Excluir fluxo" texto="" confirmar_rotulo="Excluir" destrutivo=True %}{% endif %}
 {% endblock %}

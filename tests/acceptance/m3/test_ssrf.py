@@ -133,8 +133,8 @@ def test_redirect_para_destino_proibido_e_revalidado(destino, cliente_coordenado
 
 @pytest.mark.modulo("m3")
 def test_host_vindo_de_placeholder_e_validado(cliente_coordenador, liberado, executar, cadeia, cfg_http, no):
-    """SEG-02/PLH-04: host montado por placeholder (resposta do nó anterior) também passa pela validação de IP."""
-    g = cadeia(cfg_http(f"{liberado.base}/valores"), cfg_http("http://{{ anterior.corpo.host }}/x"))
+    """SEG-02/PLH-04 (MV2-03: anterior → $json): host montado por placeholder (resposta do nó anterior) também passa pela validação de IP."""
+    g = cadeia(cfg_http(f"{liberado.base}/valores"), cfg_http("http://{{ $json.corpo.host }}/x"))
     _, e, _ = executar(cliente_coordenador, g)
     assert no(e, "h1").status == "sucesso"
     assert no(e, "h2").status == "erro" and no(e, "h2").erro_categoria == "bloqueado_ssrf"
@@ -180,7 +180,7 @@ def test_pin_do_ip_validado_e_host_original_no_cabecalho(cliente_coordenador, se
 def test_redirect_valido_dentro_da_liberacao_funciona(cliente_coordenador, liberado, executar, cadeia, cfg_http, no):
     """SEG-05 (controle): redirect para destino permitido é seguido normalmente."""
     _, e, _ = executar(cliente_coordenador, cadeia(cfg_http(f"{liberado.base}/redir-para?para={quote('/ok', safe='')}")))
-    assert e.status == "sucesso" and no(e, "h1").saida["status"] == 200
+    assert e.status == "sucesso" and no(e, "h1").saida[0]["json"]["status"] == 200  # MV2-12 L1/L13 (resposta_completa)
 
 
 @pytest.mark.modulo("m3")

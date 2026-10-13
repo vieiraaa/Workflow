@@ -260,7 +260,7 @@ def montar_painel(usuario, periodo):
     inicio = passos[0][0]
     adm = papel_de(usuario) == "adm"
     base = papel_de(usuario) == "base"
-    execucoes = escopo(usuario, Execucao.objects, "inicio.ver")
+    execucoes = escopo(usuario, Execucao.objects, "inicio.ver").filter(teste=False)
     no_periodo = execucoes.filter(iniciada_em__gte=inicio, iniciada_em__lt=fim)
 
     fluxos = escopo(usuario, Fluxo.objects, "fluxos.ver").aggregate(

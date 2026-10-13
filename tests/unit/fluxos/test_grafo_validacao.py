@@ -59,7 +59,7 @@ def test_grafo_valido_e_grafo_inicial():
     assert validar(_valido()) == ([], [])
     erros, pendencias = validar(grafo_inicial())
     assert erros == []
-    assert [p["no"] for p in pendencias] == [None]  # falta saída
+    assert pendencias == []  # v2: a Saída não é obrigatória (MV2-12 L4)
 
 
 @pytest.mark.parametrize(
@@ -69,7 +69,7 @@ def test_grafo_valido_e_grafo_inicial():
         [],
         "x",
         {},
-        _com(lambda g: g.update(versao=2)),
+        _com(lambda g: g.update(versao=3)),
         _com(lambda g: g.update(versao=True)),
         _com(lambda g: g.update(nos="n1")),
         _com(lambda g: g.update(arestas={})),
@@ -82,7 +82,7 @@ def test_grafo_valido_e_grafo_inicial():
         _com(lambda g: g["nos"][0].update(posicao={"x": 1})),
         _com(lambda g: g["nos"][0].update(config=[])),
         _com(lambda g: g["nos"].append("x")),
-        _com(lambda g: g["arestas"].append({"de": "n1", "para": "zzz"})),
+        _com(lambda g: g["arestas"].append({"de": "n1", "para": "zzz"})),  # GRF-02: formato
         _com(lambda g: g["arestas"].append({"de": 1, "para": "n1"})),
         _com(lambda g: g["arestas"].append("x")),
         _com(lambda g: g["nos"][1]["config"].update(headers="x")),
@@ -98,9 +98,9 @@ def test_erros_de_formato(grafo):
     assert all({"campo", "mensagem"} <= set(e) for e in erros)
 
 
-def test_limite_de_50_nos():
+def test_limite_de_200_nos():
     grafo = _valido()
-    grafo["nos"] += [_no(f"x{i}", "saida") for i in range(47)]
+    grafo["nos"] += [_no(f"x{i}", "saida") for i in range(197)]
     assert validar(grafo)[0] == []
     grafo["nos"].append(_no("x99", "saida"))
     assert validar(grafo)[0]
@@ -118,24 +118,25 @@ def _remover(grafo, id_):
 ESTRUTURA = {
     "sem_gatilho": (lambda g: _remover(g, "n1"), None),
     "dois_gatilhos": (lambda g: g["nos"].append(_no("g2", "gatilho")), None),
-    "sem_saida": (lambda g: _remover(g, "n3"), None),
     "no_solto": (lambda g: g["nos"].append(_no("solto", "saida")), "solto"),
     "ciclo": (lambda g: g["arestas"].append({"de": "n3", "para": "n2"}), "n2"),
     "auto_laco": (lambda g: g["arestas"].append({"de": "n2", "para": "n2"}), "n2"),
-    "duas_saidas": (
-        lambda g: (
-            g["nos"].append(_no("s2", "saida")),
-            g["arestas"].append({"de": "n2", "para": "s2"}),
-        ),
-        "n2",
-    ),
-    "duas_entradas": (
+    "dois_gatilhos_ligados": (
         lambda g: (
             g["nos"].append(_no("g2", "gatilho")),
             g["arestas"].append({"de": "g2", "para": "n3"}),
         ),
+        None,
+    ),
+    "saida_inexistente": (
+        lambda g: g["arestas"].append({"de": "n2", "saida": 1, "para": "n3"}),
+        "n2",
+    ),
+    "entrada_inexistente": (
+        lambda g: g["arestas"].append({"de": "n1", "para": "n3", "entrada": 1}),
         "n3",
     ),
+    "titulo_repetido": (lambda g: g["nos"].append({**_no("x", "saida"), "titulo": "Fim"}), "x"),
     "gatilho_com_entrada": (lambda g: g["arestas"].append({"de": "n2", "para": "n1"}), "n1"),
     "saida_com_saida": (
         lambda g: (
@@ -161,7 +162,19 @@ def test_pendencias_de_estrutura(nome):
 
 def test_grafo_vazio_tem_pendencias_globais():
     pendencias = _msgs({"versao": 1, "nos": [], "arestas": []})
-    assert len(pendencias) == 2 and all(p["no"] is None for p in pendencias)
+    assert len(pendencias) == 1 and pendencias[0]["no"] is None
+
+
+def test_v2_permite_sem_saida_ramos_e_varias_entradas():
+    grafo = _valido()
+    _remover(grafo, "n3")
+    assert validar(grafo) == ([], [])  # Saída não é obrigatória
+    grafo = _valido()
+    grafo["nos"].append(_no("s2", "saida"))
+    grafo["arestas"].append({"de": "n2", "para": "s2"})  # fan-out
+    grafo["nos"].append(_no("m", "juntar"))
+    grafo["arestas"] += [{"de": "n2", "para": "m"}, {"de": "n1", "para": "m", "entrada": 1}]
+    assert validar(grafo) == ([], [])
 
 
 def _http(**config):

@@ -1,6 +1,6 @@
-# Progresso (sobrescrito a cada resultado) — 09/10
-Branch: feat/modulo-4 · M4 Home e Setores: check completo VERDE (2.033 testes) · docs/prs/modulo-4.md
-Em andamento: integração pelo Git & Gitea (commit + merge na main + push, pedido do usuário)
-Próximas: migrations do M4 no Supabase (autorizado, D-020) · atualizar cópia estável (D-018) e reiniciar :8000 · liberar o time
-Decisão pendente do usuário: SET-07 (a) gestor de setor desativado criando fluxo
-Servidores: :8000 app/Supabase (cópia estável) · :8001 demo local · Métricas: python3 docs/metricas/metricas.py
+# Progresso (sobrescrito a cada resultado) — 13/10
+Branch: feat/modulo-5 · M5 Motor v2: check completo VERDE (3.419 testes) · docs/prs/modulo-5.md
+Em andamento: integração pelo Git & Gitea (merge na main + push, pedido do usuário em 13/10)
+Próximas: CREDENCIAIS_CHAVE no .env (usuário) · migrations do M5 no Supabase (com OK) · atualizar cópia estável e :8000
+Decisões pendentes do usuário: SET-07 (a) · Melhorias · Ollama · D-d..D-i do roadmap · M6
+Servidores: :8000 hoje = demo local (banco construtor_demo) · Métricas: python3 docs/metricas/metricas.py

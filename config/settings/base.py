@@ -6,6 +6,8 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 SECRET_KEY = os.environ.get("SECRET_KEY", "")
+# Chave Fernet do cofre de credenciais (SEG-18): só do ambiente; vazia = ausente (MV2-18 C2).
+CREDENCIAIS_CHAVE = os.environ.get("CREDENCIAIS_CHAVE", "")
 DEBUG = False
 ALLOWED_HOSTS = [h for h in os.environ.get("ALLOWED_HOSTS", "").split(",") if h]
 
@@ -21,6 +23,7 @@ INSTALLED_APPS = [
     "apps.fluxos",
     "apps.execucoes",
     "apps.motor",
+    "apps.credenciais",
 ]
 
 MIDDLEWARE = [

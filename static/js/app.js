@@ -135,4 +135,28 @@
     if (ev.metaKey || ev.ctrlKey) window.open(href, "_blank", "noopener");
     else window.location.assign(href);
   });
+
+  /* Menu "Arquivo": fecha ao clicar fora ou com Esc. */
+  document.addEventListener("click", function (ev) {
+    document.querySelectorAll("details[data-menu][open]").forEach(function (m) { if (!m.contains(ev.target) || ev.target.closest(".menu__item")) m.removeAttribute("open"); });
+  });
+  document.addEventListener("keydown", function (ev) {
+    if (ev.key === "Escape") document.querySelectorAll("details[data-menu][open]").forEach(function (m) { m.removeAttribute("open"); });
+  });
+
+  /* Importar: valida tipo e tamanho antes de enviar (o servidor valida de novo). */
+  document.addEventListener("submit", function (ev) {
+    var form = ev.target.closest && ev.target.closest("form[data-importar]");
+    if (!form) return;
+    var campo = form.querySelector("[data-arquivo-importar]"), erro = form.querySelector("[data-erro-arquivo]");
+    var arq = campo && campo.files && campo.files[0], msg = "";
+    if (!arq) msg = "Escolha um arquivo .json.";
+    else if (!/\.json$/i.test(arq.name)) msg = "O arquivo precisa ser .json.";
+    else if (arq.size > 2 * 1024 * 1024) msg = "O arquivo passa de 2 MB.";
+    if (msg) {
+      ev.preventDefault(); ev.stopImmediatePropagation();
+      erro.textContent = msg; erro.hidden = false; campo.closest(".campo").classList.add("campo--erro");
+      form.querySelectorAll("[aria-busy]").forEach(function (b) { b.removeAttribute("aria-busy"); });
+    }
+  }, true);
 })();

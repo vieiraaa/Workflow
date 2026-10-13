@@ -68,7 +68,7 @@ def test_editor_usa_template_e_json_script(cliente_coordenador, fluxo):
     assert "fluxos/editor.html" in nomes(resposta)
     assert b'id="grafo-inicial"' in resposta.content
     assert b"data-atualizado-em=" in resposta.content
-    assert json.loads(json.dumps(resposta.context["grafo"]))["versao"] == 1
+    assert json.loads(json.dumps(resposta.context["grafo"]))["versao"] == 2
 
 
 def test_editor_base_recebe_403(cliente_base, fluxo):
@@ -79,3 +79,24 @@ def test_editor_base_recebe_403(cliente_base, fluxo):
 def test_executar_tem_estado_carregando(cliente_coordenador, fluxo_ativo):
     conteudo = cliente_coordenador.get(reverse("fluxos:lista")).content.decode()
     assert "data-carregando" in conteudo and "Executando…" in conteudo
+
+
+def test_editor_v2_integra_exportar_importar_executar_no(cliente_coordenador, fluxo):
+    html = cliente_coordenador.get(
+        reverse("fluxos:editor", kwargs={"pk": fluxo.pk})
+    ).content.decode()
+    chave = {"pk": fluxo.pk}
+    assert reverse("fluxos:exportar", kwargs=chave) in html
+    assert reverse("fluxos:exportar_n8n", kwargs=chave) in html
+    assert reverse("fluxos:importar") in html
+    assert reverse("fluxos:executar_no", kwargs=chave) in html
+    assert 'data-pode-codigo="' in html
+
+
+def test_editor_escapa_nome_de_credencial(cliente_adm, usuario_adm):
+    from apps.credenciais.models import Credencial
+
+    fluxo = Fluxo.objects.create(nome="F", dono=usuario_adm, grafo=grafo_inicial())
+    Credencial.objects.create(nome="<script>x</script>", tipo="bearer")
+    html = cliente_adm.get(reverse("fluxos:editor", kwargs={"pk": fluxo.pk})).content.decode()
+    assert "<script>x</script>" not in html

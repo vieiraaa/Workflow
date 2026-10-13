@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block titulo %}Credenciais · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}Credenciais{% endblock %}
+{% block acoes %}{% if url_nova %}{% include "componentes/botao.html" with rotulo="Nova credencial" icone="plus" variante="primario" href=url_nova %}{% endif %}{% endblock %}
+{% block conteudo %}
+{% if chave_ausente %}<div class="alerta alerta--erro" role="alert" data-estado="chave_ausente">{% include "componentes/icone.html" with nome="circle-alert" tamanho=16 %}<span>A chave de criptografia do servidor não está configurada. Não é possível salvar nem usar credenciais até o administrador definir CREDENCIAIS_CHAVE.</span></div>{% endif %}
+<p class="texto-2">O valor secreto fica cifrado no servidor e nunca é mostrado depois de salvo. Os nós escolhem a credencial pelo nome.</p>
+<form class="filtros" method="get" role="search">
+  <div class="campo filtros__busca">
+    <label class="sr-only" for="busca">Buscar por nome</label>
+    <input id="busca" type="search" name="q" value="{{ q }}" placeholder="Buscar por nome" maxlength="200">
+  </div>
+  {% include "componentes/botao.html" with rotulo="Buscar" icone="search" tipo="submit" %}
+</form>
+<div class="card card--semrecuo">
+  {% if credenciais %}
+  <div class="tabela-rolagem"><table class="tabela">
+    <thead><tr>
+      <th scope="col">Nome</th>
+      <th scope="col">Tipo</th>
+      <th scope="col">Setor</th>
+      <th scope="col">Atualizada em</th>
+      <th scope="col"><span class="sr-only">Ações</span></th>
+    </tr></thead>
+    <tbody>
+      {% for c in credenciais %}
+      <tr class="tabela__linha"{% if c.url_editar %} data-href="{{ c.url_editar }}"{% endif %}>
+        <td class="tabela__principal">{% if c.url_editar %}<a class="tabela__link" href="{{ c.url_editar }}">{{ c.nome }}</a>{% else %}{{ c.nome }}{% endif %}</td>
+        <td class="tabela__status"><span class="badge badge--rascunho">{{ c.tipo_rotulo }}</span></td>
+        <td class="tabela__extra texto-2">{{ c.setor_nome|default:"Global" }}</td>
+        <td class="tabela__extra texto-2">{{ c.atualizado_em|date:"d/m/Y H:i" }}</td>
+        <td class="tabela__acoes">
+          <div class="tabela__botoes">
+            {% if c.url_editar %}{% include "componentes/botao.html" with variante="icone" icone="pencil" href=c.url_editar rotulo_acessivel="Editar credencial" %}{% endif %}
+            {% if c.url_excluir %}<button class="botao botao--icone" type="button" aria-label="Excluir credencial" data-modal-abrir="modal-excluir" data-form-action="{{ c.url_excluir }}" data-texto-texto="Excluir a credencial “{{ c.nome }}”? Os nós que a usam passam a falhar até você escolher outra.">{% include "componentes/icone.html" with nome="trash" %}</button>{% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% include "componentes/paginacao.html" %}
+  {% elif q %}
+  {% include "componentes/vazio.html" with icone="search" titulo="Nenhuma credencial encontrada" texto="Nenhum resultado para esta busca." acao_rotulo="Limpar busca" acao_url="?" %}
+  {% else %}
+  {% include "componentes/vazio.html" with icone="key-round" titulo="Nenhuma credencial ainda" texto="Cadastre um token ou senha para os nós de Requisição HTTP usarem sem expor o valor." acao_rotulo="Nova credencial" acao_url=url_nova %}
+  {% endif %}
+</div>
+{% if pode_excluir %}{% include "componentes/modal.html" with id="modal-excluir" titulo="Excluir credencial" texto="" confirmar_rotulo="Excluir" destrutivo=True %}{% endif %}
+{% endblock %}

@@ -35,6 +35,7 @@ def test_shell_do_adm(usuario_adm):
         "execucoes",
         "usuarios",
         "setores",
+        "credenciais",
     ]
 
 
@@ -63,6 +64,7 @@ def test_menu_por_papel(monkeypatch, usuario_adm, usuario_coordenador, usuario_b
         "execucoes",
         "usuarios",
         "setores",
+        "credenciais",
     ]
     assert chaves(usuario_coordenador) == ["inicio", "fluxos", "execucoes"]
     assert chaves(usuario_base) == ["inicio", "fluxos", "execucoes"]
@@ -79,6 +81,7 @@ def test_item_ativo_pelo_namespace(monkeypatch, usuario_adm):
         "execucoes": False,
         "usuarios": False,
         "setores": False,
+        "credenciais": False,
     }
 
 

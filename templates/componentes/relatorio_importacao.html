@@ -1,0 +1,18 @@
+{# relatorio: dict gravado no fluxo (MV2-18 C6): importados[titulo], ajustes[{no,mensagem}], sem_equivalente[{no,tipo_n8n}], expressoes_nao_suportadas[{no,campo,expressao}], segredos[{no,campo}], codigo_desativado[titulo]. Some ao dispensar. #}
+{% if relatorio %}
+<section class="relatorio" data-relatorio-importacao aria-label="Relatório da importação">
+  <header class="relatorio__cab">
+    {% include "componentes/icone.html" with nome="info" tamanho=20 %}
+    <h2 class="relatorio__titulo">Relatório da importação</h2>
+    <button class="botao botao--icone" type="button" data-dispensar-relatorio aria-label="Dispensar relatório">{% include "componentes/icone.html" with nome="x" %}</button>
+  </header>
+  <div class="relatorio__corpo">
+    {% include "componentes/relatorio_secao.html" with titulo="Importados" itens=relatorio.importados tom="sucesso" %}
+    {% include "componentes/relatorio_secao.html" with titulo="Precisam de ajuste" itens=relatorio.ajustes tom="aviso" %}
+    {% include "componentes/relatorio_secao.html" with titulo="Nós de Código desativados: revise e ative" itens=relatorio.codigo_desativado tom="aviso" %}
+    {% include "componentes/relatorio_secao.html" with titulo="Sem equivalente (viraram Sem operação)" itens=relatorio.sem_equivalente tom="erro" %}
+    {% include "componentes/relatorio_secao.html" with titulo="Expressões não suportadas" itens=relatorio.expressoes_nao_suportadas tom="aviso" %}
+    {% include "componentes/relatorio_secao.html" with titulo="Segredos encontrados: mova para uma credencial" itens=relatorio.segredos tom="erro" %}
+  </div>
+</section>
+{% endif %}

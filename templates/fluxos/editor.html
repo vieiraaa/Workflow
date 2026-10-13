@@ -13,13 +13,18 @@
 <div class="editor" data-editor
      data-sprite="{% static 'vendor/lucide/1.52.0/sprite.svg' %}"
      data-url-salvar="{{ url_salvar }}" data-url-status="{{ url_status }}"
-     data-atualizado-em="{{ atualizado_em }}" data-status="{{ fluxo.status }}">
+     data-atualizado-em="{{ atualizado_em }}" data-status="{{ fluxo.status }}"
+     data-url-executar-no="{{ url_executar_no }}" data-url-previa="{{ url_previa }}" data-url-credenciais="{{ url_credenciais }}"
+     data-pode-codigo="{% if pode_codigo %}true{% else %}false{% endif %}">
   <aside class="editor__paleta" aria-label="Paleta de nós">
     <button class="botao botao--icone editor__fechar" type="button" data-acao="fechar-painel" aria-label="Fechar">{% include "componentes/icone.html" with nome="x" %}</button>
     <h2 class="editor__titulo-painel">Adicionar nó</h2>
-    <button class="paleta__item" type="button" draggable="true" data-paleta-tipo="gatilho"><span class="no__icone no__icone--gatilho">{% include "componentes/icone.html" with nome="zap" %}</span><span>Gatilho manual</span></button>
-    <button class="paleta__item" type="button" draggable="true" data-paleta-tipo="http"><span class="no__icone no__icone--http">{% include "componentes/icone.html" with nome="globe" %}</span><span>Requisição HTTP</span></button>
-    <button class="paleta__item" type="button" draggable="true" data-paleta-tipo="saida"><span class="no__icone no__icone--saida">{% include "componentes/icone.html" with nome="flag" %}</span><span>Saída</span></button>
+    <div class="campo paleta__busca">
+      <label class="sr-only" for="paleta-busca">Buscar nó</label>
+      <input id="paleta-busca" type="search" data-paleta-busca placeholder="Buscar nó" autocomplete="off" maxlength="60">
+    </div>
+    <div class="paleta__lista" data-paleta-lista></div>
+    <p class="texto-2 texto-sm" data-paleta-vazia hidden>Nenhum nó encontrado. Tente outro termo.</p>
     <p class="texto-2 texto-sm">Arraste para o canvas ou toque para adicionar.</p>
   </aside>
 
@@ -40,6 +45,7 @@
         <div class="pendencias-pop" data-pendencias-lista hidden></div>
       </div>
       <span class="toolbar__sep"></span>
+      {% include "componentes/menu_arquivo.html" with url_exportar=url_exportar url_exportar_n8n=url_exportar_n8n modal_importar="modal-importar" pode_importar=pode_importar %}
       {% if pode_executar %}
       <form method="post" action="{{ url_executar }}" data-executar>{% csrf_token %}
         <button class="botao botao--secundario" type="submit" data-carregando data-texto-carregando="Executando…" aria-label="Executar">{% include "componentes/icone.html" with nome="play" tamanho=16 %}<span class="botao__rotulo-desktop">Executar</span></button>
@@ -49,7 +55,9 @@
       {% endif %}
       <button class="botao botao--primario" type="button" data-acao="salvar" data-salvar aria-label="Salvar">{% include "componentes/icone.html" with nome="save" tamanho=16 %}<span class="botao__rotulo-desktop">Salvar</span></button>
     </div>
-    <div class="canvas" data-canvas></div>
+    {% include "componentes/relatorio_importacao.html" with relatorio=relatorio_importacao %}
+    <div class="parent-drawflow canvas" data-canvas></div>
+    <p class="canvas__legenda">Arraste o fundo ou use dois dedos para mover · <span class="canvas__legenda-extra"><span data-tecla-mod>Ctrl</span> + rolagem ou </span>pinça para zoom<span class="canvas__legenda-extra"> · Espaço + arrastar · Ajustar centraliza</span></p>
     <p class="editor__vazio" data-dica-vazio hidden>Adicione nós pela paleta e conecte as portas.</p>
     <div class="banner" data-banner role="alert" hidden>
       {% include "componentes/icone.html" with nome="circle-alert" tamanho=16 %}<span></span>
@@ -63,11 +71,16 @@
     <div data-inspector-corpo></div>
   </aside>
 </div>
+{% if pode_importar %}{% include "componentes/modal_importar.html" with id="modal-importar" url_importar=url_importar %}{% endif %}
 {{ grafo|json_script:"grafo-inicial" }}
+{{ credenciais|default:""|json_script:"credenciais-lista" }}
 {{ pendencias|json_script:"pendencias-iniciais" }}
 {% endblock %}
 {% block scripts %}
 <script src="{% static 'vendor/drawflow/0.0.60/drawflow.min.js' %}"></script>
 <script src="{% static 'js/canvas/conversor.js' %}"></script>
+<script src="{% static 'js/canvas/esquemas.js' %}"></script>
+<script src="{% static 'js/canvas/expressao.js' %}"></script>
+<script src="{% static 'js/canvas/inspector.js' %}"></script>
 <script src="{% static 'js/canvas/editor.js' %}"></script>
 {% endblock %}

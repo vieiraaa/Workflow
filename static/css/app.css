@@ -249,7 +249,7 @@ h2 { font-size: var(--text-h2); font-weight: 600; }
 .no-exec__resumo::-webkit-details-marker { display: none; }
 .no-exec__resumo:hover { background: var(--fill); }
 .no-exec__ordem { width: 24px; height: 24px; border-radius: var(--r-pill); background: var(--fill); color: var(--text-2); display: grid; place-items: center; font-size: var(--text-sm); font-weight: 600; flex: none; }
-.no-exec__titulo { flex: 1; min-width: 0; font-weight: 500; overflow-wrap: anywhere; }
+.no-exec__titulo { flex: 1 1 12ch; min-width: 0; font-weight: 500; overflow-wrap: anywhere; }
 .no-exec__seta { color: var(--text-3); transition: transform var(--dur) var(--ease); }
 .no-exec[open] .no-exec__seta { transform: rotate(180deg); }
 .no-exec__corpo { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-2) var(--sp-6) var(--sp-6); }
@@ -265,3 +265,24 @@ h2 { font-size: var(--text-h2); font-weight: 600; }
 
 .so-celular { display: none; }
 @media (max-width: 800px) { .so-celular { display: inline; } }
+
+/* Menu "Arquivo" (importar/exportar) */
+.menu { position: relative; }
+.menu__gatilho { list-style: none; cursor: pointer; }
+.menu__gatilho::-webkit-details-marker { display: none; }
+.menu__lista { position: absolute; top: calc(100% + var(--sp-2)); right: 0; z-index: 9; min-width: 220px; display: flex; flex-direction: column; padding: var(--sp-1); background: var(--surface); border-radius: var(--r-l); box-shadow: var(--shadow-2); }
+.menu__item { display: flex; align-items: center; gap: var(--sp-3); height: var(--ctl-h); padding: 0 var(--sp-3); border: 0; border-radius: var(--r-m); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.menu__item:hover { background: var(--fill); }
+
+/* Relatório de importação */
+.relatorio { position: absolute; z-index: 6; top: calc(var(--sp-12) + var(--sp-12)); left: var(--sp-4); width: min(380px, calc(100% - var(--sp-8))); max-height: 50%; overflow-y: auto; display: flex; flex-direction: column; background: var(--surface); border-radius: var(--r-l); box-shadow: var(--shadow-2); }
+.relatorio__cab { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-3) var(--sp-3) var(--sp-2) var(--sp-4); color: var(--accent); position: sticky; top: 0; background: var(--surface); }
+.relatorio__titulo { flex: 1; font-size: var(--text-body); color: var(--text); }
+.relatorio__corpo { display: flex; flex-direction: column; gap: var(--sp-3); padding: 0 var(--sp-4) var(--sp-4); }
+.relatorio__secao { padding: var(--sp-3); border-radius: var(--r-m); background: var(--fill); }
+.relatorio__secao-titulo { font-size: var(--text-sm); font-weight: 600; display: flex; align-items: center; gap: var(--sp-2); }
+.relatorio__secao--sucesso .relatorio__secao-titulo { color: var(--success); }
+.relatorio__secao--aviso .relatorio__secao-titulo { color: var(--orange); }
+.relatorio__secao--erro .relatorio__secao-titulo { color: var(--danger); }
+.relatorio__contagem { color: var(--text-2); font-weight: 400; }
+.relatorio__lista { margin: var(--sp-2) 0 0; padding-left: var(--sp-4); font-size: var(--text-sm); overflow-wrap: anywhere; }

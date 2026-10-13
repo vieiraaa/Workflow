@@ -26,6 +26,11 @@ os.environ["DJANGO_SETTINGS_MODULE"] = "config.settings.teste"
 os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
 # Banco próprio de cada execução (apagado no fim): não colide com pytest nem com outras execuções.
 _BANCO_TELAS = f"construtor_telas_{os.getpid()}"
+# Chave descartável do cofre (SEG-18): o servidor das capturas e este script usam a mesma.
+if not os.environ.get("CREDENCIAIS_CHAVE"):
+    from cryptography.fernet import Fernet
+
+    os.environ["CREDENCIAIS_CHAVE"] = Fernet.generate_key().decode()
 os.environ.setdefault("TEST_DATABASE_URL", f"postgres://localhost:5432/{_BANCO_TELAS}")
 
 TEMAS = ("light", "dark")
@@ -37,11 +42,13 @@ URL_INEXISTENTE = "/nao-existe/"
 # ---------------------------------------------------------------- preparação de dados
 def _limpar_dados_de_telas():
     """Apaga os dados fictícios de estados anteriores, dependentes primeiro (FK PROTECT)."""
+    from apps.credenciais.models import Credencial
     from apps.execucoes.models import Execucao
     from apps.fluxos.models import Fluxo
 
     Execucao.objects.all().delete()
     Fluxo.objects.all().delete()
+    Credencial.objects.all().delete()
 
 
 def _apagar_usuarios_e_setores():
@@ -252,6 +259,362 @@ def _execucao_demo(cenario):
     return preparar
 
 
+# ---- M5: credenciais, editor v2 e execução v2
+def _credencial(usuarios, nome="Digisac", tipo="bearer", valor="TOKEN_FICTICIO_DIGISAC"):
+    from apps.credenciais.models import Credencial
+
+    credencial = Credencial(nome=nome, tipo=tipo, criado_por=usuarios["adm"])
+    credencial.definir_dados({"valor": valor})
+    credencial.save()
+    return credencial
+
+
+def _credenciais_demo(usuarios):
+    _credencial(usuarios)
+    _credencial(usuarios, "API de pedidos", "header", "VALOR_FICTICIO_1")
+    _credencial(usuarios, "Portal interno", "basic", "SENHA_FICTICIA")
+
+
+def _credencial_demo(usuarios):
+    return {"credencial_demo": _credencial(usuarios)}
+
+
+def _erro_credencial_duplicada(page, base):
+    _enviar(page, "", {"nome": "Digisac", "valor": "OUTRO_VALOR_FICTICIO"})
+
+
+def _no_v2(id_, tipo, titulo, x, y, config=None, **extra):
+    return {
+        "id": id_,
+        "tipo": tipo,
+        "titulo": titulo,
+        "posicao": {"x": x, "y": y},
+        "config": config or {},
+        "desativado": False,
+        "executar_uma_vez": False,
+        "em_erro": "parar",
+        **extra,
+    }
+
+
+def _http_v2(url, **extra):
+    config = {
+        "metodo": "GET",
+        "url": url,
+        "headers": [],
+        "query": [{"nome": "pagina", "valor": "1"}],
+        "corpo": {"tipo": "nenhum", "conteudo": ""},
+        "credencial": "Digisac",
+        "resposta": "automatica",
+        "resposta_completa": False,
+        "paginacao": None,
+    }
+    config.update(extra)
+    return config
+
+
+_PAGINACAO = {
+    "modo": "atualizar_parametro",
+    "onde": "query",
+    "nome": "pagina",
+    "valor": "{{ $pageCount + 1 }}",
+    "parar_quando": "expressao",
+    "expressao": "{{ $response.body.length < 20 }}",
+    "limite_paginas": 10,
+}
+_CODIGO = "return items.map(i => ({ json: { id: i.json.id, titulo: i.json.titulo } }));"
+
+
+def _grafo_v2(variante="ramos"):
+    """Gatilho → HTTP (paginado) → Se → (Código → Saída | Sem operação); notas e dados fixos."""
+    nos = [
+        _no_v2("g", "gatilho", "Início", 40, 140),
+        _no_v2(
+            "h",
+            "http",
+            "Chamados do dia",
+            260,
+            140,
+            _http_v2("https://api.exemplo.test/api/v1/tickets", paginacao=dict(_PAGINACAO)),
+            em_erro="continuar" if variante == "erro_continuar" else "parar",
+        ),
+        _no_v2(
+            "se",
+            "se",
+            "Tem chamados?",
+            500,
+            140,
+            {
+                "condicoes": [
+                    {
+                        "esquerda": "{{ $json.total }}",
+                        "operador": "maior",
+                        "direita": 0,
+                        "tipo": "numero",
+                    }
+                ],
+                "combinar": "e",
+            },
+        ),
+        _no_v2(
+            "c",
+            "codigo",
+            "Resumir",
+            760,
+            60,
+            {"modo": "uma_vez_para_todos", "codigo": _CODIGO},
+            desativado=variante == "relatorio",
+        ),
+        _no_v2("vazio", "sem_operacao", "Sem chamados", 760, 240),
+        _no_v2("s", "saida", "Resultado", 1020, 60),
+    ]
+    if variante == "pendencias":
+        nos[1]["config"]["url"] = ""
+        nos.append(
+            _no_v2(
+                "seg",
+                "http",
+                "Com segredo",
+                500,
+                360,
+                _http_v2(
+                    "https://api.exemplo.test/x",
+                    headers=[{"nome": "X-Chave", "valor": "{{ $credencial }}"}],
+                ),
+            )
+        )
+    arestas = [
+        {"de": "g", "saida": 0, "para": "h", "entrada": 0},
+        {"de": "h", "saida": 0, "para": "se", "entrada": 0},
+        {"de": "se", "saida": 0, "para": "c", "entrada": 0},
+        {"de": "se", "saida": 1, "para": "vazio", "entrada": 0},
+        {"de": "c", "saida": 0, "para": "s", "entrada": 0},
+    ]
+    if variante == "pendencias":
+        arestas.append({"de": "h", "saida": 0, "para": "seg", "entrada": 0})
+    notas = [
+        {
+            "id": "nota1",
+            "texto": "Lista os chamados de ontem e separa os que têm retorno.",
+            "posicao": {"x": 260, "y": 20},
+            "tamanho": {"l": 220, "a": 90},
+            "cor": "amarela",
+        }
+    ]
+    dados_fixos = {"g": [{"json": {"dia": "2026-10-12"}}]}
+    return {
+        "versao": 2,
+        "nos": nos,
+        "arestas": arestas,
+        "notas": notas,
+        "dados_fixos": dados_fixos,
+    }
+
+
+_RELATORIO = {
+    "importados": ["Início", "Chamados do dia", "Tem chamados?", "Sem chamados", "Resultado"],
+    "ajustes": [{"no": "Chamados do dia", "mensagem": "Opção 'timeout' do HTTP sem equivalente."}],
+    "sem_equivalente": [{"no": "Avisar no Slack", "tipo_n8n": "n8n-nodes-base.slack"}],
+    "expressoes_nao_suportadas": [
+        {
+            "no": "Chamados do dia",
+            "campo": "query[0].valor",
+            "expressao": "$json.itens.map(i => i.id).join(',')",
+        }
+    ],
+    "segredos": [{"no": "Chamados do dia", "campo": "headers"}],
+    "codigo_desativado": ["Resumir"],
+}
+
+
+def _fluxo_v2(variante):
+    def preparar(usuarios):
+        from apps.fluxos import demo
+
+        _credencial(usuarios)
+        fluxo = demo.criar_fluxo(
+            usuarios["adm"],
+            "Chamados do dia (demo v2)",
+            "rascunho",
+            _grafo_v2(variante),
+            "Fluxo de demonstração do editor v2.",
+        )
+        if variante == "relatorio":
+            fluxo.relatorio_importacao = _RELATORIO
+            fluxo.save(update_fields=["relatorio_importacao"])
+        return {"fluxo_v2_demo": fluxo}
+
+    return preparar
+
+
+def _abrir_no(titulo, rolar_ate=None):
+    """Seleciona um nó no canvas para abrir o inspector; opcionalmente rola até uma seção dele.
+
+    Falha silenciosa se o DOM mudar: a captura segue sem o inspector.
+    """
+
+    def acao(page, base):
+        try:
+            page.locator(".drawflow-node", has_text=titulo).first.click(timeout=3000)
+            page.wait_for_timeout(300)
+            if rolar_ate:
+                secao = page.locator(".grupo-campos", has_text=rolar_ate).first
+                secao.scroll_into_view_if_needed(timeout=3000)
+                page.wait_for_timeout(200)
+        except Exception:  # noqa: BLE001
+            pass
+
+    return acao
+
+
+def _item(**campos):
+    return {"json": campos}
+
+
+_CHAMADOS = [_item(id=i, titulo=f"Chamado fictício {i}", total=3) for i in (101, 102, 103)]
+
+
+def _execucao_v2(cenario):
+    def preparar(usuarios):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from apps.execucoes.models import Execucao, ExecucaoNo
+        from apps.fluxos import demo
+        from apps.motor.mascarar import MASCARA, mascarar_grafo
+
+        _credencial(usuarios)
+        grafo = _grafo_v2("erro_continuar" if cenario == "erro_continuar" else "ramos")
+        fluxo = demo.criar_fluxo(usuarios["adm"], "Chamados do dia (demo v2)", "ativo", grafo)
+        pag = {"metodo": "GET", "headers": [{"nome": "Authorization", "valor": MASCARA}]}
+        reqs = [
+            {
+                **pag,
+                "url": "https://api.exemplo.test/api/v1/tickets",
+                "query": [{"nome": "pagina", "valor": str(n)}],
+                "corpo": "",
+                "status": 200,
+                "resposta": {
+                    "status": 200,
+                    "headers": {"content-type": "application/json"},
+                    "corpo": '{"data": []}',
+                    "truncado": False,
+                },
+            }
+            for n in (1, 2)
+        ]
+        erro = cenario == "erro_continuar"
+        teste = cenario == "teste"
+        itens_http = [_item(erro={"categoria": "http_5xx", "mensagem": "Erro do servidor."})]
+        # (id, tipo, título, status, entrada, saída, saidas_contagem, falha)
+        passos = [
+            ("g", "gatilho", "Início", "sucesso", [], [_item(dia="2026-10-12")], [1], None),
+            (
+                "h",
+                "http",
+                "Chamados do dia",
+                "erro" if erro else "sucesso",
+                [_item(dia="2026-10-12")],
+                itens_http if erro else _CHAMADOS,
+                [1] if erro else [3],
+                ("http_5xx", "O servidor respondeu com erro do servidor (5xx).") if erro else None,
+            ),
+            (
+                "se",
+                "se",
+                "Tem chamados?",
+                "sucesso" if not erro else "sucesso",
+                itens_http if erro else _CHAMADOS,
+                itens_http if erro else _CHAMADOS,
+                [0, 1] if erro else [3, 0],
+                None,
+            ),
+            (
+                "c",
+                "codigo",
+                "Resumir",
+                "nao_executado" if (erro or teste) else "sucesso",
+                _CHAMADOS,
+                [] if (erro or teste) else [_item(total=3)],
+                [0] if (erro or teste) else [1],
+                None,
+            ),
+            (
+                "vazio",
+                "sem_operacao",
+                "Sem chamados",
+                "sucesso" if erro else "sem_itens",
+                itens_http if erro else [],
+                itens_http if erro else [],
+                [1] if erro else [0],
+                None,
+            ),
+            (
+                "s",
+                "saida",
+                "Resultado",
+                "nao_executado" if (erro or teste) else "sucesso",
+                [],
+                [] if (erro or teste) else [_item(total=3)],
+                [],
+                None,
+            ),
+        ]
+        if teste:  # execução de teste: só até o nó "Tem chamados?"
+            passos = [
+                p if p[0] in ("g", "h", "se") else (*p[:3], "nao_executado", [], [], [0], None)
+                for p in passos
+            ]
+        inicio = timezone.now() - timedelta(minutes=2)
+        execucao = Execucao.objects.create(
+            fluxo=fluxo,
+            fluxo_nome=fluxo.nome,
+            grafo_snapshot=mascarar_grafo(grafo),
+            executado_por=usuarios["adm"],
+            setor_id=fluxo.setor_id,
+            status="sucesso",
+            iniciada_em=inicio,
+            finalizada_em=inicio + timedelta(milliseconds=640),
+            teste=teste,
+            arestas=[
+                {"de": "g", "saida": 0, "para": "h", "entrada": 0, "itens": 1},
+                {"de": "h", "saida": 0, "para": "se", "entrada": 0, "itens": 1 if erro else 3},
+                {"de": "se", "saida": 0, "para": "c", "entrada": 0, "itens": 0 if erro else 3},
+                {"de": "se", "saida": 1, "para": "vazio", "entrada": 0, "itens": 1 if erro else 0},
+                {
+                    "de": "c",
+                    "saida": 0,
+                    "para": "s",
+                    "entrada": 0,
+                    "itens": 0 if erro or teste else 1,
+                },
+            ],
+        )
+        for ordem, (id_, tipo, titulo, st, entrada, saida, contagem, falha) in enumerate(passos):
+            ExecucaoNo.objects.create(
+                execucao=execucao,
+                no_id=id_,
+                no_tipo=tipo,
+                no_titulo=titulo,
+                ordem=ordem,
+                status=st,
+                entrada=entrada,
+                saida=saida,
+                itens_entrada=len(entrada),
+                itens_saida=len(saida),
+                saidas_contagem=contagem,
+                requisicoes=reqs if id_ == "h" else [],
+                logs=["Resumindo 3 chamados"] if id_ == "c" and st == "sucesso" else [],
+                erro_categoria=falha[0] if falha else None,
+                erro_mensagem=falha[1] if falha else "",
+                duracao_ms=120,
+            )
+        return {"execucao_v2_demo": execucao}
+
+    return preparar
+
+
 # (id da tela, estado) -> (preparar(usuarios) -> dict de nomes para kwargs | None,
 #                          acao(page, base) depois do goto | None, querystring opcional)
 PREPARADORES = {
@@ -290,6 +653,22 @@ PREPARADORES = {
     ("TEL-15", "erro_validacao"): (None, _erro_setor),
     ("TEL-08", "padrao"): (None, None),
     ("TEL-08", "erro_validacao"): (None, _erro_trocar_senha),
+    ("TEL-18", "vazio"): (None, None),
+    ("TEL-18", "com_dados"): (_credenciais_demo, None),
+    ("TEL-19", "padrao"): (None, None),
+    ("TEL-19", "erro_validacao"): (_credencial_demo, _erro_credencial_duplicada),
+    ("TEL-20", "padrao"): (_credencial_demo, None),
+    ("TEL-21", "com_ramos"): (_fluxo_v2("ramos"), None),
+    ("TEL-21", "inspector_http_paginacao"): (
+        _fluxo_v2("ramos"),
+        _abrir_no("Chamados do dia", "Paginação"),
+    ),
+    ("TEL-21", "inspector_codigo"): (_fluxo_v2("ramos"), _abrir_no("Resumir")),
+    ("TEL-21", "relatorio_importacao"): (_fluxo_v2("relatorio"), None),
+    ("TEL-21", "pendencias_v2"): (_fluxo_v2("pendencias"), None),
+    ("TEL-22", "sucesso_com_ramos"): (_execucao_v2("sucesso"), None),
+    ("TEL-22", "erro_continuar"): (_execucao_v2("erro_continuar"), None),
+    ("TEL-22", "teste"): (_execucao_v2("teste"), None),
 }
 
 

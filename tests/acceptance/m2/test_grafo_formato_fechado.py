@@ -43,6 +43,12 @@ DESCONHECIDAS = {
     "config_saida": lambda g: g["nos"][2]["config"].update(extra=1),
     "header_item": lambda g: g["nos"][1]["config"]["headers"][0].update(extra=1),
     "query_item": lambda g: g["nos"][1]["config"]["query"][0].update(extra=1),
+    # v2 (MV2-02): o fechamento vale também para os campos novos.
+    "raiz_notas_chave": lambda g: g["notas"].append({"id": "t1", "texto": "x", "posicao": {"x": 0, "y": 0},
+                                                      "tamanho": {"l": 1, "a": 1}, "cor": "azul", "extra": 1}),
+    "nota_tamanho": lambda g: g["notas"].append({"id": "t1", "texto": "x", "posicao": {"x": 0, "y": 0},
+                                                  "tamanho": {"l": 1, "a": 1, "z": 1}, "cor": "azul"}),
+    "corpo_http": lambda g: g["nos"][1]["config"]["corpo"].update(extra=1),
 }
 
 
@@ -64,7 +70,7 @@ def test_grafo_so_com_chaves_conhecidas_continua_valido(
     cliente_coordenador, fabrica_fluxo, grafo_valido, salvar_grafo
 ):
     """GRF-09(a) controle: o exemplo canônico (só chaves conhecidas) segue sendo salvo."""
-    f = fabrica_fluxo(grafo={"versao": 1, "nos": [], "arestas": []})
+    f = fabrica_fluxo(grafo={"versao": 2, "nos": [], "arestas": [], "notas": [], "dados_fixos": {}})
     r = salvar_grafo(cliente_coordenador, f, grafo_valido)
     assert r.status_code == 200 and r.json()["ok"] is True
 
@@ -79,7 +85,7 @@ def test_profundidade_acima_de_16_e_400(profundidade, cliente_coordenador, fabri
     f = fabrica_fluxo()
     antes = copy.deepcopy(f.grafo)
     aninhado = "[" * profundidade + "]" * profundidade
-    bruto = _bruto(f, '{"versao": 1, "nos": [], "arestas": [], "extra": ' + aninhado + "}")
+    bruto = _bruto(f, '{"versao": 2, "nos": [], "arestas": [], "notas": [], "dados_fixos": {}, "extra": ' + aninhado + "}")
     r = cliente_coordenador.post(_url(f), bruto, content_type="application/json")
     _nao_grava_e_explica(r, f, antes)
 
@@ -144,7 +150,8 @@ def _com(grafo, onde, valor):
     elif onde == "query_valor":
         g["nos"][1]["config"]["query"] = [{"nome": "q", "valor": valor}]
     elif onde == "corpo":
-        g["nos"][1]["config"].update(metodo="POST", corpo='{"a": "' + valor + '"}')
+        # MV2-14 (1)/NOV-05: corpo v2 = {"tipo", "conteudo"} (antes: string).
+        g["nos"][1]["config"].update(metodo="POST", corpo={"tipo": "json", "conteudo": '{"a": "' + valor + '"}'})
     elif onde == "id":
         g["nos"][0]["id"] = "n" + valor
         g["arestas"][0]["de"] = "n" + valor

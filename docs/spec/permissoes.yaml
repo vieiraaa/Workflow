@@ -24,6 +24,8 @@ acoes:
   execucoes.ver:        {adm: todos,  coordenador: setor,  base: proprias} # lista e detalhe, inclusive saídas por nó
   inicio.ver:           {adm: todos,  coordenador: setor,  base: proprias}   # Home (HOM-01), mesmo escopo
   setores.gerenciar:    {adm: todos,  coordenador: nenhum, base: nenhum}     # SET-02
+  credenciais.gerenciar: {adm: todos,  coordenador: nenhum, base: nenhum}    # CRD-01 (TI no M7)
+  codigo.editar:        {adm: todos,  coordenador: nenhum, base: nenhum}     # NOV-06 / MV2-18 C5c (TI no M7)
   conta.trocar_senha:   {adm: todos,  coordenador: todos,  base: todos}    # a própria senha (sem papel: 403, USR-15)
 
 regras:

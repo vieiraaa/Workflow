@@ -81,6 +81,8 @@ Fora da sua fronteira: peça ao dono. Não edite arquivo que outro agente está 
 - Um commit por tarefa, com trailers:
   `Task: T-0xx` / `Agent: <lead|back|front|qa|seguranca>` / `Model: <modelo>`.
 - NUNCA push, merge na main, rebase ou reset --hard.
+- NUNCA `git stash`, `git restore`, `git clean` nem `git checkout -- <arquivo>`: o diretório é compartilhado e
+  esses comandos mexem no trabalho NÃO commitado dos outros agentes (incidente de 13/10).
 
 ## Qualidade e limites
 - Tela pronta = skill `design-base` + estados vazio/carregando/erro/sucesso + revisão visual.
