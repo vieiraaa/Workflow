@@ -363,17 +363,20 @@
     marcarSujo();
   }
 
-  function previaDeExpressao(expr) {
+  function previaDeExpressao(expr, campo) {
     var d = selecionado ? dadosDo(selecionado) : null;
-    if (!urlPrevia || !d || !Object.keys(resultados).length) return Promise.resolve({ ok: false, sem_dados: true });
+    if (!urlPrevia || !d) return Promise.resolve({ ok: false, sem_dados: true });
     return fetch(urlPrevia, {
       method: "POST", credentials: "same-origin",
       headers: { "Content-Type": "application/json", "Accept": "application/json", "X-CSRFToken": csrf },
-      body: JSON.stringify({ grafo: grafoAtual(), no: d.cid, expressao: expr })
-    }).then(function (r) { return r.json().catch(function () { return {}; }); }).then(function (c) {
-      if (c && c.ok) return { ok: true, valor: c.valor };
-      if (c && c.sem_dados) return { ok: false, sem_dados: true };
-      return { ok: false, erro: (c && (c.erro || (c.erros && c.erros[0] && c.erros[0].mensagem))) || "Expressão inválida." };
+      body: JSON.stringify({ no_id: d.cid, campo: campo || "", expressao: expr })
+    }).then(function (r) {
+      if (r.status === 429) return { ok: false, erro: "Muitas prévias em pouco tempo. Aguarde um instante." };
+      return r.json().catch(function () { return {}; });
+    }).then(function (c) {
+      if (c && c.ok) return { ok: true, valor: c.valor, texto: c.texto };
+      if (c && c.erro && c.erro.indexOf("Execute o fluxo em teste") === 0) return { ok: false, sem_dados: true };
+      return { ok: false, erro: (c && c.erro) || "Expressão inválida." };
     });
   }
 

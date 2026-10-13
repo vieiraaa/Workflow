@@ -97,7 +97,7 @@
       caixa.appendChild(X.campoExpressao({
         id: i, valor: valor(f, base) || "", multilinha: f.multilinha, mono: f.mono, placeholder: f.placeholder, max: f.max,
         aoMudar: function (v) { mudar(function (x) { E.definirEm(x.config, caminho(f, base), v); }); },
-        previa: ctx.previa
+        previa: ctx.previa ? function (v) { return ctx.previa(v, caminho(f, base)); } : null
       }));
       ajuda(caixa, f.ajuda);
       return comErros(caixa, caminho(f, base));
