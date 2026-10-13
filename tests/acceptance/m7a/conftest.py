@@ -5,6 +5,7 @@ nome em apps.get_models(); Funcao/Credencial são criadas pelas rotas POST da sp
 credenciais:nova), não pelo ORM. Reaproveita as fixtures do m5 (servidor local, grafo2/no2, executar…).
 """
 import copy
+import html as _html
 import itertools
 import json
 import re
@@ -24,8 +25,8 @@ def html(r):
 
 
 def texto(r):
-    """HTML sem tags, espaços normalizados (para checar mensagens e células)."""
-    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html(r)))
+    """HTML sem tags, entidades decodificadas, espaços normalizados (para checar mensagens e células)."""
+    return re.sub(r"\s+", " ", _html.unescape(re.sub(r"<[^>]+>", " ", html(r))))
 
 
 @pytest.fixture
