@@ -1,0 +1,17 @@
+id: T-069
+titulo: M7a · Back do núcleo das Funções
+dono: Forja (back)
+regras: [FUN-01..13, permissoes.yaml funcoes.* + escopo liberadas, MV2-25, CRD-02, SET-06, D-029, D-031]
+fatias:
+  - "1) app apps/funcoes: model Funcao (+M2M setores), campos novos em Execucao (funcao, funcao_nome, funcao_versao,
+     parametros, modo) — migrations NOVAS (nunca editar migration aplicada); motor de permissões lê funcoes.* e o
+     escopo 'liberadas'; item de menu FUN-01. → avise o Vitral."
+  - "2) views catálogo/nova/editar/publicar/alternar com o contexto de FUN-13 na docstring. → avise o Vitral."
+  - "3) executar (FUN-06/07/12) com grafo_publicado, $parametros nas expressões e no Código (FUN-08, valor nunca
+     avaliado), padrões 'hoje'/'ontem' em America/Sao_Paulo; resultado (FUN-09); privacidade para_mim em TODAS as
+     consultas de execução (lista, detalhe, Home) — FUN-10. → avise o Vitral."
+aceite:
+  - "tests/unit/funcoes/ verdes; check --rapido verde; os testes de tests/acceptance/m7a/ (T-068) ficam verdes sem alteração."
+  - "Nenhum teste existente quebra (m1..m5)."
+arquivos: [apps/, config/, tests/unit/ (menos frontend/), tests/conftest.py]
+depende_de: []

@@ -1,0 +1,12 @@
+id: T-070
+titulo: M7a · Telas das Funções (TEL-23..26)
+dono: Vitral (front)
+regras: [FUN-01..13, TEL-23..26, design-base]
+aceite:
+  - "Catálogo em cartões (FUN-02) com estados vazio por papel, chips Rascunho/Inativa, menu do cartão do Adm, busca."
+  - "Formulário de função com editor de entradas em linhas (adicionar/remover, tipos, opções da lista) gerando o JSON
+     escondido; liberação todos/setores/papeis com campos condicionais."
+  - "Formulário de execução curto (TEL-25) e Resultado (TEL-26) com tabela rolável, parâmetros, erro e 'Executar de novo'."
+  - "light/dark × 1440/390, sem overflow; e2e chromium + webkit em tests/e2e/test_funcoes.py; capturas em docs/telas/m7a/ via scripts/telas.py (peça ao Forja o registro das telas no script)."
+arquivos: [templates/, static/, tests/unit/frontend/, tests/e2e/]
+depende_de: [T-069 por fatia — o Forja avisa direto]

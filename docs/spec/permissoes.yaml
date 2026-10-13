@@ -11,6 +11,7 @@
 #   setor    -> só objetos do setor do usuário (M4); usuário sem setor → nada
 #   ativos_do_setor -> fluxos ativos do setor do usuário (M4)
 #   Adm (todos) vê tudo COM OU SEM setor.
+#   liberadas -> Funções ativas, publicadas e liberadas ao usuário (todos / setor dele / papel dele) — FUN, M7a
 #   nenhum   -> negado
 # Anônimo: toda rota exceto `login` redireciona para login (302 com ?next=).
 
@@ -26,6 +27,9 @@ acoes:
   setores.gerenciar:    {adm: todos,  coordenador: nenhum, base: nenhum}     # SET-02
   credenciais.gerenciar: {adm: todos,  coordenador: nenhum, base: nenhum}    # CRD-01 (TI no M7)
   codigo.editar:        {adm: todos,  coordenador: nenhum, base: nenhum}     # NOV-06 / MV2-18 C5c (TI no M7)
+  funcoes.ver:          {adm: todos,  coordenador: liberadas, base: liberadas}   # FUN-02 (M7a)
+  funcoes.executar:     {adm: todos,  coordenador: liberadas, base: liberadas}   # FUN-06
+  funcoes.gerenciar:    {adm: todos,  coordenador: nenhum,    base: nenhum}      # FUN-03/04 (TI = Adm, D-029)
   conta.trocar_senha:   {adm: todos,  coordenador: todos,  base: todos}    # a própria senha (sem papel: 403, USR-15)
 
 regras:
