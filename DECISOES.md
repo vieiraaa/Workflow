@@ -27,3 +27,4 @@
 - D-025 · 09/10 · Expressões v2 (T-053): aceitam também optional chaining `?.`; String.replace só com texto (sem regex); undefined/NaN/Infinity viram null ao serializar em JSON.
 - D-026 · 09/10 · Usuário autorizou internet SÓ para o pip/PyPI instalar 'cryptography' (cofre Fernet, T-054); app e testes seguem sem internet. Atalaia trocou para Opus 4.8 nesta sessão (filtros do Opus 5.5 barraram o teste defensivo de isolamento), sem mudar a configuração global.
 - D-027 · 09/10 · Nó Código: Node 24 + vm (T-050) com SEGUNDA parede de rede do SO (SEG-20): sandbox-exec no macOS, unshare --net no Linux; sem camada (Windows hoje) = falha fechada. Decide D-i a favor do Node; QuickJS fica como plano B.
+- D-028 · 13/10 · Proibidos git stash/restore/clean/checkout -- no diretório compartilhado (deny em .claude/settings.json + CLAUDE.md): o Vitral rodou git stash por engano e devolveu com pop (nada perdido).
