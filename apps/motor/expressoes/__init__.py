@@ -151,3 +151,73 @@ def resolver_valor(texto, escopo):
 
 def tem_expressao(texto):
     return isinstance(texto, str) and (texto.startswith("=") or "{{" in texto)
+
+
+# Nomes aceitos pela análise estática (importação n8n): métodos e variáveis da lista branca.
+_METODOS = {
+    "toLowerCase", "toUpperCase", "trim", "split", "replace", "includes", "startsWith", "endsWith",
+    "slice", "padStart", "join", "indexOf", "first", "last", "all", "toISO", "toFormat", "plus",
+    "minus", "startOf", "toMillis", "toISODate", "stringify", "parse", "keys", "values", "round",
+    "floor", "ceil", "abs", "min", "max",
+}  # fmt: skip
+_VARIAVEIS = {
+    "$json", "$input", "$", "$now", "$today", "$execution", "$workflow", "$usuario", "$parametros",
+    "$itemIndex", "$pageCount", "$response", "Number", "String", "Boolean", "parseInt",
+    "parseFloat",
+    "isNaN", "encodeURIComponent", "Math", "JSON", "Object", "undefined", "NaN", "Infinity",
+}  # fmt: skip
+
+
+def _filhos(no):
+    """Subárvores de um nó da AST (para a análise estática)."""
+    tipo = no[0]
+    if tipo == "tpl":
+        return [p for p in no[1] if isinstance(p, tuple)]
+    if tipo == "arr":
+        return list(no[1])
+    if tipo == "obj":
+        return [valor for _, valor in no[1]]
+    if tipo == "mem":
+        return [no[1], no[2]]
+    if tipo == "call":
+        return [no[1], *no[2]]
+    if tipo == "un":
+        return [no[2]]
+    if tipo in ("bin", "log"):
+        return [no[2], no[3]]
+    if tipo == "cond":
+        return [no[1], no[2], no[3]]
+    return []
+
+
+def analisar(fonte):
+    """None se a expressão cabe no subconjunto (MV2-10/11); senão a mensagem do problema.
+
+    Só análise estática (parser + nomes): serve para o relatório de importação do n8n.
+    """
+    try:
+        ast = _ast(fonte.strip())
+    except ErroExpressao as erro:
+        return erro.mensagem
+    pilha = [ast]
+    while pilha:
+        no = pilha.pop()
+        if no[0] == "var" and no[1] not in _VARIAVEIS:
+            return f"'{no[1]}' não está disponível nas expressões."
+        if no[0] == "call" and no[1][0] == "mem":
+            nome = no[1][2]
+            if nome[0] == "lit" and isinstance(nome[1], str) and nome[1] not in _METODOS:
+                return f"O método '{nome[1]}' não está na lista permitida."
+        pilha.extend(_filhos(no))
+    return None
+
+
+def expressoes_do_texto(texto):
+    """Fontes `{{ ... }}` de um texto de config (ou o texto todo se começa com '=' sem chaves)."""
+    if not isinstance(texto, str):
+        return []
+    corpo = texto[1:] if texto.startswith("=") else texto
+    try:
+        return [fonte for _, _, fonte in _blocos(corpo)]
+    except ErroExpressao:
+        return [corpo]

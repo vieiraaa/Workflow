@@ -318,10 +318,13 @@ class ExecucaoDetalheView(PermissaoMixin, TemplateView):
             if no.no_tipo == "http":
                 metodo, host = self._alvo_http(no)
                 saida = no.saida if isinstance(no.saida, dict) else {}
+                status = saida.get("status")
+                if isinstance(no.requisicoes, list) and no.requisicoes:
+                    status = no.requisicoes[-1].get("status")
                 if host:
                     texto += f" · {metodo} {host}"
-                    if isinstance(saida.get("status"), int):
-                        texto += f" → {saida['status']}"
+                    if isinstance(status, int):
+                        texto += f" → {status}"
         return texto
 
     def get_context_data(self, **kwargs):

@@ -47,6 +47,7 @@ CHAVES_POSICAO = {"x", "y"}
 CHAVES_NOTA = {"id", "texto", "posicao", "tamanho", "cor"}
 CHAVES_TAMANHO = {"l", "a"}
 CHAVES_PAR = {"nome", "valor"}
+MARCA_CREDENCIAL = "{{ $credencial }}"
 RE_ID = re.compile(r"[a-zA-Z0-9_-]{1,40}")
 RE_ESPACO = re.compile(r"\s")
 
@@ -637,9 +638,19 @@ def _pendencias_estrutura(grafo):
     return pendencias
 
 
+def _pendencias_segredo(no):
+    """IMP-04/MV2-18 C7: segredo trocado na importação ("{{ $credencial }}") ainda pendente."""
+    return [
+        _pendencia(no["id"], campo, "Mova este segredo para uma credencial.")
+        for campo, valor in no["config"].items()
+        if MARCA_CREDENCIAL in json.dumps(valor, ensure_ascii=False)
+    ]
+
+
 def _pendencias(grafo):
     pendencias = []
     for no in grafo["nos"]:
+        pendencias += _pendencias_segredo(no)
         titulo = no["titulo"]
         if not titulo.strip():
             pendencias.append(_pendencia(no["id"], "titulo", "Informe um título para o nó."))

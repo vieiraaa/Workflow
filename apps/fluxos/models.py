@@ -51,6 +51,7 @@ class Fluxo(models.Model):
     )
     status = models.CharField("status", max_length=10, choices=STATUS, default=RASCUNHO)
     grafo = models.JSONField("grafo", default=grafo_inicial)
+    relatorio_importacao = models.JSONField("relatório de importação", null=True, blank=True)
     criado_em = models.DateTimeField("criado em", auto_now_add=True)
     atualizado_em = models.DateTimeField("atualizado em", auto_now=True)
 

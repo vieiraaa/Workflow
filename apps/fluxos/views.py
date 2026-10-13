@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q
-from django.http import HttpResponseBadRequest, JsonResponse
+from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.dateparse import parse_datetime
@@ -14,10 +14,12 @@ from django.views.generic import TemplateView
 
 from apps.contas.forms_setores import escolhas_setor
 from apps.contas.permissoes import PermissaoMixin, escopo, papel_de, pode
+from apps.credenciais.models import Credencial
 from apps.motor import executor
 from apps.nucleo import listagem
 from apps.nucleo.entrada import limpar_texto
 
+from . import exportacao, importacao
 from .forms import FluxoForm
 from .grafo import mexeu_no_codigo, normalizar, validar
 from .models import Fluxo, grafo_inicial
@@ -78,7 +80,8 @@ class FluxoListaView(PermissaoMixin, TemplateView):
     - `q`, `ordem`, `status_atual` ("" = Todos), `filtros_status` [{rotulo, url, ativo}]
       (segmentado), `ordenacoes` {nome|atualizado_em: {url, sentido}}, `total`
     - flags: `pode_criar`, `pode_editar`, `pode_excluir`, `pode_executar`; `url_novo` ('' se não
-      pode)
+      pode); `pode_importar` e `url_importar` (POST multipart `arquivo`; '' se não pode); cada
+      linha traz `url_exportar` (GET, download .json)
     - modais: `form_novo` (FluxoForm; com erros se o POST de fluxos:novo falhou), `form_editar`
       (FluxoForm ou None), `modal_aberto` ('', 'novo' ou 'editar'), `fluxo_editando` (dict com pk,
       nome e url_editar do fluxo em edição, ou None)
@@ -131,6 +134,7 @@ class FluxoListaView(PermissaoMixin, TemplateView):
             "url_status": reverse("fluxos:status", kwargs=pk) if pode_editar else "",
             "url_excluir": reverse("fluxos:excluir", kwargs=pk) if pode_excluir else "",
             "url_executar": reverse("fluxos:executar", kwargs=pk) if pode_executar else "",
+            "url_exportar": reverse("fluxos:exportar", kwargs=pk),
         }
 
     def get_context_data(self, **kwargs):
@@ -185,6 +189,8 @@ class FluxoListaView(PermissaoMixin, TemplateView):
                 else []
             ),
             url_novo=reverse("fluxos:novo") if pode_criar else "",
+            pode_importar=pode_criar,
+            url_importar=reverse("fluxos:importar") if pode_criar else "",
             form_novo=self.form_novo or FluxoForm(),
             form_editar=self.form_editar,
             modal_aberto=self.modal_aberto,
@@ -438,6 +444,15 @@ class FluxoExecutarNoView(_FluxoEscopoView):
         )
 
 
+def _credenciais_visiveis(fluxo):
+    """Credenciais que o nó HTTP deste fluxo pode usar (CRD-02): globais ou do setor do fluxo."""
+    filtro = Q(setor__isnull=True)
+    if fluxo.setor_id:
+        filtro |= Q(setor_id=fluxo.setor_id)
+    qs = Credencial.objects.filter(filtro).order_by("nome").values("id", "nome", "tipo")
+    return list(qs)
+
+
 class FluxoEditorView(PermissaoMixin, View):
     """Editor de canvas (TEL-05; GRF-06/08). fluxos.editar; pk inexistente → 404.
     Template `fluxos/editor.html`.
@@ -450,6 +465,10 @@ class FluxoEditorView(PermissaoMixin, View):
     - `url_salvar` (POST JSON), `url_status` (POST `status`), `url_lista`, `url_editar` (POST meta),
       `url_excluir`, `url_executar`; `form_meta` (FluxoForm com nome/descricao atuais)
     - flags: `pode_excluir`, `pode_executar` (False enquanto o M3 não chega: `executar_ativo`)
+    - `url_executar_no`; `pode_codigo` (codigo.editar); `pode_importar`, `url_importar`;
+      `url_exportar`, `url_exportar_n8n` (GET, download .json)
+    - `credenciais`: [{id, nome, tipo}] do setor do fluxo ou globais (nunca valor)
+    - `relatorio_importacao`: dict gravado na importação (MV2-18 C6) ou None
     """
 
     acao_requerida = "fluxos.editar"
@@ -479,6 +498,13 @@ class FluxoEditorView(PermissaoMixin, View):
             "form_meta": FluxoForm(initial={"nome": fluxo.nome, "descricao": fluxo.descricao}),
             "pode_excluir": pode(request.user, "fluxos.excluir"),
             "pode_executar": pode(request.user, "fluxos.executar", fluxo),
+            "pode_codigo": pode(request.user, "codigo.editar"),
+            "pode_importar": pode(request.user, "fluxos.criar"),
+            "url_importar": reverse("fluxos:importar"),
+            "url_exportar": reverse("fluxos:exportar", kwargs=chave),
+            "url_exportar_n8n": reverse("fluxos:exportar_n8n", kwargs=chave),
+            "credenciais": _credenciais_visiveis(fluxo),
+            "relatorio_importacao": fluxo.relatorio_importacao,
         }
         return render(request, "fluxos/editor.html", contexto)
 
@@ -550,3 +576,92 @@ class SalvarGrafoView(PermissaoMixin, View):
                 "voltou_para_rascunho": voltou,
             }
         )
+
+
+class FluxoImportarView(PermissaoMixin, View):
+    """Importar fluxo (IMP-02, SEG-19, MV2-18 C6). Só POST multipart (campo `arquivo`, até 2 MB);
+    fluxos.criar (Base 403). Formatos: nativo e n8n. Cria um fluxo NOVO em rascunho: dono e setor
+    são de quem importa; nada do arquivo escolhe dono, setor, id ou status.
+
+    Sucesso → redirect `fluxos:editor` + toast "Fluxo importado com N avisos." (JSON: 200
+    {"ok": true, "pk", "url_editor"}). Arquivo recusado → nada criado; JSON: 400 {"ok": false,
+    "erros": [...]}; senão redirect `fluxos:lista` + toast "Não foi possível importar: <motivo>.".
+    """
+
+    acao_requerida = "fluxos.criar"
+    http_method_names = ["post", "options"]
+
+    def _recusar(self, request, motivo):
+        if _quer_json(request):
+            return _json_erro(f"Não foi possível importar: {motivo}.", 400, "arquivo")
+        messages.error(request, f"Não foi possível importar: {motivo}.")
+        return redirect("fluxos:lista")
+
+    def post(self, request):
+        arquivo = request.FILES.get("arquivo")
+        if arquivo is None:
+            return self._recusar(request, "envie um arquivo .json")
+        if arquivo.size > importacao.LIMITE_BYTES:
+            return self._recusar(request, "o arquivo passa de 2 MB")
+        try:
+            nome, descricao, grafo, relatorio = importacao.importar(
+                arquivo.read(importacao.LIMITE_BYTES + 1)
+            )
+        except importacao.ErroImportacao as erro:
+            return self._recusar(request, erro.mensagem)
+        fluxo = Fluxo.objects.create(
+            nome=nome,
+            descricao=descricao,
+            dono=request.user,
+            setor_id=request.user.setor_id,
+            grafo=grafo,
+            relatorio_importacao=relatorio,
+        )
+        avisos = importacao.total_de_avisos(relatorio)
+        messages.success(request, f"Fluxo importado com {avisos} avisos.")
+        url = reverse("fluxos:editor", kwargs={"pk": fluxo.pk})
+        if _quer_json(request):
+            return JsonResponse({"ok": True, "pk": fluxo.pk, "url_editor": url})
+        return redirect(url)
+
+
+class _FluxoExportarBase(PermissaoMixin, View):
+    """Base dos downloads: fluxos.ver (quem vê o fluxo exporta); fora do escopo → 404. Só GET."""
+
+    acao_requerida = "fluxos.ver"
+    http_method_names = ["get", "head", "options"]
+
+    def montar(self, fluxo):
+        raise NotImplementedError
+
+    def get(self, request, pk):
+        fluxo = get_object_or_404(self.escopo_queryset(Fluxo.objects), pk=pk)
+        resposta = HttpResponse(
+            json.dumps(self.montar(fluxo), ensure_ascii=False, indent=2),
+            content_type="application/json; charset=utf-8",
+        )
+        sufixo = self.sufixo
+        resposta["Content-Disposition"] = (
+            f'attachment; filename="{exportacao.slug(fluxo.nome)}{sufixo}.json"'
+        )
+        return resposta
+
+
+class FluxoExportarView(_FluxoExportarBase):
+    """Exportar no formato nativo (IMP-01, C9): {formato, versao, fluxo, grafo,
+    credenciais_usadas} — nunca valores de credencial. Download `<slug>.json`."""
+
+    sufixo = ""
+
+    def montar(self, fluxo):
+        return exportacao.exportar_nativo(fluxo)
+
+
+class FluxoExportarN8nView(_FluxoExportarBase):
+    """Exportar para o n8n, melhor esforço (IMP-05, C9): {name, nodes, connections, pinData,
+    construtor_relatorio: {fora: [{no, tipo, motivo}]}}. Download `<slug>-n8n.json`."""
+
+    sufixo = "-n8n"
+
+    def montar(self, fluxo):
+        return exportacao.exportar_n8n(fluxo)
