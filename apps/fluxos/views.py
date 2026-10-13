@@ -2,6 +2,7 @@ import json
 import math
 
 from django.contrib import messages
+from django.core.cache import cache
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q
@@ -15,7 +16,9 @@ from django.views.generic import TemplateView
 from apps.contas.forms_setores import escolhas_setor
 from apps.contas.permissoes import PermissaoMixin, escopo, papel_de, pode
 from apps.credenciais.models import Credencial
-from apps.motor import executor
+from apps.execucoes.models import Execucao
+from apps.motor import executor, mascarar
+from apps.motor.expressoes import ErroExpressao, Escopo, resolver_texto, resolver_valor
 from apps.nucleo import listagem
 from apps.nucleo.entrada import limpar_texto
 
@@ -465,8 +468,8 @@ class FluxoEditorView(PermissaoMixin, View):
     - `url_salvar` (POST JSON), `url_status` (POST `status`), `url_lista`, `url_editar` (POST meta),
       `url_excluir`, `url_executar`; `form_meta` (FluxoForm com nome/descricao atuais)
     - flags: `pode_excluir`, `pode_executar` (False enquanto o M3 não chega: `executar_ativo`)
-    - `url_executar_no`; `pode_codigo` (codigo.editar); `pode_importar`, `url_importar`;
-      `url_exportar`, `url_exportar_n8n` (GET, download .json)
+    - `url_executar_no`; `url_previa` (POST JSON, MV2-23); `pode_codigo` (codigo.editar);
+      `pode_importar`, `url_importar`; `url_exportar`, `url_exportar_n8n` (GET, download .json)
     - `credenciais`: [{id, nome, tipo}] do setor do fluxo ou globais (nunca valor)
     - `relatorio_importacao`: dict gravado na importação (MV2-18 C6) ou None
     """
@@ -495,6 +498,7 @@ class FluxoEditorView(PermissaoMixin, View):
             "url_excluir": reverse("fluxos:excluir", kwargs=chave),
             "url_executar": reverse("fluxos:executar", kwargs=chave),
             "url_executar_no": reverse("fluxos:executar_no", kwargs=chave),
+            "url_previa": reverse("fluxos:previa_expressao", kwargs=chave),
             "form_meta": FluxoForm(initial={"nome": fluxo.nome, "descricao": fluxo.descricao}),
             "pode_excluir": pode(request.user, "fluxos.excluir"),
             "pode_executar": pode(request.user, "fluxos.executar", fluxo),
@@ -665,3 +669,91 @@ class FluxoExportarN8nView(_FluxoExportarBase):
 
     def montar(self, fluxo):
         return exportacao.exportar_n8n(fluxo)
+
+
+PREVIAS_POR_MINUTO = 30
+MAX_EXPRESSAO_PREVIA = 2000
+MSG_SEM_TESTE = "Execute o fluxo em teste para ver a prévia."
+
+
+class FluxoPreviaExpressaoView(_FluxoEscopoView):
+    """Prévia de expressão no editor (MV2-23, EDV-02). Só POST JSON com X-CSRFToken; fluxos.editar.
+
+    Corpo: {"no_id", "campo", "expressao"}. Avalia com o interpretador do motor sobre os dados
+    gravados da ÚLTIMA execução de teste deste fluxo feita por quem pede (item 0 da entrada do
+    nó; `$('Título')` lê a saída gravada dos outros nós). Nunca executa nó, faz requisição nem
+    roda Código. Saída mascarada (SEG-09/18/21). 200 {"ok": true, "valor", "texto",
+    "itens_usados"} ou {"ok": false, "erro"}; mais de 30 prévias por minuto → 429.
+    """
+
+    acao_requerida = "fluxos.editar"
+    http_method_names = ["post", "options"]
+
+    def _limitar(self, usuario):
+        chave = f"previa_expressao:{usuario.pk}"
+        cache.add(chave, 0, timeout=60)
+        try:
+            return cache.incr(chave) <= PREVIAS_POR_MINUTO
+        except ValueError:
+            cache.set(chave, 1, timeout=60)
+            return True
+
+    def post(self, request, pk):
+        fluxo = self.obter(pk)
+        if not self._limitar(request.user):
+            return JsonResponse(
+                {"ok": False, "erro": "Muitas prévias seguidas. Aguarde um minuto."}, status=429
+            )
+        try:
+            corpo = json.loads(request.body or b"{}")
+        except ValueError, RecursionError:
+            corpo = None
+        if not (
+            isinstance(corpo, dict)
+            and isinstance(corpo.get("no_id"), str)
+            and isinstance(corpo.get("campo"), str)
+            and isinstance(corpo.get("expressao"), str)
+        ):
+            return JsonResponse(
+                {"ok": False, "erro": "Envie no_id, campo e expressao em texto."}, status=400
+            )
+        expressao = corpo["expressao"]
+        if len(expressao) > MAX_EXPRESSAO_PREVIA:
+            return JsonResponse({"ok": False, "erro": "A expressão passa de 2.000 caracteres."})
+        execucao = (
+            Execucao.objects.filter(fluxo=fluxo, executado_por=request.user, teste=True)
+            .order_by("-iniciada_em", "-pk")
+            .first()
+        )
+        if execucao is None:
+            return JsonResponse({"ok": False, "erro": MSG_SEM_TESTE})
+        nos = list(execucao.nos.all())
+        alvo = next((n for n in nos if n.no_id == corpo["no_id"]), None)
+        if alvo is None:
+            return JsonResponse({"ok": False, "erro": MSG_SEM_TESTE})
+        entrada = alvo.entrada if isinstance(alvo.entrada, list) else []
+        item = entrada[0] if entrada and isinstance(entrada[0], dict) else {"json": {}}
+        escopo = Escopo(
+            item=item,
+            indice=0,
+            entrada=entrada,
+            resultados={n.no_titulo: n.saida for n in nos if isinstance(n.saida, list)},
+            agora=execucao.iniciada_em,
+            execucao_id=execucao.pk,
+            fluxo_nome=fluxo.nome,
+            usuario_email=request.user.email,
+            parametros={},
+        )
+        try:
+            valor = resolver_valor(expressao, escopo)
+            texto = resolver_texto(expressao, escopo)
+        except ErroExpressao as erro:
+            return JsonResponse({"ok": False, "erro": erro.mensagem})
+        return JsonResponse(
+            {
+                "ok": True,
+                "valor": mascarar.mascarar_itens(valor),
+                "texto": mascarar.mascarar_itens(texto),
+                "itens_usados": len(entrada),
+            }
+        )
