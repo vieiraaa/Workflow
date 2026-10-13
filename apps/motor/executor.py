@@ -227,7 +227,12 @@ class _Execucao:
             "itens_saida": len(saida_itens),
             "saidas_contagem": [len(s) if s else 0 for s in saidas],
             "truncado": trunc_e or trunc_s or any(i.get("truncado") for i in saida_itens),
-            "logs": list(resultado.logs)[:200] if resultado else [],
+            "logs": [
+                mascarar.ocultar_em_texto(linha, self.ctx.segredos)
+                for linha in list(resultado.logs)[:200]
+            ]
+            if resultado
+            else [],
             "requisicoes": requisicoes,
             "erro_categoria": falha.categoria if falha else None,
             "erro_mensagem": mascarar.ocultar_em_texto(falha.mensagem, self.ctx.segredos)

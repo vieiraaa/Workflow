@@ -21,13 +21,23 @@ def _sintaxe(texto=None):
     return ErroExpressao("Sintaxe de expressão inválida ou não suportada.", texto)
 
 
+_PAR_SUBSTITUTO = re.compile("[\ud800-\udbff][\udc00-\udfff]")
+
+
+def _juntar_pares(texto):
+    """Par de surrogates (\\ud83d\\ude00) vale UM caractere, como no JavaScript."""
+    return _PAR_SUBSTITUTO.sub(
+        lambda m: chr(0x10000 + ((ord(m[0][0]) - 0xD800) << 10) + (ord(m[0][1]) - 0xDC00)), texto
+    )
+
+
 def _ler_texto(fonte, i, aspa):
     """Lê a string entre aspas que começa em fonte[i]. Devolve (texto, próximo)."""
     saida, i = [], i + 1
     while i < len(fonte):
         c = fonte[i]
         if c == aspa:
-            return "".join(saida), i + 1
+            return _juntar_pares("".join(saida)), i + 1
         if c == "\\":
             i += 1
             if i >= len(fonte):

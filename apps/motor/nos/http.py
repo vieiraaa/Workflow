@@ -265,10 +265,13 @@ def _paginar(ctx, config, item, indice, entrada, cabecalho, requisicoes):
         if parar == "status" and resposta["status"] in (paginacao.get("codigos") or []):
             break
         _conferir_status(resposta)
+        corpo_visto = resposta["corpo"]
+        if resposta.get("truncado") and isinstance(corpo_visto, str):
+            corpo_visto = CorpoCortado(corpo_visto)  # MV2-25 e: página cortada em $response
         visao = {
             "status": resposta["status"],
             "headers": resposta["headers"],
-            "body": resposta["corpo"],
+            "body": corpo_visto,
         }
         escopo_resposta = ctx.escopo(item, indice, entrada, pagina=buscadas, resposta=visao)
         if parar == "resposta_vazia" and _vazia(resposta):

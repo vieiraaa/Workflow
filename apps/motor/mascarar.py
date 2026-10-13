@@ -15,6 +15,14 @@ TRECHOS = ("token", "secret", "senha", "password", "api-key", "api_key", "apikey
 _QUERY_NA_URL = re.compile(r"([?&])([^=&#]*)(=)([^&#]*)")
 
 
+_INVALIDOS = re.compile("[\x00\ud800-\udfff]")
+
+
+def higienizar(texto):
+    """Texto sem NUL nem surrogate solto (o banco recusa): vira U+FFFD. MV2-25 c."""
+    return _INVALIDOS.sub("\ufffd", texto) if isinstance(texto, str) else texto
+
+
 def sensivel(nome, decodificar=False):
     """`decodificar=True` compara o nome após percent-decode (nomes de query dentro de URLs)."""
     nome = unquote_plus(str(nome)) if decodificar else str(nome)
@@ -132,6 +140,7 @@ def ocultar_valores(entrada, segredos):
 
 
 def _limpar_texto(texto, variantes):
+    texto = higienizar(texto)
     for variante in variantes:
         texto = texto.replace(variante, MASCARA)
     return texto
@@ -151,7 +160,9 @@ def _variantes(segredos):
 def ocultar_em_texto(texto, segredos):
     """`texto` com qualquer ocorrência dos `segredos` (crus, JSON-escapados ou percent-encoded)
     trocada por `••••`."""
-    return _limpar_texto(texto, _variantes(segredos)) if texto and segredos else texto
+    if not texto:
+        return texto
+    return _limpar_texto(texto, _variantes(segredos)) if segredos else higienizar(texto)
 
 
 def mascarar_itens(itens, segredos=()):
@@ -161,7 +172,7 @@ def mascarar_itens(itens, segredos=()):
 
     def percorrer(valor):
         if isinstance(valor, str):
-            return _limpar_texto(valor, variantes) if variantes else valor
+            return _limpar_texto(valor, variantes)
         if isinstance(valor, list):
             return [percorrer(v) for v in valor]
         if isinstance(valor, dict):

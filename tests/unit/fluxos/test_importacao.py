@@ -68,3 +68,35 @@ def test_slug_e_credenciais_usadas():
         ]
     }
     assert exportacao.credenciais_usadas(grafo) == ["A", "B"]
+
+
+def test_detector_cobre_zero_width_url_dados_fixos_e_notas():
+    jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJmaWN0aWNpbyJ9.assinaturaficticia1234567890abc"
+    sticky = _no("Nota", "stickyNote", {"content": f"token {jwt}"})
+    http = _no(
+        "Chama",
+        "httpRequest",
+        {"url": "https://x.test/a?apikey=Rg5Hh1BnCc7DdEe9Ff", "sendHeaders": True,
+         "headerParameters": {"parameters": [{"name": "X-Api-Key", "value": "Abc123Def456Ghi7"}]}},
+    )  # fmt: skip
+    dados = _n8n(
+        _no("Início", "manualTrigger"),
+        http,
+        sticky,
+        pinData={"Chama": [{"json": {"t": jwt[:20] + "​" + jwt[20:]}}]},
+    )
+    _, _, grafo, relatorio = importacao.importar(dados)
+    bruto = json.dumps(grafo, ensure_ascii=False)
+    assert (
+        jwt[:20] not in bruto
+        and "Rg5Hh1BnCc7DdEe9Ff" not in bruto
+        and "Abc123Def456Ghi7" not in bruto
+    )
+    assert len(relatorio["segredos"]) >= 4
+
+
+def test_nome_com_nul_e_recusado():
+    with pytest.raises(importacao.ErroImportacao):
+        importacao.importar(
+            _n8n(_no("Início", "manualTrigger"), name="a\x00b").replace(b'"Teste"', b'"a\\u0000b"')
+        )

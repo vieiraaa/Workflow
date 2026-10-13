@@ -57,7 +57,25 @@ def _avaliar_js(fonte, escopo):
     return avaliar_ast(_ast(fonte), escopo, fonte)
 
 
+def _texto_valido(valor):
+    """NUL e surrogate solto não podem ser gravados (MV2-25 c)."""
+    pilha = [valor]
+    while pilha:
+        atual = pilha.pop()
+        if isinstance(atual, str):
+            if "\x00" in atual or any("\ud800" <= c <= "\udfff" for c in atual):
+                return False
+        elif isinstance(atual, list):
+            pilha.extend(atual)
+        elif isinstance(atual, dict):
+            pilha.extend(atual.keys())
+            pilha.extend(atual.values())
+    return True
+
+
 def _conferir_tamanho(valor, fonte):
+    if not _texto_valido(valor):
+        raise ErroExpressao("O valor resolvido tem texto inválido (caractere nulo).", fonte)
     if isinstance(valor, str):
         grande = len(valor) > MAX_RESULTADO
     elif isinstance(valor, list | dict):

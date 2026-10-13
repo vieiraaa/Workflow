@@ -7,8 +7,10 @@ id ou status do fluxo criado. Nada aqui toca o banco: devolve `(nome, descricao,
 
 import json
 import re
+import unicodedata
 
 from apps.motor.expressoes import analisar, expressoes_do_texto
+from apps.motor.mascarar import sensivel
 
 from . import n8n
 from .grafo import MARCA_CREDENCIAL, normalizar, validar
@@ -74,9 +76,24 @@ def ler_json(conteudo):
     return dados
 
 
-# ---------------------------------------------------------------- segredos (IMP-04, C7)
+# ---------------------------------------------------------------- segredos (IMP-04, C7, MV2-25 b)
+_PARAMETRO_NA_URL = re.compile(
+    r"(?<![A-Za-z0-9])((?:api_?key|token|key)=)([^&\s\"'#]{16,})", re.IGNORECASE
+)
+MIN_VALOR_SENSIVEL = 16
+
+
+def _sem_formatacao(texto):
+    """Remove caracteres Unicode Cf (zero-width etc.) usados para driblar o detector."""
+    return "".join(c for c in texto if unicodedata.category(c) != "Cf")
+
+
 def _trocar_em_texto(texto, codigo):
-    """(novo texto, achou). Em código, só o trecho do valor dentro das aspas é trocado."""
+    """(novo texto, achou). Em código, só o trecho do valor dentro das aspas é trocado.
+
+    Detecta sobre o texto sem caracteres Cf; só devolve o texto alterado se achou segredo.
+    """
+    limpo = _sem_formatacao(texto)
     if codigo:
         achou = False
 
@@ -85,18 +102,20 @@ def _trocar_em_texto(texto, codigo):
             achou = True
             return f"{m.group(1)}{MARCA_CREDENCIAL}{m.group(1)}"
 
-        novo = _LITERAL_DE_CODIGO.sub(literal, texto)
+        novo = _LITERAL_DE_CODIGO.sub(literal, limpo)
         for padrao in (_JWT, _BEARER):
             novo, n = padrao.subn(MARCA_CREDENCIAL, novo)
             achou = achou or n > 0
-        return novo, achou
-    if _CHAVE.fullmatch(texto):
+        return (novo, True) if achou else (texto, False)
+    if _CHAVE.fullmatch(limpo):
         return MARCA_CREDENCIAL, True
     achou = False
     for padrao in (_JWT, _BEARER):
-        texto, n = padrao.subn(MARCA_CREDENCIAL, texto)
+        limpo, n = padrao.subn(MARCA_CREDENCIAL, limpo)
         achou = achou or n > 0
-    return texto, achou
+    limpo, n = _PARAMETRO_NA_URL.subn(lambda m: m.group(1) + MARCA_CREDENCIAL, limpo)
+    achou = achou or n > 0
+    return (limpo, True) if achou else (texto, False)
 
 
 def _varrer(valor, codigo, achados):
@@ -112,16 +131,56 @@ def _varrer(valor, codigo, achados):
     return valor
 
 
+def _eh_expressao(texto):
+    return texto.lstrip().startswith(("=", "{{"))
+
+
+def _pares_sensiveis(pares, achados):
+    """Valor ≥ 16 caracteres de header/query com NOME sensível (SEG-09) vira pendência."""
+    novos = []
+    for par in pares:
+        valor = par.get("valor") if isinstance(par, dict) else None
+        if (
+            isinstance(valor, str)
+            and len(_sem_formatacao(valor)) >= MIN_VALOR_SENSIVEL
+            and not _eh_expressao(valor)
+            and MARCA_CREDENCIAL not in valor
+            and sensivel(par.get("nome", ""))
+        ):
+            par = {**par, "valor": MARCA_CREDENCIAL}
+            achados.append(True)
+        novos.append(par)
+    return novos
+
+
 def trocar_segredos(no, relatorio):
     """Substitui segredos na config do nó (sem deixar o original em lugar nenhum) e registra."""
     config = no["config"]
     for chave in list(config):
         achados = []
-        config[chave] = _varrer(
-            config[chave], no["tipo"] == "codigo" and chave == "codigo", achados
-        )
+        valor = config[chave]
+        if no["tipo"] == "http" and chave in ("headers", "query") and isinstance(valor, list):
+            valor = _pares_sensiveis(valor, achados)
+        config[chave] = _varrer(valor, no["tipo"] == "codigo" and chave == "codigo", achados)
         for _ in achados:
             relatorio["segredos"].append({"no": no["titulo"], "campo": chave})
+
+
+def trocar_segredos_do_grafo(grafo, relatorio):
+    """Varre TODO o grafo: config dos nós, dados_fixos e notas (MV2-25 b)."""
+    titulos = {no["id"]: no["titulo"] for no in grafo["nos"]}
+    for no in grafo["nos"]:
+        trocar_segredos(no, relatorio)
+    for id_, itens in grafo.get("dados_fixos", {}).items():
+        achados = []
+        grafo["dados_fixos"][id_] = _varrer(itens, False, achados)
+        relatorio["segredos"] += [{"no": titulos.get(id_, id_), "campo": "dados_fixos"}] * len(
+            achados
+        )
+    for nota in grafo.get("notas", []):
+        achados = []
+        nota["texto"] = _varrer(nota.get("texto", ""), False, achados)
+        relatorio["segredos"] += [{"no": "Nota", "campo": "texto"}] * len(achados)
 
 
 def _textos(valor, caminho):
@@ -173,10 +232,28 @@ def _importar_nativo(dados):
     grafo = normalizar(dados["grafo"])
     relatorio = relatorio_vazio()
     relatorio["importados"] = [no["titulo"] for no in grafo["nos"]]
-    for no in grafo["nos"]:
-        trocar_segredos(no, relatorio)
+    trocar_segredos_do_grafo(grafo, relatorio)
     desativar_codigo(grafo, relatorio)
     return nome, descricao, grafo, relatorio
+
+
+_INVALIDO = re.compile("[\x00\ud800-\udfff]")
+
+
+def _textos_validos(*valores):
+    """NUL e surrogate solto em qualquer texto que vá ao banco = recusado (MV2-25 c)."""
+    pilha = list(valores)
+    while pilha:
+        atual = pilha.pop()
+        if isinstance(atual, str):
+            if _INVALIDO.search(atual):
+                return False
+        elif isinstance(atual, list):
+            pilha.extend(atual)
+        elif isinstance(atual, dict):
+            pilha.extend(atual.keys())
+            pilha.extend(atual.values())
+    return True
 
 
 def importar(conteudo):
@@ -193,5 +270,7 @@ def importar(conteudo):
     erros, _ = validar(grafo)
     if erros:
         raise ErroImportacao("o fluxo resultante é inválido")
+    if not _textos_validos(nome, descricao, relatorio):
+        raise ErroImportacao("o arquivo tem texto inválido (caractere nulo)")
     nome = (nome or "").strip()[:120] or NOME_PADRAO
     return nome, (descricao or "")[:1000], grafo, relatorio

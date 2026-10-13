@@ -172,6 +172,8 @@ def _formato_paginacao(paginacao, onde):
             erros.append(_erro(f"{onde}.{campo}", f"'{campo}' tem um tipo inválido."))
         elif campo == "codigos" and not all(_tipo_ok(c, "int") for c in valor):
             erros.append(_erro(f"{onde}.codigos", "'codigos' deve ser uma lista de inteiros."))
+        elif campo in catalogo.ENUMS_PAGINACAO and valor not in catalogo.ENUMS_PAGINACAO[campo]:
+            erros.append(_erro(f"{onde}.{campo}", f"Valor inválido em '{campo}'."))
     return erros
 
 

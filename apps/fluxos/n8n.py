@@ -651,8 +651,8 @@ def importar(dados):
         "notas": notas,
         "dados_fixos": _dados_fixos(dados.get("pinData"), ids, relatorio),
     }
+    imp.trocar_segredos_do_grafo(grafo, relatorio)
     for no in nos:
-        imp.trocar_segredos(no, relatorio)
         imp.marcar_expressoes(no, relatorio)
     imp.desativar_codigo(grafo, relatorio)
     return _txt(dados.get("name")), "", grafo, relatorio
