@@ -15,8 +15,7 @@ SEGREDO_NOME = "NOME-SECRETO-DA-FUNCAO-QQ9"
 @pytest.fixture
 def cenario(mundo7, criar_funcao, mk_fluxo7):
     f = mk_fluxo7(mundo7.A, grafo=grafo_func("{{ $parametros.nome }}"))
-    class C: pass
-    c = C()
+    c = type("Cenario", (), {})()
     c.fluxo = f
     c.so_b = criar_funcao(f, nome=SEGREDO_NOME + " SoBeta", liberar_para="setores", setores=[mundo7.B.pk],
                           entradas=[entrada("nome")])
@@ -214,7 +213,6 @@ def test_versao_congelada_contra_edicao_do_fluxo_por_todos_os_caminhos(mundo7, c
     _, e = exec_funcao(mundo7.c["bA"], fn, {"nome": "original"})
     assert jsons(no(e, "calc")) == [{"r": "original"}]
     outro = h.cadeia2(h.no2("calc", "editar_campos", h.cfg_editar([("r", "OUTRO", "texto")]), x=1, titulo="Calc"))
-    from tests.acceptance.m7a.conftest import grafo_func as _  # noqa: F401
     f2 = modelos.Fluxo.objects.create(nome="Outro fluxo", descricao="d", dono=mundo7.adm, status="ativo", grafo=outro,
                                       setor=mundo7.A)
     mundo7.c["adm"].post(_u("funcoes:editar", fn), dados_funcao(f2, nome="Aberta", entradas=json.dumps([entrada("nome")])))
