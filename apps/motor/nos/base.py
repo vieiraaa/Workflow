@@ -11,7 +11,7 @@ def como_falha(erro):
     if isinstance(erro, FalhaNo):
         return erro
     if isinstance(erro, ErroExpressao):
-        return FalhaNo("expressao", erro.mensagem)
+        return FalhaNo(erro.categoria, erro.mensagem)
     raise erro
 
 

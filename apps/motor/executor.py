@@ -92,7 +92,7 @@ def _como_falha(erro):
     if isinstance(erro, FalhaNo):
         return erro
     if isinstance(erro, ErroExpressao):
-        return FalhaNo("expressao", erro.mensagem)
+        return FalhaNo(erro.categoria, erro.mensagem)
     logger.exception("Falha inesperada ao executar um nó")
     return FalhaNo("conexao", "Erro interno ao executar este nó.")
 

@@ -11,7 +11,7 @@ import re
 from urllib.parse import quote
 
 from .datas import PROPRIEDADES, Data, agora
-from .erros import ErroExpressao
+from .erros import CorpoCortado, ErroExpressao, ErroRespostaGrande
 
 MAX_PASSOS = 10_000
 MAX_RESULTADO = 1_000_000
@@ -442,7 +442,13 @@ class Avaliador:
                 return obj.item
             return UNDEF  # first/last/all só como chamada
         if t == "object":
-            return obj.get(chave if isinstance(chave, str) else para_texto(chave), UNDEF)
+            valor = obj.get(chave if isinstance(chave, str) else para_texto(chave), UNDEF)
+            if isinstance(valor, CorpoCortado):
+                raise ErroRespostaGrande(
+                    "A resposta anterior passou do limite de tamanho e foi cortada: "
+                    "o corpo não pode ser usado."
+                )
+            return valor
         if t == "array":
             if chave == "length":
                 return len(obj)

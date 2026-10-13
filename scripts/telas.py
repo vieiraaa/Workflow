@@ -447,14 +447,21 @@ def _fluxo_v2(variante):
     return preparar
 
 
-def _abrir_no(titulo):
-    """Seleciona um nó no canvas para abrir o inspector (falha silenciosa se o DOM mudar)."""
+def _abrir_no(titulo, rolar_ate=None):
+    """Seleciona um nó no canvas para abrir o inspector; opcionalmente rola até uma seção dele.
+
+    Falha silenciosa se o DOM mudar: a captura segue sem o inspector.
+    """
 
     def acao(page, base):
         try:
             page.locator(".drawflow-node", has_text=titulo).first.click(timeout=3000)
             page.wait_for_timeout(300)
-        except Exception:  # noqa: BLE001 - a captura segue sem o inspector
+            if rolar_ate:
+                secao = page.locator(".grupo-campos", has_text=rolar_ate).first
+                secao.scroll_into_view_if_needed(timeout=3000)
+                page.wait_for_timeout(200)
+        except Exception:  # noqa: BLE001
             pass
 
     return acao
@@ -652,7 +659,10 @@ PREPARADORES = {
     ("TEL-19", "erro_validacao"): (_credencial_demo, _erro_credencial_duplicada),
     ("TEL-20", "padrao"): (_credencial_demo, None),
     ("TEL-21", "com_ramos"): (_fluxo_v2("ramos"), None),
-    ("TEL-21", "inspector_http_paginacao"): (_fluxo_v2("ramos"), _abrir_no("Chamados do dia")),
+    ("TEL-21", "inspector_http_paginacao"): (
+        _fluxo_v2("ramos"),
+        _abrir_no("Chamados do dia", "Paginação"),
+    ),
     ("TEL-21", "inspector_codigo"): (_fluxo_v2("ramos"), _abrir_no("Resumir")),
     ("TEL-21", "relatorio_importacao"): (_fluxo_v2("relatorio"), None),
     ("TEL-21", "pendencias_v2"): (_fluxo_v2("pendencias"), None),

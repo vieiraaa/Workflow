@@ -591,6 +591,12 @@ def _pendencias_estrutura(grafo):
     pendencias = []
     por_id = {n["id"]: n for n in nos}
     pendencias += _pendencias_arestas(por_id, arestas)
+    vistas = set()
+    for aresta in arestas:
+        chave = (aresta["de"], aresta.get("saida", 0), aresta["para"], aresta.get("entrada", 0))
+        if chave in vistas:
+            pendencias.append(_pendencia(aresta["de"], None, "Ligação repetida."))
+        vistas.add(chave)
     validas = [a for a in arestas if a["de"] in por_id and a["para"] in por_id]
     gatilhos = [n["id"] for n in nos if n["tipo"] == "gatilho"]
     if len(gatilhos) != 1:

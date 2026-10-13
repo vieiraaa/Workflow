@@ -11,12 +11,14 @@ import json
 from functools import lru_cache
 
 from .avaliador import MAX_RESULTADO, UNDEF, avaliar_ast, para_json, para_texto, tipo_de
-from .erros import CATEGORIA, ErroExpressao
+from .erros import CATEGORIA, CorpoCortado, ErroExpressao, ErroRespostaGrande
 from .parser import parsear
 
 __all__ = [
     "CATEGORIA",
+    "CorpoCortado",
     "ErroExpressao",
+    "ErroRespostaGrande",
     "Escopo",
     "avaliar",
     "como_texto",

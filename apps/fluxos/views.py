@@ -468,7 +468,8 @@ class FluxoEditorView(PermissaoMixin, View):
     - `url_salvar` (POST JSON), `url_status` (POST `status`), `url_lista`, `url_editar` (POST meta),
       `url_excluir`, `url_executar`; `form_meta` (FluxoForm com nome/descricao atuais)
     - flags: `pode_excluir`, `pode_executar` (False enquanto o M3 não chega: `executar_ativo`)
-    - `url_executar_no`; `url_previa` (POST JSON, MV2-23); `pode_codigo` (codigo.editar);
+    - `url_executar_no`; `url_previa` (POST JSON, MV2-23);
+      `url_credenciais` ('' sem credenciais.gerenciar); `pode_codigo` (codigo.editar);
       `pode_importar`, `url_importar`; `url_exportar`, `url_exportar_n8n` (GET, download .json)
     - `credenciais`: [{id, nome, tipo}] do setor do fluxo ou globais (nunca valor)
     - `relatorio_importacao`: dict gravado na importação (MV2-18 C6) ou None
@@ -499,6 +500,9 @@ class FluxoEditorView(PermissaoMixin, View):
             "url_executar": reverse("fluxos:executar", kwargs=chave),
             "url_executar_no": reverse("fluxos:executar_no", kwargs=chave),
             "url_previa": reverse("fluxos:previa_expressao", kwargs=chave),
+            "url_credenciais": (
+                reverse("credenciais:lista") if pode(request.user, "credenciais.gerenciar") else ""
+            ),
             "form_meta": FluxoForm(initial={"nome": fluxo.nome, "descricao": fluxo.descricao}),
             "pode_excluir": pode(request.user, "fluxos.excluir"),
             "pode_executar": pode(request.user, "fluxos.executar", fluxo),

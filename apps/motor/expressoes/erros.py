@@ -15,3 +15,15 @@ class ErroExpressao(Exception):
             mensagem = f"{mensagem} Trecho: {trecho}"
         super().__init__(mensagem)
         self.mensagem = mensagem
+
+
+class ErroRespostaGrande(ErroExpressao):
+    """Uso do corpo de uma resposta cortada no limite lido (SEG-07, MV2-24 d)."""
+
+    categoria = "resposta_grande"
+
+
+class CorpoCortado(str):
+    """Texto do corpo de uma resposta HTTP cortada no limite lido: usá-lo num nó seguinte falha."""
+
+    __slots__ = ()

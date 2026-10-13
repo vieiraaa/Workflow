@@ -15,7 +15,7 @@ from apps.credenciais.models import Credencial
 from .. import credenciais, mascarar
 from .. import http as cliente
 from ..erros import FalhaNo
-from ..expressoes import avaliar, como_texto, resolver_texto, resolver_valor
+from ..expressoes import CorpoCortado, avaliar, como_texto, resolver_texto, resolver_valor
 from . import LIMITE_ITENS, tipo
 from .base import por_item
 
@@ -116,6 +116,8 @@ def _conteudo_da_resposta(resposta, modo):
 def itens_da_resposta(resposta, config):
     modo = config.get("resposta", "automatica")
     corpo = _conteudo_da_resposta(resposta, modo)
+    if resposta.get("truncado") and isinstance(corpo, str):
+        corpo = CorpoCortado(corpo)  # MV2-24 d: usar este corpo num nó seguinte = resposta_grande
     if config.get("resposta_completa") is True:
         itens = [
             {"json": {"status": resposta["status"], "headers": resposta["headers"], "corpo": corpo}}
