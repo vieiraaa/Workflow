@@ -32,7 +32,7 @@ def _rotulos(pagina, tipo):
 def test_paleta_agrupada_com_busca(editor):
     grupos = editor.locator(".paleta__grupo-titulo").all_inner_texts()
     assert grupos == ["Gatilhos", "Ações", "Dados", "Fluxo", "Saída", "Canvas"]
-    assert editor.locator(".paleta__item").count() == 20  # 19 nós + Nota
+    assert editor.locator(".paleta__item").count() == 21  # 20 nós + Nota
     editor.fill("[data-paleta-busca]", "duplic")
     visiveis = editor.locator(".paleta__item:visible")
     assert visiveis.count() == 1 and "duplicados" in visiveis.first.inner_text()
@@ -175,3 +175,37 @@ def test_corpo_http_formulario_vira_lista_e_volta_a_texto(editor):
     editor.select_option("#insp-corpo-tipo", "json")
     http = [n for n in _grafo(editor)["nos"] if n["tipo"] == "http"][0]
     assert http["config"]["corpo"] == {"tipo": "json", "conteudo": ""}
+
+
+@pytest.mark.parametrize("tema", ["light", "dark"])
+@pytest.mark.parametrize("largura", [1440, 390])
+def test_no_chamar_n8n_paleta_inspector_e_resumo(editor, tema, largura):
+    editor.evaluate(f"document.documentElement.dataset.theme = '{tema}'")
+    editor.set_viewport_size({"width": largura, "height": 900})
+    if largura < 900:
+        editor.click("[data-acao=paleta]")
+    editor.fill("[data-paleta-busca]", "n8n")
+    visiveis = editor.locator(".paleta__item:visible")
+    assert visiveis.count() == 1 and "Chamar n8n" in visiveis.first.inner_text()
+    editor.click("[data-paleta-tipo=chamar_n8n]")
+    editor.locator(".drawflow-node.no-chamar_n8n .no__resumo").wait_for()
+    assert "Configure a URL" in editor.locator(".drawflow-node.no-chamar_n8n .no__resumo").inner_text()
+    editor.locator(".drawflow-node.no-chamar_n8n").click(position={"x": 60, "y": 20})
+    editor.wait_for_selector("#insp-url")
+    # Padrões (N8N-01): POST, um item por chamada, aguardar ligado, 30 s; corpo só em "personalizado".
+    assert editor.locator("#insp-metodo").input_value() == "POST"
+    assert editor.locator("#insp-enviar").input_value() == "item"
+    assert editor.locator("#insp-tempo_limite_s").input_value() == "30"
+    assert editor.locator("#insp-corpo").count() == 0
+    editor.select_option("#insp-enviar", "personalizado")
+    assert editor.locator("#insp-corpo").count() == 1
+    # URL de teste: aviso no inspector e "(teste)" no resumo do nó (N8N-02, N8N-06).
+    assert not editor.locator(".alerta--aviso:has-text('URL de TESTE')").is_visible()
+    editor.fill("#insp-url", "https://n8n.exemplo.test/webhook-test/abc")
+    editor.wait_for_selector(".alerta--aviso:has-text('URL de TESTE')")
+    assert editor.locator(".drawflow-node.no-chamar_n8n .no__resumo").inner_text() == "POST · n8n (teste)"
+    editor.fill("#insp-url", "https://n8n.exemplo.test/webhook/abc")
+    editor.wait_for_selector(".alerta--aviso:has-text('URL de TESTE')", state="hidden")
+    assert editor.locator(".drawflow-node.no-chamar_n8n .no__resumo").inner_text() == "POST · n8n"
+    no = [n for n in _grafo(editor)["nos"] if n["tipo"] == "chamar_n8n"][0]
+    assert no["config"]["enviar"] == "personalizado" and no["config"]["aguardar_resposta"] is True

@@ -62,7 +62,7 @@ C.ORDEM_TIPOS.forEach((t) => {
   assert.ok(E.esquema(t).length > 0, "sem formulário: " + t);
   assert.ok(typeof C.resumo({ tipo: t, config: C.configPadrao(t) }) === "string", t);
 });
-assert.strictEqual(C.ORDEM_TIPOS.length, 19);
+assert.strictEqual(C.ORDEM_TIPOS.length, 20);
 
 // Paginação (MV2-16): formato plano, só as chaves do modo
 assert.deepStrictEqual(C.normalizarPaginacao({ modo: "atualizar_parametro", onde: "query", nome: "page", valor: "{{ $pageCount }}", url: "x", parar_quando: "status", codigos: [404], expressao: "y", limite_paginas: 5, intervalo_ms: 0 }),
@@ -107,3 +107,12 @@ assert.strictEqual(X.destacar("a {{ b").map((p) => p.t).join(""), "a {{ b");
 assert.strictEqual(X.ehExpressao("x"), false);
 assert.strictEqual(X.ehExpressao("={{ 1 }}"), true);
 console.log("ok");
+
+// Chamar n8n (N8N-01, N8N-06): padrão, resumo e aviso de URL de teste
+assert.deepStrictEqual(C.configPadrao("chamar_n8n"), { url: "", metodo: "POST", credencial: null, enviar: "item", corpo: "", aguardar_resposta: true, tempo_limite_s: 30 });
+assert.strictEqual(C.TIPOS.chamar_n8n.grupo, "acoes");
+assert.strictEqual(C.TIPOS.chamar_n8n.icone, "webhook");
+assert.ok(/n8n/.test(C.TIPOS.chamar_n8n.busca));
+assert.strictEqual(C.resumo({ tipo: "chamar_n8n", config: Object.assign(C.configPadrao("chamar_n8n"), { url: "https://n8n.x/webhook/a" }) }), "POST · n8n");
+assert.strictEqual(C.resumo({ tipo: "chamar_n8n", config: Object.assign(C.configPadrao("chamar_n8n"), { url: "https://n8n.x/webhook-test/a" }) }), "POST · n8n (teste)");
+assert.strictEqual(C.resumo({ tipo: "chamar_n8n", config: Object.assign(C.configPadrao("chamar_n8n"), { url: "https://n8n.x/webhook/a", metodo: "GET" }) }), "GET · n8n");

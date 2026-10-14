@@ -269,6 +269,14 @@
       return comErros(caixa, "paginacao");
     }
 
+    /* Aviso que acompanha a config sem remontar o formulário (não rouba o foco de quem digita). */
+    function alerta(f) {
+      var al = criar("div", "alerta alerta--aviso"); al.appendChild(icone("triangle-alert")); al.appendChild(criar("span", "", f.texto));
+      function pintar() { al.hidden = !!f.quando && !f.quando(atual()); }
+      pintar(); form.addEventListener("input", pintar);
+      return al;
+    }
+
     function caminho(f, base) { return base ? base + "." + f.c : f.c; }
     function valor(f, base) { return E.valorEm(atual(), caminho(f, base)); }
 
@@ -288,6 +296,7 @@
         case "credencial": return credencial(f);
         case "paginacao": return paginacao(f);
         case "aviso": return criar("p", "campo__ajuda", f.texto);
+        case "alerta": return alerta(f);
         default: return criar("span");
       }
     }
@@ -312,7 +321,7 @@
     var campos = E.esquema(d.tipo), temExpr = false;
     var cfg = atual();
     campos.forEach(function (f) {
-      if (f.quando && !f.quando(cfg)) return;
+      if (f.k !== "alerta" && f.quando && !f.quando(cfg)) return;
       if (/expr|condicoes|regras|tabela|paginacao/.test(f.k)) temExpr = true;
       form.appendChild(campo(f));
     });

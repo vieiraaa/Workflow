@@ -75,7 +75,7 @@
 {{ grafo|json_script:"grafo-inicial" }}
 {{ credenciais|default:""|json_script:"credenciais-lista" }}
 {{ pendencias|json_script:"pendencias-iniciais" }}
-{% endblock %}
+{{ avisos|json_script:"editor-avisos" }}{% endblock %}
 {% block scripts %}
 <script src="{% static 'vendor/drawflow/0.0.60/drawflow.min.js' %}"></script>
 <script src="{% static 'js/canvas/conversor.js' %}"></script>
