@@ -60,3 +60,10 @@ def test_validar_valores_por_tipo():
     }
     _, erros = ent.validar_valores(defs, QueryDict("nome=" + "a" * 501))
     assert erros["nome"] == "Nome: máximo de 500 caracteres."
+
+
+def test_booleano_invalido_vira_erro_e_nunca_excecao():
+    defs = ent.validar_definicao([_e("ok", "booleano")])
+    for bom, esperado in (("on", True), ("true", True), ("sim", True), ("", False), ("nao", False)):
+        assert ent.validar_valores(defs, QueryDict(f"ok={bom}")) == ({"ok": esperado}, {})
+    assert ent.validar_valores(defs, QueryDict("ok=talvez"))[1] == {"ok": "Ok: valor inválido."}

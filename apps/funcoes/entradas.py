@@ -179,7 +179,10 @@ def validar_valores(entradas, dados):
         nome, rotulo, tipo = entrada["nome"], entrada["rotulo"], entrada["tipo"]
         bruto = dados.get(nome)
         if tipo == "booleano":
-            valores[nome] = _booleano(bruto) if bruto is not None else False
+            try:
+                valores[nome] = _booleano(bruto) if bruto is not None else False
+            except ValorInvalido:
+                erros[nome] = f"{rotulo}: valor inválido."
             continue
         bruto = (bruto or "").strip() if isinstance(bruto, str) or bruto is None else bruto
         if bruto == "" and padrao_resolvido(entrada) is not None:
