@@ -9,8 +9,8 @@ import json
 
 from ..erros import FalhaNo
 from ..mascarar import mascarar_saida_http, ocultar_valores
-from . import tipo
 from . import http as nohttp
+from . import tipo
 from .base import por_item
 
 CORPO_SEM_ESPERA = 64 * 1024

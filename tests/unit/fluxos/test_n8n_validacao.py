@@ -11,7 +11,8 @@ def _grafo(config):
     return {
         "versao": 2,
         "nos": [
-            {"id": "g", "tipo": "gatilho", "titulo": "G", "posicao": {"x": 0, "y": 0}, "config": {}},
+            {"id": "g", "tipo": "gatilho", "titulo": "G", "posicao": {"x": 0, "y": 0},
+             "config": {}},
             {"id": "n", "tipo": "chamar_n8n", "titulo": "N", "posicao": {"x": 1, "y": 0},
              "config": config},
         ],

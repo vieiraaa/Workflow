@@ -39,7 +39,7 @@ VERSOES = {
 }
 SEM_EXPORTACAO = {
     "data_hora": "Operações de data e hora ainda não têm exportação para o n8n.",
-    "chamar_n8n": "O nó Chamar n8n chama um fluxo do próprio n8n e não tem equivalente na exportação.",
+    "chamar_n8n": "O nó Chamar n8n chama um fluxo do n8n e não tem equivalente na exportação.",
 }
 
 
