@@ -13,8 +13,7 @@ regras:
   - id: N8N-02
     texto: >
       Pendências (GRF/MV2, bloqueiam executar e publicar): url vazia → "Informe a URL do webhook do n8n."; url que
-      não é http(s) depois de resolver literal → "A URL do webhook deve começar com https:// (ou http://)."; credencial
-      inexistente/fora do setor → mesma mensagem do nó HTTP; personalizado sem corpo → "Informe o corpo a enviar.";
+      não é http(s) depois de resolver literal → "A URL do webhook deve começar com https:// (ou http://)."; personalizado sem corpo → "Informe o corpo a enviar.";
       tempo_limite_s fora de 1..55 → "Tempo limite entre 1 e 55 segundos.". AVISO (não bloqueia, aparece no
       inspector e no resumo do nó): url com "/webhook-test/" → "URL de TESTE do n8n: só funciona enquanto o n8n
       estiver em 'Listen for test event'. Para uso real, ative o fluxo no n8n e use /webhook/."
@@ -45,3 +44,15 @@ regras:
       status, duração); resumo do nó no canvas: "POST · n8n" / "POST · n8n (teste)" / "GET · n8n"; "executar este
       nó" funciona como no HTTP. Exportar/importar JSON do sistema preserva o nó; importação de n8n NÃO cria este nó
       (um HTTP Request do n8n continua virando HTTP).
+  - id: N8N-07
+    texto: >
+      ESCLARECIMENTOS (lacunas do T-073, 14/10). (1) AVISO: salvar_grafo em JSON (Accept: application/json) devolve,
+      além de "pendencias", a chave "avisos": lista de {"no": <id>, "campo": "url", "mensagem": <texto de N8N-02>}
+      (vazia quando não há); o editor recebe os mesmos avisos no json_script `editor-avisos`. Aviso NÃO impede salvar,
+      executar nem publicar. (2) RESUMO do nó: calculado no front (como os demais resumos) → só e2e, fora do aceite
+      Python. (3) CREDENCIAL inexistente/fora do setor NÃO é pendência (corrige N8N-02): é erro de execução do nó,
+      categoria `credencial`, mensagem "Credencial não encontrada para este fluxo."; tipo incompatível → "Credencial
+      do tipo <rótulo> não serve para este nó." (iguais ao HTTP). (4) erro_categoria: 404/401/403 → http_4xx;
+      5xx → http_5xx; tempo esgotado → timeout; SSRF → bloqueado_ssrf; demais de rede iguais ao HTTP (dns, conexao,
+      tls). (5) Resposta não JSON → {"resposta": <texto>} com o MESMO limite de leitura do nó HTTP (1 MB
+      descompactado); acima disso → erro do nó, categoria resposta_grande. Persistência segue os limites do motor v2.
