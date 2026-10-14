@@ -166,6 +166,7 @@ def test_importar_nativo_preserva_o_no(cliente_adm, fabrica_fluxo, h, cfg, model
 def test_importar_do_n8n_http_request_continua_http(cliente_adm, modelos):
     """N8N-06: importação de n8n NÃO cria chamar_n8n; um HTTP Request vira http (mesmo com URL /webhook/)."""
     import json
+
     from django.core.files.uploadedfile import SimpleUploadedFile
     n8n = {"name": "Fluxo n8n fictício", "nodes": [
         {"id": "id-a", "name": "Chamada", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4, "position": [0, 0],
