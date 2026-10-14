@@ -13,10 +13,10 @@ pytestmark = [pytest.mark.django_db, pytest.mark.modulo("n8n")]
 SEGREDO = "SEGREDO-ADV-N8N-FICTICIO-4242"
 
 
-def _terminou(e, n=None):
+def _terminou(e, n=False):
     assert e is not None and e.status in ("sucesso", "erro"), getattr(e, "status", None)
-    if n is not None:
-        assert n.status in ("sucesso", "erro"), "o motor falhou sem gravar o nó (falha inesperada)"
+    if n is not False:
+        assert n is not None and n.status in ("sucesso", "erro"), "o motor falhou sem gravar o nó (falha inesperada)"
 
 
 def _tudo(e):
