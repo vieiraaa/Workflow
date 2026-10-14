@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load static %}
+{% block estilos %}<link rel="stylesheet" href="{% static 'css/funcoes.css' %}">{% endblock %}
+{% block titulo %}Funções · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}Funções{% endblock %}
+{% block acoes %}{% if pode_gerenciar %}{% include "componentes/botao.html" with rotulo="Nova função" icone="plus" variante="primario" href=url_nova %}{% endif %}{% endblock %}
+{% block conteudo %}
+<form class="filtros" method="get" role="search">
+  <div class="campo filtros__busca">
+    <label class="sr-only" for="busca">Buscar por nome ou descrição</label>
+    <input id="busca" type="search" name="q" value="{{ q }}" placeholder="Buscar função" maxlength="200">
+  </div>
+  {% include "componentes/botao.html" with rotulo="Buscar" icone="search" tipo="submit" %}
+</form>
+{% if funcoes %}
+<div class="funcoes-grade">
+  {% for f in funcoes %}{% include "componentes/cartao_funcao.html" %}{% endfor %}
+</div>
+{% elif q %}
+<div class="card">{% include "componentes/vazio.html" with icone="search" titulo="Nenhuma função encontrada" texto="Nenhum resultado para esta busca." acao_rotulo="Limpar busca" acao_url="?" %}</div>
+{% elif pode_gerenciar %}
+
+<div class="card">{% include "componentes/vazio.html" with icone="square-function" titulo="Nenhuma função ainda. Publique um fluxo como função." acao_rotulo="Nova função" acao_url=url_nova %}</div>
+{% else %}
+<div class="card">{% include "componentes/vazio.html" with icone="square-function" titulo="Nenhuma função liberada para você ainda." texto="Quando o administrador liberar uma função, ela aparece aqui." %}</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,51 @@
+/* Funções (M7a): catálogo em cartões, editor de entradas, resultado. Só tokens. */
+.funcoes-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--sp-4); }
+.cartao-funcao { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-4); background: var(--surface); border-radius: var(--r-l); box-shadow: var(--shadow-1); min-width: 0; }
+.cartao-funcao--inativa { opacity: .72; }
+.cartao-funcao__cab { display: flex; align-items: flex-start; gap: var(--sp-3); }
+.cartao-funcao__icone { width: 40px; height: 40px; border-radius: var(--r-m); background: var(--fill-accent); color: var(--accent); display: grid; place-items: center; flex: none; }
+.cartao-funcao__titulos { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
+.cartao-funcao__nome { font-size: var(--text-body); font-weight: 600; overflow-wrap: anywhere; }
+.cartao-funcao__chips { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+.cartao-funcao__menu { margin: calc(-1 * var(--sp-1)) calc(-1 * var(--sp-2)) 0 0; }
+.cartao-funcao__descricao { display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; min-height: calc(2 * 1.5em); }
+.cartao-funcao__ultima { display: flex; flex-direction: column; gap: var(--sp-1); min-height: calc(2 * 1.5em); }
+.cartao-funcao__ultima-linha { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.cartao-funcao__rodape { margin-top: auto; }
+.cartao-funcao__rodape form { margin: 0; }
+.menu__lista form { margin: 0; display: flex; }
+.menu__lista form .menu__item { width: 100%; }
+
+/* Formulário de função */
+.funcao-form { max-width: 720px; }
+.campo__obrig { color: var(--danger); }
+.icones-escolha { border: 0; padding: 0; margin: 0; min-width: 0; }
+.icones-escolha__lista { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.icones-escolha__opcao { position: relative; cursor: pointer; }
+.icones-escolha__opcao input { position: absolute; opacity: 0; }
+.icones-escolha__opcao > span:not(.sr-only) { width: 40px; height: 40px; border-radius: var(--r-m); background: var(--fill); color: var(--text-2); display: grid; place-items: center; transition: background var(--dur) var(--ease); }
+.icones-escolha__opcao:hover > span:not(.sr-only) { background: var(--fill-2); }
+.icones-escolha__opcao input:checked + span { background: var(--fill-accent); color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); }
+.icones-escolha__opcao input:focus-visible + span { box-shadow: var(--ring); }
+fieldset.campo { border: 0; padding: 0; margin: 0; min-width: 0; }
+.escolha { cursor: pointer; }
+.escolha input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
+
+/* Editor de entradas */
+.entradas { display: flex; flex-direction: column; gap: var(--sp-3); align-items: flex-start; }
+.entradas__lista { display: flex; flex-direction: column; gap: var(--sp-3); width: 100%; }
+.entrada { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-4); background: var(--surface-2); border-radius: var(--r-m); box-shadow: inset 0 0 0 1px var(--hairline); }
+.entrada__grade { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-3); }
+.entrada__rodape { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
+.entrada .campo textarea { min-height: 72px; }
+@media (max-width: 800px) { .entrada__grade { grid-template-columns: minmax(0, 1fr); } }
+
+/* Resultado */
+.resultado__funcao { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.tabela-rolagem--resultado { max-height: 60vh; overflow: auto; }
+.tabela--resultado th { position: sticky; top: 0; background: var(--surface); white-space: nowrap; }
+.tabela--resultado td { max-width: 40ch; overflow-wrap: anywhere; vertical-align: top; }
+.resultado__rodape { padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--hairline); }
+.resultado__acoes { justify-content: flex-start; }
+@media (max-width: 800px) { .resultado__acoes .botao { width: 100%; } }
+.resultado__nav { display: flex; flex-wrap: wrap; gap: var(--sp-2); }

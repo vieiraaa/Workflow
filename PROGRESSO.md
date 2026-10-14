@@ -1,6 +1,6 @@
 # Progresso (sobrescrito a cada resultado) — 13/10
-Branch: feat/modulo-5 · M5 Motor v2: check completo VERDE (3.419 testes) · docs/prs/modulo-5.md
-Em andamento: integração pelo Git & Gitea (merge na main + push, pedido do usuário em 13/10)
-Próximas: CREDENCIAIS_CHAVE no .env (usuário) · migrations do M5 no Supabase (com OK) · atualizar cópia estável e :8000
-Decisões pendentes do usuário: SET-07 (a) · Melhorias · Ollama · D-d..D-i do roadmap · M6
-Servidores: :8000 hoje = demo local (banco construtor_demo) · Métricas: python3 docs/metricas/metricas.py
+Main = 63997a6 (M5 + T-067 canvas) no GitHub.
+Branch: feat/modulo-7a · M7a núcleo das Funções: check completo VERDE · docs/prs/modulo-7a.md · aguarda pedido de merge
+Demo :8000: Função "Chamados do dia" publicada (exec #699 ok)
+Pendente do usuário: merge do M7a (via Git & Gitea) · CREDENCIAIS_CHAVE no .env + OK p/ migrations M5/M7a no Supabase · D-d · SET-07 (a) · Melhorias · Ollama · M6
+Servidores: :8000 = demo local · Métricas: python3 docs/metricas/metricas.py

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% load static %}
+{% block estilos %}<link rel="stylesheet" href="{% static 'css/funcoes.css' %}">{% endblock %}
+{% block titulo %}Executar {{ funcao.nome }} · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}Executar {{ funcao.nome }}{% endblock %}
+{% block conteudo %}
+{% url "funcoes:catalogo" as url_catalogo %}
+<section class="card card--formulario">
+  {% if funcao.descricao %}<p class="texto-2">{{ funcao.descricao }}</p>{% endif %}
+  <form class="formulario" method="post" novalidate data-form-executar>
+    {% csrf_token %}
+    {% include "componentes/alerta.html" with erros=erros_gerais estado="erro_validacao" %}
+    {% for c in campos %}
+    {% include "componentes/campo_funcao.html" %}
+    {% endfor %}
+    <div class="formulario__acoes">
+      {% include "componentes/botao.html" with rotulo="Cancelar" href=url_catalogo %}
+      <button class="botao botao--primario" type="submit" data-carregando data-texto-carregando="Executando…">{% include "componentes/icone.html" with nome="play" tamanho=16 %}<span>Executar</span></button>
+    </div>
+  </form>
+</section>
+{% endblock %}

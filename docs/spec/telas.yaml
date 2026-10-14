@@ -168,3 +168,48 @@ telas:
     papel: adm
     estados: [sucesso_com_ramos, erro_continuar, teste]
     regras: [MV2-07, MV2-12, MV2-14, EXE-15]
+  - id: TEL-23
+    modulo: m7a
+    nome: Funções (catálogo)
+    rota: funcoes:catalogo
+    papel: adm
+    estados: [vazio, com_dados]
+    regras: [FUN-01, FUN-02]
+  - id: TEL-23
+    modulo: m7a
+    nome: Funções (catálogo, usuário base)
+    rota: funcoes:catalogo
+    papel: base
+    estados: [vazio, com_dados]
+    regras: [FUN-02, FUN-10]
+  - id: TEL-24
+    modulo: m7a
+    nome: Nova função
+    rota: funcoes:nova
+    papel: adm
+    estados: [padrao, erro_validacao]
+    regras: [FUN-03, FUN-05]
+  - id: TEL-24
+    modulo: m7a
+    nome: Editar função
+    rota: funcoes:editar
+    kwargs: {pk: funcao_demo}
+    papel: adm
+    estados: [padrao]
+    regras: [FUN-03, FUN-05]
+  - id: TEL-25
+    modulo: m7a
+    nome: Executar função (entradas)
+    rota: funcoes:executar
+    kwargs: {pk: funcao_demo}
+    papel: adm
+    estados: [padrao, erro_campo]
+    regras: [FUN-06, FUN-07]
+  - id: TEL-26
+    modulo: m7a
+    nome: Resultado da função
+    rota: funcoes:resultado
+    kwargs: {pk: execucao_funcao_demo}
+    papel: adm
+    estados: [sucesso, erro, truncada]
+    regras: [FUN-09]

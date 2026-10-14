@@ -43,7 +43,8 @@ class ExecucaoListaView(PermissaoMixin, TemplateView):
 
     Contexto (além do shell):
     - `execucoes`: linhas da página, dicts {pk, fluxo_nome, executado_por_nome, status,
-      status_rotulo, iniciada_em, duracao_texto ('1,2 s' ou ''), erro_resumo, url_detalhe}
+      status_rotulo, iniciada_em, duracao_texto ('1,2 s' ou ''), erro_resumo, funcao_nome ('' se
+      não veio de uma Função; FUN-10: mostrar como etiqueta "Função"), url_detalhe}
       (`status` já é o efetivo: 'executando' por mais de 5 min vem como 'erro')
     - `page_obj` (25 por página) e `consulta` (querystring dos filtros com '&' no fim)
     - `q`, `ordem`, `status_atual` ("" = Todos), `filtros_status` [{rotulo, url, ativo}]
@@ -109,6 +110,7 @@ class ExecucaoListaView(PermissaoMixin, TemplateView):
                 "iniciada_em": e.iniciada_em,
                 "duracao_texto": apresentacao.duracao_texto(e.duracao_ms),
                 "erro_resumo": e.erro_resumo_efetivo,
+                "funcao_nome": e.funcao_nome,
                 "url_detalhe": reverse("execucoes:detalhe", kwargs={"pk": e.pk}),
             }
             for e in pagina.object_list

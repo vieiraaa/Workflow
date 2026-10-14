@@ -1,0 +1,14 @@
+id: T-068
+titulo: M7a · Aceite do núcleo das Funções (só pela spec)
+dono: Lupa (qa)
+regras: [FUN-01..13, permissoes.yaml funcoes.*, D-029, D-031]
+aceite:
+  - "tests/acceptance/m7a/ cobrindo FUN-01..13 com @pytest.mark.modulo('m7a'): menu, catálogo por papel e liberação
+     (todos/setores/papeis, inativa, versao 0), formulário de função e mensagens exatas, publicar (versão congelada:
+     editar o fluxo depois não muda a execução), executar sem/com entradas (validação FUN-07), $parametros nas
+     expressões e no Código (valor como dado literal), resultado (tabela, limites, sem grafo/requisições para não-Adm),
+     privacidade para_mim (Coordenador não vê), credencial pelo setor do fluxo, concorrência (FUN-12)."
+  - "HTTP só contra servidor local / DNS simulado, como no m5. Vermelho por design até o código existir."
+  - "Lacuna ou ambiguidade de spec → pergunte ao Lead ANTES de inventar."
+arquivos: [tests/acceptance/m7a/]
+depende_de: []

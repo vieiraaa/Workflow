@@ -1,0 +1,13 @@
+id: T-071
+titulo: M7a · Adversarial do núcleo das Funções
+dono: Lupa (qa)
+regras: [FUN-01..13, D-031, MV2-25, SEG-*]
+alvos:
+  - "IDOR/escopo: executar, resultado, editar, publicar, alternar por Base/Coordenador; setor e papel errados; inativa; versão 0"
+  - "privacidade para_mim (D-031): lista de execuções, detalhe, Home, resultado, contagens"
+  - "injeção por parâmetro: {{ }}, $env, código, payload grande, tipos trocados, campos extras (FUN-07/08)"
+  - "versão congelada (FUN-04); CSRF; mass assignment (versao, grafo_publicado, publicada_por)"
+  - "XSS em nome/descrição/rótulos/opções/valores do resultado (chromium + webkit); credencial nunca no resultado (FUN-11)"
+regra: cada falha = teste vermelho + relato ao Lead (ele vira tarefa para o dono)
+arquivos: [tests/adversarial/m7a/]
+depende_de: [T-069, T-070]

@@ -1,0 +1,134 @@
+# M7a · Núcleo das Funções (decisão do usuário em 13/10/2026: adiantar antes do M6; Adm faz o papel de TI — D-029/D-030).
+# Fonte: docs/ROADMAP-n8n.md §M7. FORA deste núcleo (ficam para depois do M6): "Atualizar para todos" e resultado oficial,
+# nós de efeito geral, próxima execução agendada, atividades em massa (CSV), exportar CSV.
+#
+# Função = fluxo PUBLICADO com cara de botão: quem executa não vê o canvas; preenche entradas e recebe o resultado.
+
+modelo:
+  Funcao:
+    nome:        {tipo: texto, obrigatorio: true, max: 80, unico: true (sem diferenciar maiúsculas)}
+    descricao:   {tipo: texto, max: 300, opcional: true}
+    icone:       {tipo: escolha, valores: [zap, list-checks, mail, file-text, bar-chart-3, users, calendar, search, refresh-cw, send], padrao: zap}
+    fluxo:       {tipo: FK Fluxo, on_delete: PROTECT, regra: FUN-03}
+    versao:      {tipo: inteiro, padrao: 0, regra: "0 = nunca publicada; cada publicação soma 1"}
+    grafo_publicado: {tipo: json, regra: "cópia CONGELADA do grafo do fluxo no momento da publicação (FUN-04)"}
+    publicada_em: {tipo: datahora, nulo: true}
+    publicada_por: {tipo: FK Usuario, nulo: true}
+    entradas:    {tipo: json (lista), regra: FUN-05}
+    liberar_para: {tipo: escolha, valores: [todos, setores, papeis], padrao: todos}
+    setores:     {tipo: M2M Setor, usado_se: liberar_para = setores}
+    papeis:      {tipo: "lista de [coordenador, base]", usado_se: liberar_para = papeis}
+    ativa:       {tipo: booleano, padrao: true}
+    criada_por / criada_em / atualizada_em: {auto: true}
+  Execucao (novos campos):
+    funcao:        {tipo: FK Funcao, nulo: true, on_delete: SET_NULL}
+    funcao_nome:   {tipo: texto, regra: "snapshot do nome, como fluxo_nome"}
+    funcao_versao: {tipo: inteiro, nulo: true}
+    parametros:    {tipo: json (objeto), padrao: {}, regra: "valores das entradas já validados (FUN-07); mascarados como todo dado gravado (MV2-25 a)"}
+    modo:          {tipo: escolha, valores: [fluxo, para_mim], padrao: fluxo}
+
+permissoes:   # acrescentar em docs/spec/permissoes.yaml; o motor lê a matriz (D-005)
+  funcoes.ver:       {adm: todos, coordenador: liberadas, base: liberadas}
+  funcoes.executar:  {adm: todos, coordenador: liberadas, base: liberadas}
+  funcoes.gerenciar: {adm: todos, coordenador: nenhum,    base: nenhum}   # criar, editar, publicar, ativar/desativar (TI = Adm, D-029)
+  escopo_liberadas: >
+    Função ATIVA e PUBLICADA (versao >= 1) e: liberar_para=todos; ou =setores e o setor do usuário está entre os
+    setores; ou =papeis e o papel do usuário está na lista. Usuário sem setor só vê as liberadas para todos/papel.
+    Adm vê todas (inclusive inativas e não publicadas).
+
+regras:
+  - id: FUN-01
+    texto: >
+      Menu lateral ganha o item "Funções" (ícone Lucide `square-function`), logo depois de "Início", para quem tem
+      funcoes.ver. Rota `funcoes:catalogo` em /funcoes/.
+  - id: FUN-02
+    texto: >
+      Catálogo (TEL-23, `funcoes:catalogo`): cartões em grade (1 coluna em 390 px) com ícone, nome, descrição (2
+      linhas, reticências), e "Sua última execução": quando (relativo, ex. "há 3 h"), status (chip) e link "Ver
+      resultado"; sem execução: "Você ainda não executou". Botão primário "Executar" no cartão. Busca ?q= por nome e
+      descrição. Escopo FUN (liberadas) aplicado no banco; queries constantes. Adm vê também chips "Rascunho" (versao 0)
+      e "Inativa", e o botão "Nova função" + menu do cartão (Editar, Publicar nova versão, Ativar/Desativar).
+      Vazio: Adm → "Nenhuma função ainda. Publique um fluxo como função." com botão; demais → "Nenhuma função
+      liberada para você ainda." Para o usuário, "última execução" é SEMPRE a dele (modo para_mim), nunca de outros.
+  - id: FUN-03
+    texto: >
+      Formulário de função (TEL-24, só Adm): `funcoes:nova` (/funcoes/nova/) e `funcoes:editar` (/funcoes/<pk>/editar/).
+      Campos POST: nome, descricao, icone, fluxo (id), liberar_para, setores (ids, múltiplo), papeis (múltiplo),
+      entradas (JSON, FUN-05), ativa. Fluxo listado = todos os fluxos (Adm). Erros: nome vazio → "Informe o nome.";
+      duplicado → "Já existe uma função com este nome."; liberar_para=setores sem setor → "Escolha ao menos um setor.";
+      =papeis sem papel → "Escolha ao menos um papel."; fluxo inexistente → "Fluxo inválido."; entradas inválidas →
+      mensagem de FUN-05. Salvar NÃO publica. Sucesso → redirect para o catálogo com "Função salva." Trocar o fluxo
+      de uma função publicada mantém a versão publicada até a próxima publicação.
+  - id: FUN-04
+    texto: >
+      Publicar (`funcoes:publicar`, POST /funcoes/<pk>/publicar/, só Adm): valida o grafo ATUAL do fluxo como na
+      execução (sem pendências GRF/MV2; com pendência → volta ao catálogo com "Não dá para publicar: o fluxo tem
+      pendências. Corrija no editor." e nada muda). Ok → grafo_publicado = cópia do grafo do fluxo, versao += 1,
+      publicada_em/por; mensagem "Versão N publicada.". Editar o fluxo depois NÃO altera a função até nova publicação.
+      Ativar/desativar: `funcoes:alternar` (POST /funcoes/<pk>/alternar/). Função não é excluída (preserva histórico).
+  - id: FUN-05
+    texto: >
+      Entradas: lista (máx. 10) de objetos {nome, rotulo, tipo, obrigatoria, padrao, opcoes}. nome: ^[a-z][a-z0-9_]{0,29}$,
+      único na lista. tipo: texto (máx 500), numero, data (AAAA-MM-DD), booleano, lista (opcoes: 1..50 textos, máx 80
+      cada). padrao opcional, do tipo; em data aceita também os relativos "hoje" e "ontem" (fuso America/Sao_Paulo,
+      resolvidos na hora de executar). Inválido → "Entradas inválidas: <motivo curto>." (ex.: "nome repetido 'dia'").
+  - id: FUN-06
+    texto: >
+      Executar (`funcoes:executar`, GET+POST /funcoes/<pk>/executar/): função fora do escopo, inativa ou nunca
+      publicada → 404 (Adm também recebe 404 se versao=0 ou inativa, com a mensagem no catálogo; não executa). Sem
+      entradas → o botão do catálogo faz POST direto. Com entradas → GET mostra formulário curto (TEL-25) com os campos
+      e padrões resolvidos; POST valida (FUN-07) e executa. Execução SÍNCRONA com o grafo_publicado (não o grafo atual
+      do fluxo), mesmos limites e proteções do motor v2 (SSRF, mascaramento, Código isolado), modo=para_mim,
+      executado_por=usuário, setor=setor do fluxo, funcao/funcao_nome/funcao_versao/parametros gravados. Sucesso ou
+      erro → redirect 302 para `funcoes:resultado` da execução.
+  - id: FUN-07
+    texto: >
+      Validação de parâmetros no servidor, por tipo: obrigatória vazia → "Preencha <rotulo>."; numero inválido →
+      "<rotulo>: informe um número."; data inválida → "<rotulo>: data inválida."; lista fora das opções → "<rotulo>:
+      opção inválida."; texto > 500 → "<rotulo>: máximo de 500 caracteres."; campo desconhecido no POST é ignorado
+      (não vira parâmetro). Erro → 200 com o formulário e as mensagens, sem execução. NUL → 400 (MV2-25 c). Booleano
+      aceita só on/true/1/sim e vazio/false/0/nao (outro valor → "<rotulo>: valor inválido.", 200). Surrogate solto no
+      corpo de formulário: o Django já o troca por U+FFFD ao decodificar (nunca chega à app) → aceito como dado; exige-se
+      só que nada dê 500 e nenhum surrogate seja gravado (FUN-07a, 13/10).
+  - id: FUN-08
+    texto: >
+      Parâmetros no fluxo: expressões leem `$parametros.<nome>` (e `$parametros["nome"]`); o nó Código recebe
+      `$parametros` (objeto congelado). O VALOR do parâmetro é DADO: nunca é avaliado como expressão nem como código
+      (ex.: "{{ $env }}" digitado vira o texto literal). Fora de uma função (fluxo executado direto ou teste de nó),
+      `$parametros` = {} (objeto vazio): o fluxo não sabe de funções. Nome inexistente → null (como os demais acessos).
+  - id: FUN-09
+    texto: >
+      Resultado (TEL-26, `funcoes:resultado`, GET /funcoes/execucoes/<pk>/): mostra nome e ícone da função, versão,
+      quando, duração, status, os parâmetros usados (tabela rótulo → valor) e a SAÍDA do último nó executado em
+      tabela (colunas = chaves do 1º nível dos itens, máx. 20 colunas e 200 linhas, valor objeto/lista → JSON curto;
+      "Mostrando 200 de N itens"). Erro → alerta com a categoria e mensagem do nó que falhou (sem stack, sem grafo).
+      NÃO mostra canvas, grafo, requisições, logs nem nós intermediários para quem não é Adm; Adm vê também o link
+      "Detalhe técnico" (`execucoes:detalhe`). Botão "Executar de novo" (mesmos parâmetros no formulário).
+  - id: FUN-10
+    texto: >
+      Visibilidade das execuções de função (modo para_mim): só o próprio executor e o Adm. Coordenador NÃO vê a
+      execução para_mim de outro usuário do setor (lista de execuções, detalhe, Home e resultado → fora do escopo /
+      404). Execuções modo=fluxo seguem SET-06 sem mudança. A Home conta as execuções de função como as demais,
+      respeitando esta regra. Lista de execuções (TEL) ganha coluna/etiqueta "Função" quando houver.
+  - id: FUN-11
+    texto: >
+      Credenciais numa função: resolvidas pelo setor do FLUXO (CRD-02), como no motor v2; quem executa não precisa
+      de credenciais.gerenciar e nunca vê o valor. Parâmetro nunca vira credencial.
+  - id: FUN-12
+    texto: >
+      Concorrência: o mesmo usuário com uma execução da mesma função ainda em andamento recebe, no POST, redirect para
+      o catálogo com "Esta função já está em execução para você. Aguarde terminar." (sem nova execução).
+  - id: FUN-13
+    texto: >
+      Contexto das views (contrato Back↔Front, docstring): catálogo → `funcoes` (lista de dicts: pk, nome, descricao,
+      icone, rascunho, inativa, tem_entradas, ultima {quando, status, url} | None, url_executar, url_editar,
+      url_publicar, url_alternar), `pode_gerenciar`, `q`; formulário de execução → `funcao`, `campos` (nome, rotulo,
+      tipo, valor, opcoes, obrigatoria, erro), `erros_gerais`; resultado → `funcao`, `execucao`, `parametros`
+      (lista rótulo/valor), `colunas`, `linhas`, `total_itens`, `erro`, `url_detalhe` (só Adm), `url_executar_de_novo`.
+      Formulário de função → form Django + `entradas_json`, `setores`, `papeis`, `icones`, `fluxos`.
+
+telas:
+  - {id: TEL-23, rota: funcoes:catalogo, titulo: Funções}
+  - {id: TEL-24, rota: "funcoes:nova / funcoes:editar", titulo: "Nova função / Editar função", editor de entradas: "lista de linhas (nome, rótulo, tipo, obrigatória, padrão, opções) com adicionar/remover; JSON escondido no POST"}
+  - {id: TEL-25, rota: funcoes:executar, titulo: "Executar <nome>"}
+  - {id: TEL-26, rota: funcoes:resultado, titulo: "Resultado · <nome>"}

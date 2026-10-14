@@ -45,8 +45,10 @@ def _limpar_dados_de_telas():
     from apps.credenciais.models import Credencial
     from apps.execucoes.models import Execucao
     from apps.fluxos.models import Fluxo
+    from apps.funcoes.models import Funcao
 
     Execucao.objects.all().delete()
+    Funcao.objects.all().delete()
     Fluxo.objects.all().delete()
     Credencial.objects.all().delete()
 
@@ -257,6 +259,173 @@ def _execucao_demo(cenario):
         return {"execucao_demo": demo.criar_execucao(usuarios["coordenador"], cenario)}
 
     return preparar
+
+
+# ---- M7a: Funções (TEL-23..26). Papel das telas: adm (vê tudo; a "última execução" é a dele).
+def _fluxo_da_funcao(usuarios, nome="Relatório de chamados (demo)"):
+    from apps.fluxos import demo
+
+    return demo.criar_fluxo(usuarios["adm"], nome, "ativo", demo.grafo_exemplo())
+
+
+def _funcao(usuarios, fluxo, nome, **extra):
+    from django.utils import timezone
+
+    from apps.funcoes.models import Funcao
+
+    publicar = extra.pop("versao", 1) >= 1
+    funcao = Funcao.objects.create(
+        nome=nome,
+        fluxo=fluxo,
+        criada_por=usuarios["adm"],
+        versao=1 if publicar else 0,
+        grafo_publicado=fluxo.grafo if publicar else {},
+        publicada_em=timezone.now() if publicar else None,
+        publicada_por=usuarios["adm"] if publicar else None,
+        **extra,
+    )
+    return funcao
+
+
+ENTRADAS_DEMO = [
+    {
+        "nome": "dia",
+        "rotulo": "Dia do relatório",
+        "tipo": "data",
+        "obrigatoria": True,
+        "padrao": None,
+        "opcoes": [],
+    },
+    {
+        "nome": "fila",
+        "rotulo": "Fila de atendimento",
+        "tipo": "lista",
+        "obrigatoria": False,
+        "padrao": None,
+        "opcoes": ["Suporte", "Financeiro", "Comercial"],
+    },
+]
+
+
+def _execucao_da_funcao(usuarios, funcao, cenario="sucesso", quem="adm"):
+    """Execução `para_mim` de `quem`, gravada direto (sem rodar o motor)."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.execucoes.models import Execucao, ExecucaoNo
+
+    inicio = timezone.now() - timedelta(hours=3)
+    erro = cenario == "erro"
+    execucao = Execucao.objects.create(
+        fluxo=funcao.fluxo,
+        fluxo_nome=funcao.fluxo.nome,
+        executado_por=usuarios[quem],
+        funcao=funcao,
+        funcao_nome=funcao.nome,
+        funcao_versao=funcao.versao,
+        parametros={"dia": "2026-10-12", "fila": "Suporte"},
+        modo="para_mim",
+        status="erro" if erro else "sucesso",
+        iniciada_em=inicio,
+        finalizada_em=inicio + timedelta(milliseconds=840),
+        erro_resumo="Chamados: erro HTTP 503" if erro else "",
+    )
+    total = 250 if cenario == "truncada" else 4
+    itens = [
+        {
+            "json": {
+                "id": 1000 + i,
+                "assunto": f"Chamado fictício {i + 1}",
+                "fila": "Suporte",
+                "aberto": i % 2 == 0,
+                "detalhes": {"prioridade": "alta"},
+            }
+        }
+        for i in range(min(total, 200))
+    ]
+    ExecucaoNo.objects.create(
+        execucao=execucao,
+        no_id="n2",
+        no_tipo="http" if erro else "editar_campos",
+        no_titulo="Chamados",
+        ordem=1,
+        status="erro" if erro else "sucesso",
+        entrada=[],
+        saida=[] if erro else itens,
+        itens_saida=0 if erro else total,
+        erro_categoria="http_5xx" if erro else None,
+        erro_mensagem="O servidor respondeu 503." if erro else "",
+        duracao_ms=840,
+    )
+    return execucao
+
+
+def _catalogo_demo(usuarios):
+    fluxo = _fluxo_da_funcao(usuarios)
+    funcoes = {
+        "funcao_demo": _funcao(
+            usuarios,
+            fluxo,
+            "Relatório diário de chamados",
+            descricao="Lista os chamados abertos no dia escolhido, por fila de atendimento.",
+            icone="bar-chart-3",
+            entradas=ENTRADAS_DEMO,
+        ),
+        "sem_entradas": _funcao(
+            usuarios,
+            fluxo,
+            "Atualizar painel",
+            descricao="Roda com um clique, sem perguntas.",
+            icone="refresh-cw",
+        ),
+        "rascunho": _funcao(
+            usuarios,
+            fluxo,
+            "Envio de lembretes",
+            icone="mail",
+            versao=0,
+            descricao="Em preparação.",
+        ),
+        "inativa": _funcao(usuarios, fluxo, "Conferência antiga", icone="list-checks", ativa=False),
+    }
+    for quem in ("adm", "base"):
+        if quem in usuarios:
+            _execucao_da_funcao(usuarios, funcoes["funcao_demo"], quem=quem)
+    return funcoes
+
+
+def _funcao_demo(usuarios):
+    fluxo = _fluxo_da_funcao(usuarios)
+    return {
+        "funcao_demo": _funcao(
+            usuarios,
+            fluxo,
+            "Relatório diário de chamados",
+            descricao="Lista os chamados abertos no dia escolhido.",
+            icone="bar-chart-3",
+            entradas=ENTRADAS_DEMO,
+        )
+    }
+
+
+def _resultado_demo(cenario):
+    def preparar(usuarios):
+        dados = _funcao_demo(usuarios)
+        execucao = _execucao_da_funcao(usuarios, dados["funcao_demo"], cenario)
+        return {**dados, "execucao_funcao_demo": execucao}
+
+    return preparar
+
+
+def _erro_funcao_nova(page, base):
+    _enviar(page, "", {"nome": "", "liberar_para": "setores"})
+
+
+def _erro_executar_funcao(page, base):
+    page.fill("input[name=dia]", "")
+    page.locator("main form button[type=submit]").last.click()
+    page.wait_for_load_state("networkidle")
 
 
 # ---- M5: credenciais, editor v2 e execução v2
@@ -669,6 +838,15 @@ PREPARADORES = {
     ("TEL-22", "sucesso_com_ramos"): (_execucao_v2("sucesso"), None),
     ("TEL-22", "erro_continuar"): (_execucao_v2("erro_continuar"), None),
     ("TEL-22", "teste"): (_execucao_v2("teste"), None),
+    ("TEL-23", "vazio"): (None, None),
+    ("TEL-23", "com_dados"): (_catalogo_demo, None),
+    ("TEL-24", "padrao"): (_funcao_demo, None),
+    ("TEL-24", "erro_validacao"): (_funcao_demo, _erro_funcao_nova),
+    ("TEL-25", "padrao"): (_funcao_demo, None),
+    ("TEL-25", "erro_campo"): (_funcao_demo, _erro_executar_funcao),
+    ("TEL-26", "sucesso"): (_resultado_demo("sucesso"), None),
+    ("TEL-26", "erro"): (_resultado_demo("erro"), None),
+    ("TEL-26", "truncada"): (_resultado_demo("truncada"), None),
 }
 
 
@@ -900,10 +1078,16 @@ def executar(modulo, verificar):
                         ):
                             problemas.append(f"{etiqueta}: overflow horizontal em 390px")
                         if not verificar:
+                            repetida = (
+                                sum(1 for t, e in itens if (t["id"], e) == (tela["id"], estado)) > 1
+                            )
+                            sufixo = f"_{tela['papel']}" if repetida else ""
                             pasta = RAIZ / "docs" / "telas" / f"m{modulo}"
                             pasta.mkdir(parents=True, exist_ok=True)
                             page.screenshot(
-                                path=str(pasta / f"{tela['id']}_{estado}_{tema}_{largura}.png"),
+                                path=str(
+                                    pasta / f"{tela['id']}_{estado}{sufixo}_{tema}_{largura}.png"
+                                ),
                                 full_page=True,
                             )
                             capturas += 1
@@ -930,7 +1114,7 @@ def main():
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawTextHelpFormatter
     )
-    parser.add_argument("--modulo", type=int, help="número do módulo (0, 1, ...)")
+    parser.add_argument("--modulo", help="módulo: 0, 1, ... ou 7a ('7' vale só para m7)")
     parser.add_argument("--verificar", action="store_true", help="só verifica; não grava capturas")
     args = parser.parse_args()
     if args.modulo is None and not args.verificar:

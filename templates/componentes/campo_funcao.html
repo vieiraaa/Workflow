@@ -1,0 +1,21 @@
+{# c: dict da entrada (FUN-13): nome, rotulo, tipo, valor, opcoes, obrigatoria, erro. Name do input = c.nome. #}
+{% if c.tipo == "booleano" %}
+<div class="campo{% if c.erro %} campo--erro{% endif %}">
+  <label class="toggle"><span>{{ c.rotulo }}{% if c.obrigatoria %} <span class="campo__obrig" aria-hidden="true">*</span>{% endif %}</span><input type="checkbox" name="{{ c.nome }}" value="true"{% if c.valor == True or c.valor == "true" or c.valor == "on" %} checked{% endif %}><span class="toggle__trilho"></span></label>
+  {% if c.erro %}<p class="campo__erro" role="alert">{{ c.erro }}</p>{% endif %}
+</div>
+{% else %}
+<div class="campo{% if c.erro %} campo--erro{% endif %}">
+  <label class="campo__rotulo" for="entrada-{{ c.nome }}">{{ c.rotulo }}{% if c.obrigatoria %} <span class="campo__obrig" aria-hidden="true">*</span>{% endif %}</label>
+  {% if c.tipo == "lista" %}
+  <div class="campo__select"><select id="entrada-{{ c.nome }}" name="{{ c.nome }}"{% if c.obrigatoria %} aria-required="true"{% endif %}{% if c.erro %} aria-invalid="true"{% endif %}>
+    <option value="">Selecione…</option>
+    {% for o in c.opcoes %}<option value="{{ o }}"{% if o == c.valor %} selected{% endif %}>{{ o }}</option>{% endfor %}
+  </select>{% include "componentes/icone.html" with nome="chevron-down" tamanho=16 %}</div>
+  {% else %}
+  <input id="entrada-{{ c.nome }}" name="{{ c.nome }}" value="{{ c.valor|default_if_none:'' }}"
+    type="{% if c.tipo == 'data' %}date{% else %}text{% endif %}"{% if c.tipo == "numero" %} inputmode="decimal"{% endif %}{% if c.tipo == "texto" %} maxlength="500"{% endif %}{% if c.obrigatoria %} aria-required="true"{% endif %}{% if c.erro %} aria-invalid="true"{% endif %} autocomplete="off">
+  {% endif %}
+  {% if c.erro %}<p class="campo__erro" role="alert">{{ c.erro }}</p>{% endif %}
+</div>
+{% endif %}

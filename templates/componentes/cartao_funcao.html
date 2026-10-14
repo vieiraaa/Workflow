@@ -1,0 +1,36 @@
+{# f: dict do catálogo (FUN-13): pk, nome, descricao, icone, rascunho, inativa, tem_entradas, ultima, url_*. pode_gerenciar. #}
+<article class="cartao-funcao{% if f.inativa %} cartao-funcao--inativa{% endif %}" data-funcao="{{ f.pk }}">
+  <header class="cartao-funcao__cab">
+    <div class="cartao-funcao__icone">{% include "componentes/icone.html" with nome=f.icone|default:"zap" %}</div>
+    <div class="cartao-funcao__titulos">
+      <h2 class="cartao-funcao__nome">{{ f.nome }}</h2>
+      {% if f.rascunho or f.inativa %}<div class="cartao-funcao__chips">
+        {% if f.rascunho %}<span class="badge badge--rascunho">Rascunho</span>{% endif %}
+        {% if f.inativa %}<span class="badge badge--rascunho">Inativa</span>{% endif %}
+      </div>{% endif %}
+    </div>
+    {% if pode_gerenciar and f.url_editar %}
+    <details class="menu cartao-funcao__menu" data-menu>
+      <summary class="botao botao--icone menu__gatilho" aria-label="Ações de {{ f.nome }}">{% include "componentes/icone.html" with nome="ellipsis" %}</summary>
+      <div class="menu__lista" role="menu">
+        <a class="menu__item" role="menuitem" href="{{ f.url_editar }}">{% include "componentes/icone.html" with nome="pencil" tamanho=16 %}<span>Editar</span></a>
+        <form method="post" action="{{ f.url_publicar }}">{% csrf_token %}<button class="menu__item" role="menuitem" type="submit">{% include "componentes/icone.html" with nome="upload" tamanho=16 %}<span>Publicar nova versão</span></button></form>
+        <form method="post" action="{{ f.url_alternar }}">{% csrf_token %}<button class="menu__item" role="menuitem" type="submit">{% include "componentes/icone.html" with nome="power" tamanho=16 %}<span>{% if f.inativa %}Ativar{% else %}Desativar{% endif %}</span></button></form>
+      </div>
+    </details>
+    {% endif %}
+  </header>
+  <p class="cartao-funcao__descricao texto-2">{{ f.descricao|default:"Sem descrição." }}</p>
+  <div class="cartao-funcao__ultima texto-sm">
+    {% if f.ultima %}
+    <span class="texto-2">Sua última execução</span>
+    <span class="cartao-funcao__ultima-linha">{{ f.ultima.quando }} {% include "componentes/badge_status.html" with status=f.ultima.status rotulo=f.ultima.rotulo|default:f.ultima.status %}
+      {% if f.ultima.url %}<a href="{{ f.ultima.url }}">Ver resultado</a>{% endif %}</span>
+    {% else %}<span class="texto-2">Você ainda não executou</span>{% endif %}
+  </div>
+  <footer class="cartao-funcao__rodape">
+    {% if not f.url_executar %}<p class="texto-2 texto-sm">Indisponível para execução.</p>
+    {% elif f.tem_entradas %}{% include "componentes/botao.html" with rotulo="Executar" icone="play" variante="primario" href=f.url_executar bloco=True %}
+    {% else %}<form method="post" action="{{ f.url_executar }}">{% csrf_token %}<button class="botao botao--primario botao--bloco" type="submit" data-carregando data-texto-carregando="Executando…">{% include "componentes/icone.html" with nome="play" tamanho=16 %}<span>Executar</span></button></form>{% endif %}
+  </footer>
+</article>

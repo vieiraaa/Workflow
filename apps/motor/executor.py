@@ -19,7 +19,7 @@ from apps.execucoes.models import Execucao, ExecucaoNo
 from apps.fluxos import catalogo
 from apps.fluxos.grafo import arestas_de_retorno, normalizar, validar
 
-from . import mascarar, nos
+from . import credenciais, mascarar, nos
 from .erros import FalhaNo, FluxoComPendencias
 from .expressoes import ErroExpressao, Escopo
 from .nos.base import conferir_limite
@@ -27,11 +27,12 @@ from .nos.base import conferir_limite
 logger = logging.getLogger(__name__)
 
 MAX_ITENS_GRAVADOS = 50
+MAX_ITENS_FUNCAO = 200  # FUN-09: o resultado de uma Função mostra até 200 linhas
 LIMITE_BYTES_EXECUCAO = 10 * 1024 * 1024
 MAX_VOLTAS = 1000
 MAX_REQUISICOES_GRAVADAS = 100
 
-__all__ = ["FalhaNo", "FluxoComPendencias", "executar", "executar_teste"]
+__all__ = ["FalhaNo", "FluxoComPendencias", "executar", "executar_funcao", "executar_teste"]
 
 
 class _Parar(Exception):
@@ -46,8 +47,11 @@ class _Parar(Exception):
 class Contexto:
     """O que os nós enxergam da execução em andamento."""
 
-    def __init__(self, execucao_obj, usuario, fluxo_nome, prazo, fixos, setor_id=None):
+    def __init__(
+        self, execucao_obj, usuario, fluxo_nome, prazo, fixos, setor_id=None, parametros=None
+    ):
         self.usuario = usuario
+        self.parametros = parametros or {}  # FUN-08: {} fora de uma Função
         self.setor_id = setor_id  # setor do fluxo: limita as credenciais visíveis (CRD-02)
         self.execucao = execucao_obj
         self.fluxo_nome = fluxo_nome
@@ -71,7 +75,7 @@ class Contexto:
             execucao_id=self.execucao.pk,
             fluxo_nome=self.fluxo_nome,
             usuario_email=self.usuario.email,
-            parametros={},
+            parametros=self.parametros,
             **extra,
         )
 
@@ -100,8 +104,12 @@ def _como_falha(erro):
 class _Execucao:
     """Estado de uma execução em andamento."""
 
-    def __init__(self, fluxo, usuario, grafo, teste=False, ate_no=None):
+    def __init__(
+        self, fluxo, usuario, grafo, teste=False, ate_no=None, funcao=None, parametros=None
+    ):
         nos.carregar()
+        self.parametros = parametros if funcao is not None else {}
+        self.max_itens = MAX_ITENS_FUNCAO if funcao is not None else MAX_ITENS_GRAVADOS
         self.usuario = usuario
         self.grafo = grafo
         self.por_id = {n["id"]: n for n in grafo["nos"]}
@@ -118,6 +126,8 @@ class _Execucao:
             if indice not in self.retornos:
                 self.entradas_de[aresta["para"]].add(indice)
         self.gatilho = next(n["id"] for n in grafo["nos"] if n["tipo"] == "gatilho")
+        # MV2-25 a: valor de credencial do setor digitado como parâmetro nunca é gravado
+        segredos = credenciais.segredos_do_setor(fluxo.setor_id) if funcao is not None else set()
         self.execucao = Execucao.objects.create(
             fluxo=fluxo,
             fluxo_nome=fluxo.nome,
@@ -126,6 +136,22 @@ class _Execucao:
             setor_id=fluxo.setor_id,
             status=Execucao.EXECUTANDO,
             teste=teste,
+            **(
+                {
+                    "funcao": funcao,
+                    "funcao_nome": funcao.nome,
+                    "funcao_versao": funcao.versao,
+                    "parametros": {
+                        nome: mascarar.ocultar_em_texto(valor, segredos)
+                        if isinstance(valor, str)
+                        else valor
+                        for nome, valor in self.parametros.items()
+                    },
+                    "modo": Execucao.PARA_MIM,
+                }
+                if funcao is not None
+                else {}
+            ),
         )
         self.ctx = Contexto(
             self.execucao,
@@ -134,7 +160,9 @@ class _Execucao:
             time.monotonic() + float(settings.MOTOR_TIMEOUT_EXECUCAO),
             grafo.get("dados_fixos") or {},
             setor_id=fluxo.setor_id,
+            parametros=self.parametros,
         )
+        self.ctx.adicionar_segredos(segredos)
         self.ordem = 0
         self.bytes_gravados = 0
         self.contagem = {}  # índice da aresta → itens entregues
@@ -179,13 +207,13 @@ class _Execucao:
 
     # ------------------------------------------------------------ gravação
     def _itens_gravados(self, itens, truncar_por_orcamento=True):
-        recorte = itens[:MAX_ITENS_GRAVADOS]
+        recorte = itens[: self.max_itens]
         gravados = mascarar.mascarar_itens(recorte, self.ctx.segredos)
         tamanho = len(json.dumps(gravados, ensure_ascii=False, default=str))
         if truncar_por_orcamento and self.bytes_gravados + tamanho > LIMITE_BYTES_EXECUCAO:
             return [], True
         self.bytes_gravados += tamanho
-        return gravados, len(itens) > MAX_ITENS_GRAVADOS
+        return gravados, len(itens) > self.max_itens
 
     def _requisicao_gravada(self, registro):
         """Requisição pronta para gravar: segredos mascarados por nome e por valor (SEG-09/18)."""
@@ -437,11 +465,24 @@ def _pendencias_do(grafo, ate_no=None):
     return pendencias
 
 
-def _rodar(fluxo, usuario, grafo, teste, ate_no):
+def pendencias_do_grafo(grafo):
+    """Pendências/erros de formato de `grafo` como na execução (usado ao publicar uma Função)."""
+    return _pendencias_do(grafo)
+
+
+def _rodar(fluxo, usuario, grafo, teste, ate_no, funcao=None, parametros=None):
     pendencias = _pendencias_do(grafo, ate_no)
     if pendencias:
         raise FluxoComPendencias(pendencias)
-    em_andamento = _Execucao(fluxo, usuario, normalizar(grafo), teste=teste, ate_no=ate_no)
+    em_andamento = _Execucao(
+        fluxo,
+        usuario,
+        normalizar(grafo),
+        teste=teste,
+        ate_no=ate_no,
+        funcao=funcao,
+        parametros=parametros,
+    )
     try:
         return em_andamento.executar()
     except Exception:
@@ -457,6 +498,22 @@ def executar(fluxo, usuario):
     Levanta `FluxoComPendencias` se o grafo tem pendências ou erro de formato (EXE-02).
     """
     return _rodar(fluxo, usuario, fluxo.grafo, False, None)
+
+
+def executar_funcao(funcao, usuario, parametros):
+    """Executa o `grafo_publicado` da Função (FUN-06) com `parametros` já validados (FUN-07).
+
+    Modo `para_mim`, setor e credenciais do FLUXO (FUN-11). Levanta `FluxoComPendencias`.
+    """
+    return _rodar(
+        funcao.fluxo,
+        usuario,
+        funcao.grafo_publicado,
+        False,
+        None,
+        funcao=funcao,
+        parametros=parametros,
+    )
 
 
 def executar_teste(fluxo, usuario, no_id, grafo=None):

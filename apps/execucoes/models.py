@@ -45,6 +45,21 @@ class Execucao(models.Model):
     erro_resumo = models.TextField("resumo do erro", blank=True)
     teste = models.BooleanField("execução de teste", default=False)
     arestas = models.JSONField("itens por aresta", default=list, blank=True)
+    # M7a (FUN-06): execução disparada por uma Função. `modo=para_mim` é privada (FUN-10).
+    FLUXO, PARA_MIM = "fluxo", "para_mim"
+    MODOS = [(FLUXO, "Fluxo"), (PARA_MIM, "Para mim")]
+    funcao = models.ForeignKey(
+        "funcoes.Funcao",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="execucoes",
+        verbose_name="função",
+    )
+    funcao_nome = models.CharField("nome da função", max_length=80, blank=True)
+    funcao_versao = models.PositiveIntegerField("versão da função", null=True, blank=True)
+    parametros = models.JSONField("parâmetros", default=dict, blank=True)
+    modo = models.CharField("modo", max_length=10, choices=MODOS, default=FLUXO)
 
     class Meta:
         verbose_name = "execução"
