@@ -1,0 +1,47 @@
+# Nó "Chamar n8n" (pedido do usuário em 14/10/2026): chamar um fluxo do n8n pelo Webhook dele, sem importar o fluxo.
+# É um nó de AÇÃO construído SOBRE o nó HTTP do motor v2: herda SSRF, limites, mascaramento, credenciais, paginação NÃO.
+# Grupo "acoes", tipo `chamar_n8n`, rótulo "Chamar n8n", ícone Lucide `webhook`, busca "n8n webhook chamar workflow fluxo".
+
+regras:
+  - id: N8N-01
+    texto: >
+      Config (inspector): `url` (obrigatória; URL do Webhook do n8n, aceita expressão), `metodo` POST|GET (padrão
+      POST), `credencial` (nome de credencial do cofre, opcional; tipos bearer/básico/cabeçalho — no n8n "Header
+      Auth" = credencial tipo cabeçalho), `enviar` item|todos|personalizado (padrão item), `corpo` (só em
+      personalizado: expressão que resulta em objeto/lista JSON), `aguardar_resposta` bool (padrão true),
+      `tempo_limite_s` inteiro 1..55 (padrão 30). Sem headers livres, sem query livre, sem paginação.
+  - id: N8N-02
+    texto: >
+      Pendências (GRF/MV2, bloqueiam executar e publicar): url vazia → "Informe a URL do webhook do n8n."; url que
+      não é http(s) depois de resolver literal → "A URL do webhook deve começar com https:// (ou http://)."; credencial
+      inexistente/fora do setor → mesma mensagem do nó HTTP; personalizado sem corpo → "Informe o corpo a enviar.";
+      tempo_limite_s fora de 1..55 → "Tempo limite entre 1 e 55 segundos.". AVISO (não bloqueia, aparece no
+      inspector e no resumo do nó): url com "/webhook-test/" → "URL de TESTE do n8n: só funciona enquanto o n8n
+      estiver em 'Listen for test event'. Para uso real, ative o fluxo no n8n e use /webhook/."
+  - id: N8N-03
+    texto: >
+      Envio: item → UMA chamada por item de entrada, corpo JSON = item.json (GET: sem corpo, item.json achatado em
+      query string só com valores escalares); todos → UMA chamada com corpo {"itens": [json de cada item]}; sem itens
+      de entrada → nenhuma chamada e saída vazia; personalizado → UMA chamada por item com o corpo avaliado. Header
+      Content-Type: application/json; User-Agent do motor. Credencial aplicada como no nó HTTP.
+  - id: N8N-04
+    texto: >
+      Resposta (aguardar_resposta=true): 2xx com JSON lista → cada elemento vira um item (objeto → json; escalar →
+      {"valor": x}); JSON objeto → um item; corpo vazio → um item {"n8n_status": <status>}; não JSON → um item
+      {"resposta": "<texto truncado como no HTTP>"}. O n8n "Respond to Webhook"/"When last node finishes" devolve
+      assim. aguardar_resposta=false → a saída repete os itens de entrada com o campo extra "n8n_status" (status
+      HTTP), sem ler o corpo além do limite de 64 KB. Limites de itens/tamanho do motor v2 valem igual.
+  - id: N8N-05
+    texto: >
+      Erros (categoria e mensagem no nó, "continuar em erro" como os demais): 404 → "Webhook do n8n não encontrado:
+      confira a URL e se o fluxo está ATIVO no n8n (ou em 'Listen for test event' na URL de teste)."; 401/403 →
+      "O n8n recusou a autenticação: confira a credencial do webhook."; outros não-2xx → "O n8n respondeu <status>."
+      (+ trecho do corpo mascarado); tempo esgotado → "O n8n não respondeu em <N> s. Para fluxos longos, use 'Não
+      aguardar resposta' no nó."; bloqueio SSRF → a mesma mensagem do nó HTTP (endereço interno continua bloqueado;
+      liberar n8n interno é decisão de segurança à parte). Valor da credencial nunca aparece em erro, log ou saída.
+  - id: N8N-06
+    texto: >
+      Execução e telas: requisições registradas no detalhe da execução como no nó HTTP (método, URL mascarada,
+      status, duração); resumo do nó no canvas: "POST · n8n" / "POST · n8n (teste)" / "GET · n8n"; "executar este
+      nó" funciona como no HTTP. Exportar/importar JSON do sistema preserva o nó; importação de n8n NÃO cria este nó
+      (um HTTP Request do n8n continua virando HTTP).

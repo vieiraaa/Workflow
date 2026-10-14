@@ -31,3 +31,4 @@
 - D-029 · 13/10 · Adm faz o papel de TI (sem papel TI separado por enquanto); ações "TI" do roadmap = Adm.
 - D-030 · 13/10 · Núcleo das Funções (M7a, docs/spec/funcoes.yaml) adiantado antes do M6; "Atualizar para todos", efeito geral, agenda e massa ficam para depois do M6 (D-d em aberto).
 - D-031 · 13/10 · Execução de Função "para mim" é privada: só o executor e o Adm a veem (FUN-10), inclusive para o Coordenador do setor.
+- D-032 · 14/10 · Nó 'Chamar n8n' (docs/spec/no-n8n.yaml) sobre o cliente HTTP do motor: mesmo SSRF; n8n em endereço interno segue bloqueado (liberação é decisão de segurança à parte).

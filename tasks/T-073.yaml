@@ -1,0 +1,12 @@
+id: T-073
+titulo: Nó "Chamar n8n" · aceite (só pela spec)
+dono: Lupa (qa)
+regras: [N8N-01..06]
+aceite:
+  - "tests/acceptance/n8n/ com servidor HTTP LOCAL fazendo papel do n8n (liberado via fixture settings, como no m5):
+     pendências e aviso de URL de teste, envio item/todos/personalizado/GET, resposta lista/objeto/vazia/não JSON,
+     aguardar=false, erros 404/401/500/timeout com as mensagens exatas, credencial cabeçalho/bearer aplicada e nunca
+     exposta, SSRF bloqueado sem a liberação, resumo do nó, detalhe com requisições. Marcador modulo('n8n')."
+  - "Depois do back pronto: rodada adversarial curta em tests/adversarial/n8n/ (injeção na URL, redirect para
+     interno, resposta gigante/aninhada, header injection pelo corpo, credencial refletida)."
+arquivos: [tests/acceptance/n8n/, tests/adversarial/n8n/]

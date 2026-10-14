@@ -14,3 +14,4 @@ staticfiles/
 .claude/settings.local.json
 .maestri/
 docs/ferramentas/ultima_consulta_ollama.md
+.DS_Store

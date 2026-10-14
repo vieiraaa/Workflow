@@ -1,0 +1,10 @@
+id: T-075
+titulo: Nó "Chamar n8n" · paleta, inspector e resumo
+dono: Vitral (front)
+regras: [N8N-01, N8N-02, N8N-06, EDV-01..03]
+aceite:
+  - "Paleta (grupo Ações, ícone webhook, busca 'n8n'); inspector com url (expressão), método, credencial (select do
+     cofre), enviar + corpo condicional, aguardar resposta (toggle), tempo limite; aviso de URL de teste; resumo no nó."
+  - "e2e chromium + webkit em tests/e2e/; light/dark × 1440/390."
+arquivos: [static/, templates/, tests/unit/frontend/, tests/e2e/]
+depende_de: [T-074 contrato do Forja]

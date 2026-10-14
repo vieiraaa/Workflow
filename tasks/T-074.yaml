@@ -1,0 +1,10 @@
+id: T-074
+titulo: Nó "Chamar n8n" · motor e validação
+dono: Forja (back)
+regras: [N8N-01..06, MV2-*, SEG-*, CRD-02]
+aceite:
+  - "Tipo chamar_n8n no grafo canônico (GRF-09 fechado), pendências/aviso N8N-02, executor REUSANDO o cliente HTTP
+     (SSRF, mascaramento, limites) — sem caminho de rede novo; resposta N8N-04; erros N8N-05; requisições no detalhe."
+  - "Esquema/rotulos do nó expostos ao front como os demais (catálogo de tipos); avise o Vitral com o contrato."
+  - "tests/unit/ verdes; aceite tests/acceptance/n8n/ verde sem alteração; nada do m1..m7a quebra."
+arquivos: [apps/, tests/unit/ (menos frontend/)]
