@@ -156,11 +156,14 @@ def test_nul_da_400(mundo7, fn_entradas, exec_funcao, modelos):
     assert r.status_code == 400 and e is None and modelos.Execucao.objects.count() == 0
 
 
-def test_surrogate_da_400(mundo7, fn_entradas, modelos):
-    """FUN-07/MV2-25 c: surrogate solto (corpo cru, o Client não codifica) → 400, nada executa."""
+def test_surrogate_solto_vira_fffd_e_nunca_e_gravado(mundo7, fn_entradas, modelos):
+    """FUN-07a: surrogate solto em corpo de formulário chega à app como U+FFFD (Django) → aceito como dado; sem 500 e
+    nenhum surrogate gravado."""
     corpo = b"nome=a%ED%A0%80b"  # "a\ud800b" em UTF-8 com surrogatepass
     r = mundo7.c["bA"].post(_url(fn_entradas), data=corpo, content_type="application/x-www-form-urlencoded")
-    assert r.status_code == 400 and modelos.Execucao.objects.count() == 0
+    assert r.status_code in (302, 400)
+    for e in modelos.Execucao.objects.all():
+        assert not any("\ud800" <= ch <= "\udfff" for v in e.parametros.values() for ch in str(v))
 
 
 # ---------------- FUN-08 ----------------

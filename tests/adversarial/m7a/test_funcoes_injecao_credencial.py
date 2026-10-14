@@ -58,7 +58,7 @@ def test_valor_hostil_no_codigo_e_em_http_nao_escapa(mundo7, criar_funcao, mk_fl
     ({"nome": "a", "dia": "0000-00-00"}, "Dia: data inválida."), ({"nome": "a", "dia": "2026-13-01"}, "Dia: data inválida."),
     ({"nome": "a", "dia": "2026-1-1"}, None), ({"nome": "a", "dia": "99999-01-01"}, "Dia: data inválida."),
     ({"nome": "a", "cor": "AZUL"}, "Cor: opção inválida."), ({"nome": "a", "cor": "azul "}, None),
-    ({"nome": "a", "cor": "azul\x00"}, None), ({"nome": "a", "ok": "talvez"}, None),
+    ({"nome": "a", "cor": "azul\x00"}, None), ({"nome": "a", "ok": "talvez"}, "Ok: valor inválido."),
 ])
 def test_tipos_trocados_e_limites_nunca_dao_500(mundo7, fn_tipos, exec_funcao, modelos, dados, msg):
     """FUN-07: entradas bizarras → erro de validação (200) ou execução limpa; NUNCA 500; mensagem exata quando a spec define."""
