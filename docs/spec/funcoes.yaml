@@ -86,7 +86,10 @@ regras:
       Validação de parâmetros no servidor, por tipo: obrigatória vazia → "Preencha <rotulo>."; numero inválido →
       "<rotulo>: informe um número."; data inválida → "<rotulo>: data inválida."; lista fora das opções → "<rotulo>:
       opção inválida."; texto > 500 → "<rotulo>: máximo de 500 caracteres."; campo desconhecido no POST é ignorado
-      (não vira parâmetro). Erro → 200 com o formulário e as mensagens, sem execução. NUL/surrogate → 400 (MV2-25 c).
+      (não vira parâmetro). Erro → 200 com o formulário e as mensagens, sem execução. NUL → 400 (MV2-25 c). Booleano
+      aceita só on/true/1/sim e vazio/false/0/nao (outro valor → "<rotulo>: valor inválido.", 200). Surrogate solto no
+      corpo de formulário: o Django já o troca por U+FFFD ao decodificar (nunca chega à app) → aceito como dado; exige-se
+      só que nada dê 500 e nenhum surrogate seja gravado (FUN-07a, 13/10).
   - id: FUN-08
     texto: >
       Parâmetros no fluxo: expressões leem `$parametros.<nome>` (e `$parametros["nome"]`); o nó Código recebe
