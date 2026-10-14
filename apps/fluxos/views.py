@@ -24,6 +24,7 @@ from apps.nucleo.entrada import limpar_texto
 
 from . import exportacao, importacao
 from .forms import FluxoForm
+from .grafo import avisos as grafo_avisos
 from .grafo import mexeu_no_codigo, normalizar, validar
 from .models import Fluxo, grafo_inicial
 
@@ -465,6 +466,8 @@ class FluxoEditorView(PermissaoMixin, View):
     - `grafo` (dict canônico: o template emite `{{ grafo|json_script:"grafo-inicial" }}`)
     - `atualizado_em` (isoformat do banco; vai em `data-atualizado-em` no elemento raiz)
     - `pendencias`: lista [{no, campo, mensagem}] do grafo atual (já ao abrir)
+    - `avisos`: lista [{no, campo, mensagem}] que não bloqueiam (N8N-07); o template emite
+      `{{ avisos|json_script:"editor-avisos" }}`
     - `url_salvar` (POST JSON), `url_status` (POST `status`), `url_lista`, `url_editar` (POST meta),
       `url_excluir`, `url_executar`; `form_meta` (FluxoForm com nome/descricao atuais)
     - flags: `pode_excluir`, `pode_executar` (False enquanto o M3 não chega: `executar_ativo`)
@@ -492,6 +495,7 @@ class FluxoEditorView(PermissaoMixin, View):
             "grafo": normalizar(fluxo.grafo),
             "atualizado_em": fluxo.atualizado_em.isoformat(),
             "pendencias": pendencias,
+            "avisos": [] if erros else grafo_avisos(fluxo.grafo),
             "url_salvar": reverse("fluxos:salvar_grafo", kwargs=chave),
             "url_status": reverse("fluxos:status", kwargs=chave),
             "url_lista": reverse("fluxos:lista"),
@@ -526,7 +530,8 @@ class SalvarGrafoView(PermissaoMixin, View):
     - 409 (nada gravado): fluxo alterado depois de `atualizado_em` → {"ok": false, "erros":
       [{"campo": null, "mensagem": MSG_CONFLITO}]} ("Este fluxo foi alterado por outra pessoa.
       Recarregue para continuar.")
-    - 200: {"ok": true, "pendencias": [{no, campo, mensagem}], "atualizado_em": <novo iso>,
+    - 200: {"ok": true, "pendencias": [{no, campo, mensagem}], "avisos": [{no, campo, mensagem}]
+      (não bloqueiam; vazia sem avisos), "atualizado_em": <novo iso>,
       "status": "rascunho"|"ativo", "voltou_para_rascunho": bool}. Pendências não impedem salvar;
       um fluxo ativo salvo com pendências volta para rascunho (EST-01).
     """
@@ -579,6 +584,7 @@ class SalvarGrafoView(PermissaoMixin, View):
             {
                 "ok": True,
                 "pendencias": pendencias,
+                "avisos": grafo_avisos(grafo),
                 "atualizado_em": fluxo.atualizado_em.isoformat(),
                 "status": fluxo.status,
                 "voltou_para_rascunho": voltou,

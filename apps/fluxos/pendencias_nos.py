@@ -3,6 +3,8 @@
 Devolve `[(campo, mensagem)]` para um nó (dict v2 já com tipos de config válidos). Não toca o banco.
 """
 
+from urllib.parse import urlsplit
+
 from . import catalogo
 
 MSG_CAMPO = "Informe este campo."
@@ -158,8 +160,45 @@ def _editar(config):
     return achados
 
 
+def _url_n8n(config):
+    url = config.get("url", "")
+    if _texto_vazio(url):
+        return [("url", "Informe a URL do webhook do n8n.")]
+    if url.lstrip().startswith(("{{", "=")):
+        return []  # expressão fornece esquema/host: o executor valida
+    try:
+        partes = urlsplit(url.strip())
+        valida = partes.scheme.lower() in ("http", "https") and bool(partes.netloc)
+    except ValueError:
+        valida = False
+    if not valida:
+        return [("url", "A URL do webhook deve começar com https:// (ou http://).")]
+    return []
+
+
+def _chamar_n8n(config):
+    achados = _url_n8n(config)
+    if config.get("enviar", "item") == "personalizado" and _texto_vazio(config.get("corpo")):
+        achados.append(("corpo", "Informe o corpo a enviar."))
+    tempo = config.get("tempo_limite_s", catalogo.PADROES_N8N["tempo_limite_s"])
+    if not catalogo.TEMPO_N8N[0] <= tempo <= catalogo.TEMPO_N8N[1]:
+        achados.append(("tempo_limite_s", "Tempo limite entre 1 e 55 segundos."))
+    return achados
+
+
+def avisos_do_no(no):
+    """Avisos (não bloqueiam) de um nó: `[(campo, mensagem)]` (N8N-02/07)."""
+    if no.get("tipo") == "chamar_n8n":
+        url = no["config"].get("url")
+        if isinstance(url, str) and "/webhook-test/" in url:
+            return [("url", catalogo.AVISO_N8N_TESTE)]
+    return []
+
+
 def pendencias_do_no(no):
     tipo, config = no["tipo"], no["config"]
+    if tipo == "chamar_n8n":
+        return _chamar_n8n(config)
     if tipo in ("se", "filtrar"):
         return _condicoes(config.get("condicoes"), config.get("combinar"), "condicoes")
     if tipo == "escolher":

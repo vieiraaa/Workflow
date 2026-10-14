@@ -14,6 +14,7 @@ da SEG-10 com mensagem própria: a exceção do driver nunca chega ao usuário.
 alterada por testes: um host:porta exato dessa lista dispensa a validação de IP.
 """
 
+import contextvars
 import ipaddress
 import json
 import re
@@ -68,6 +69,12 @@ class ErroHttp(Exception):
         self.categoria = categoria
         self.mensagem = mensagem or MENSAGENS[categoria]
         super().__init__(self.mensagem)
+
+
+# Ajustes por chamada (nó Chamar n8n): teto do prazo/leitura e do corpo lido. Nunca acima do
+# padrão do motor para o corpo; o prazo pode subir até o que resta da execução (quem chama limita).
+_PRAZO_MAX = contextvars.ContextVar("motor_prazo_max", default=None)
+_CORPO_MAX = contextvars.ContextVar("motor_corpo_max", default=None)
 
 
 def _limite(nome):
@@ -342,6 +349,8 @@ class _Descompactador:
 def _ler_limitado(resposta, limite_tempo):
     """Lê o corpo (descompactado aos poucos) até o limite. Devolve (bytes, truncado)."""
     limite_corpo = _limite("LIMITE_RESPOSTA")
+    if _CORPO_MAX.get() is not None:
+        limite_corpo = min(limite_corpo, _CORPO_MAX.get())
     descompactador = _Descompactador(resposta.headers.get("content-encoding"))
     pedacos, total = [], 0
 
@@ -447,11 +456,13 @@ def _timeout_do_salto(limite_tempo):
     if restante <= 0:
         raise ErroHttp("timeout")
     conexao = min(_limite("TIMEOUT_CONEXAO"), restante)
-    leitura = min(_limite("TIMEOUT_LEITURA"), restante)
+    leitura = min(_PRAZO_MAX.get() or _limite("TIMEOUT_LEITURA"), restante)
     return httpx.Timeout(connect=conexao, read=leitura, write=leitura, pool=conexao)
 
 
-def requisitar(*, metodo, url, headers=(), query=(), corpo="", prazo_s=None):
+def requisitar(
+    *, metodo, url, headers=(), query=(), corpo="", prazo_s=None, prazo_max_s=None, corpo_max=None
+):
     """Faz a requisição com proteção SSRF. Devolve {status, headers, corpo, truncado}.
 
     Respostas 4xx/5xx NÃO levantam erro aqui (o executor grava a saída e mapeia a categoria com
@@ -462,8 +473,17 @@ def requisitar(*, metodo, url, headers=(), query=(), corpo="", prazo_s=None):
     só o que sobra e um vigia fecha o cliente ao estourar, derrubando também servidores que
     gotejam bytes (slowloris) sem nunca estourar o timeout de uma única leitura.
     """
-    prazo_no = _limite("TIMEOUT_NO")
+    prazo_no = prazo_max_s or _limite("TIMEOUT_NO")
     prazo_s = prazo_no if prazo_s is None else min(prazo_s, prazo_no)
+    marcas = (_PRAZO_MAX.set(prazo_max_s), _CORPO_MAX.set(corpo_max))
+    try:
+        return _requisitar(metodo, url, headers, query, corpo, prazo_s)
+    finally:
+        _PRAZO_MAX.reset(marcas[0])
+        _CORPO_MAX.reset(marcas[1])
+
+
+def _requisitar(metodo, url, headers, query, corpo, prazo_s):
     limite_tempo = time.monotonic() + max(0.1, prazo_s)
     cliente = httpx.Client(trust_env=False, follow_redirects=False)
     vigia = threading.Timer(max(0.1, prazo_s), _fechar_sem_erro, args=(cliente,))
