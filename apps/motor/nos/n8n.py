@@ -7,6 +7,7 @@ as mensagens de erro. O valor da credencial nunca vai para erro, log ou saída.
 
 import json
 
+from .. import http as cliente
 from ..erros import FalhaNo
 from ..mascarar import mascarar_saida_http, ocultar_valores
 from . import http as nohttp
@@ -15,6 +16,7 @@ from .base import por_item
 
 CORPO_SEM_ESPERA = 64 * 1024
 TRECHO_ERRO = 200
+MAX_ANINHAMENTO = 100
 USER_AGENT = "construtor-workflows/1.0"
 
 MSG_404 = (
@@ -114,6 +116,11 @@ def _itens_da_resposta(resposta):
         return [{"json": {"n8n_status": resposta["status"]}}]
     if resposta.get("truncado"):
         raise FalhaNo("resposta_grande", "A resposta do n8n passou do limite de 1 MB.")
+    if cliente.aninhamento_excede(texto, MAX_ANINHAMENTO):
+        raise FalhaNo(
+            "resposta_invalida",
+            f"A resposta do n8n é aninhada demais (mais de {MAX_ANINHAMENTO} níveis).",
+        )
     try:
         corpo = json.loads(texto)
     except ValueError, RecursionError:

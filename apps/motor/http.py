@@ -283,6 +283,22 @@ def _interpretar_corpo(texto, content_type):
 
 
 MAX_PROFUNDIDADE_RESPOSTA = 64
+_TOKENS_JSON = re.compile(r'"(?:[^"\\]|\\.)*"|[\[\]{}]', re.DOTALL)
+
+
+def aninhamento_excede(texto, limite):
+    """True se o texto JSON tem mais de `limite` níveis de [ ] / { } (varredura sem recursão,
+    ignora o que está dentro de strings). Roda ANTES de `json.loads` em respostas não confiáveis."""
+    nivel = 0
+    for achado in _TOKENS_JSON.finditer(texto):
+        simbolo = achado.group()
+        if simbolo in "[{":
+            nivel += 1
+            if nivel > limite:
+                return True
+        elif simbolo in "]}":
+            nivel -= 1
+    return False
 
 
 def _profundidade_ok(valor):

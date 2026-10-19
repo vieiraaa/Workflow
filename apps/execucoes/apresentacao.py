@@ -9,6 +9,7 @@ ROTULOS_ERRO = {
     "conexao": "Falha de conexão",
     "tls": "Falha de TLS",
     "resposta_grande": "Resposta grande demais",
+    "resposta_invalida": "Resposta inválida",
     "redirect_excessivo": "Redirecionamentos demais",
     "http_4xx": "Erro HTTP 4xx",
     "http_5xx": "Erro HTTP 5xx",

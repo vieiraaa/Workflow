@@ -10,6 +10,7 @@ CATEGORIAS_NOVAS = (
     "paginacao",
     "laco_excessivo",
     "codigo_indisponivel",
+    "resposta_invalida",
 )
 
 

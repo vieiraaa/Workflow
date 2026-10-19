@@ -169,3 +169,23 @@ def test_continuar_em_erro_segue_com_item_marcado(usuario_coordenador, liberado)
     _, no = _rodar(usuario_coordenador, config, _itens({"a": 1}), em_erro="continuar")
     assert no.saida[0]["json"]["a"] == 1
     assert no.saida[0]["json"]["erro"]["categoria"] == "http_4xx"
+
+
+@pytest.mark.parametrize("profundidade", [101, 1000, 20_000])
+def test_json_aninhado_demais_vira_erro_do_no(usuario_coordenador, liberado, profundidade):
+    corpo = ("[" * profundidade + "]" * profundidade).encode()
+    liberado.rotas["/hook"] = lambda r: (200, corpo, None)
+    _, no = _rodar(usuario_coordenador, {"url": f"{liberado.base}/hook"}, _itens({}))
+    assert no.status == "erro" and no.erro_categoria == "resposta_invalida"
+    assert no.erro_mensagem == "A resposta do n8n é aninhada demais (mais de 100 níveis)."
+
+
+def test_json_no_limite_de_aninhamento_passa_e_string_nao_conta(usuario_coordenador, liberado):
+    corpo = ("[" * 100 + "]" * 100).encode()
+    liberado.rotas["/hook"] = lambda r: (200, corpo, None)
+    _, no = _rodar(usuario_coordenador, {"url": f"{liberado.base}/hook"}, _itens({}))
+    assert no.status == "sucesso"
+    from apps.motor.http import aninhamento_excede
+
+    assert not aninhamento_excede('{"a": "' + "[" * 500 + '\\" ["}', 100)
+    assert aninhamento_excede("{" * 3 + "[" * 3, 5)
