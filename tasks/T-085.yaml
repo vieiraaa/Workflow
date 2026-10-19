@@ -1,0 +1,13 @@
+id: T-085
+titulo: M8 · test_xss_telas.py (live_server) sem serialized_rollback quebra os e2e seguintes
+dono: Lupa (qa)
+defeito: >
+  tests/adversarial/juridico/test_xss_telas.py usa live_server (transacional) com pytestmark django_db simples, sem
+  serialized_rollback=True; depois dele os e2e falham no setup (IntegrityError django_content_type). O T-084 corrigiu
+  só as corridas; o check completo continua com 155 erros. Convenção do projeto (m1, m2, m3, m7a):
+  django_db(transaction=True, serialized_rollback=True) em todo teste com live_server/threads.
+aceite:
+  - "test_xss_telas.py com django_db(transaction=True, serialized_rollback=True); confira os demais arquivos de
+     tests/adversarial/juridico e tests/acceptance/juridico que usem live_server/transação e aplique o mesmo."
+  - "Verde: pytest tests/adversarial/juridico tests/acceptance/juridico tests/e2e (nesta ordem, juntos)."
+arquivos: [tests/adversarial/juridico/, tests/acceptance/juridico/]
