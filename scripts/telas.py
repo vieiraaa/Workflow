@@ -46,7 +46,11 @@ def _limpar_dados_de_telas():
     from apps.execucoes.models import Execucao
     from apps.fluxos.models import Fluxo
     from apps.funcoes.models import Funcao
+    from apps.juridico.models import Envio, ItemEnvio, Processo
 
+    ItemEnvio.objects.all().delete()
+    Envio.objects.all().delete()
+    Processo.todos.all().delete()
     Execucao.objects.all().delete()
     Funcao.objects.all().delete()
     Fluxo.objects.all().delete()
@@ -784,6 +788,273 @@ def _execucao_v2(cenario):
     return preparar
 
 
+# ---- M8: cadastro de processos (TEL-27..35). Dados fictícios; Dify/DataJud nunca são chamados.
+def _acesso_ao_cadastro(usuarios):
+    """O setor dos usuários de demo passa a ter acesso ao Jurídico (CAD-02)."""
+    from apps.juridico.models import ConfigCadastro
+
+    config = ConfigCadastro.obter()
+    config.setores_com_acesso.add(usuarios["adm"].setor)
+    return config
+
+
+def _processo(usuarios, sequencial, status="CONFERIR", carteira="Ativos", **campos):
+    from django.utils import timezone
+
+    from apps.juridico import cnj, mescla
+    from apps.juridico.models import Carteira, Processo
+
+    numero = cnj.numero_valido_de(sequencial, 2023, 8, 26, 100)
+    dados = {
+        "empresa": "ATIVOS S.A. SECURITIZADORA DE CRÉDITOS FINANCEIROS",
+        "adverso_nome": f"Adverso Fictício {sequencial}",
+        "adverso_cpf_cnpj": "529.982.247-25",
+        "condicao": "Autor",
+        "tribunal": "TJSP",
+        "comarca": "São Paulo",
+        "juizo": "3ª Vara Cível",
+        "instancia": "1° Grau de Jurisdição",
+        "tipo_acao": "Execução de Título Extrajudicial",
+        "valor_causa": "12500.00",
+        "distribuido_em": "2023-02-10",
+        "fase_atual": "POSTULATORIA",
+        "pedidos": "(1) Pagamento do débito; (2) condenação em honorários.",
+        "operacoes_vinculadas": "CONTRATO-0001",
+        "origem_campos": {"adverso_nome": "pdf", "tribunal": "pdf", "comarca": "cnj"},
+        **campos,
+    }
+    processo = Processo(
+        numero=numero,
+        numero_digitos=cnj.so_digitos(numero),
+        numero_valido=True,
+        criado_por=dados.pop("criado_por", usuarios["adm"]),
+        criado_via=Processo.PDF,
+        carteira=Carteira.objects.filter(nome=carteira).first() if carteira else None,
+        andamentos=[
+            {"data": "2023-03-01", "evento": "Juntada de petição inicial", "fonte": "pdf"},
+            {"data": "2023-04-12", "evento": "Citação expedida", "fonte": "cnj"},
+        ],
+    )
+    for campo, valor in dados.items():
+        setattr(processo, campo, valor)
+    mescla.recalcular(processo)
+    if status == "CADASTRADO":
+        processo.status = "CADASTRADO"
+        processo.cadastrado_espaider_em = timezone.now()
+        processo.cadastrado_espaider_por = usuarios["adm"]
+    processo.save()
+    return processo
+
+
+def _painel_vazio(usuarios):
+    _acesso_ao_cadastro(usuarios)
+
+
+def _painel_com_dados(usuarios):
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    _acesso_ao_cadastro(usuarios)
+    _processo(usuarios, 5101, cnj_validacao="confere")
+    _processo(
+        usuarios, 5102, "CONFERIR", "Ailos", empresa="COOPERATIVA DE CRÉDITO (SISTEMA AILOS)",
+        proxima_audiencia=timezone.now() + timedelta(days=3), tribunal="TJRJ", comarca="Niterói",
+    )  # fmt: skip
+    _processo(
+        usuarios, 5103, "COM_PENDENCIAS", "Volvo", juizo="", valor_causa=None,
+        cnj_validacao="divergente", cnj_divergencias=["tribunal (PDF: TJSP · CNJ: TJRJ)"],
+    )  # fmt: skip
+    _processo(usuarios, 5104, "CADASTRADO", "Toyota", cnj_validacao="confere")
+    _processo(usuarios, 5105, "CONFERIR", None, adverso_nome="Comercial Exemplo Ltda",
+              adverso_cpf_cnpj="11.222.333/0001-81")  # fmt: skip
+
+
+def _fila_do_painel(usuarios):
+    from django.utils import timezone
+
+    from apps.juridico.models import Envio, ItemEnvio
+
+    _painel_com_dados(usuarios)
+    envio = Envio.objects.create(
+        origem="pdf", enviado_por=usuarios["adm"], iniciado_em=timezone.now()
+    )
+    for nome, status in (("peticao-inicial.pdf", "processando"), ("contrato.pdf", "na_fila")):
+        ItemEnvio.objects.create(envio=envio, nome_arquivo=nome, status=status)
+
+
+def _processo_demo(situacao):
+    def preparar(usuarios):
+        _acesso_ao_cadastro(usuarios)
+        extra = {
+            "conferir": {},
+            "com_pendencias": {"juizo": "", "valor_causa": None, "distribuido_em": None},
+            "divergente_cnj": {
+                "cnj_validacao": "divergente",
+                "cnj_divergencias": ["comarca (PDF: Campinas · CNJ: 1ª Vara Cível de Santos)"],
+            },
+            "cadastrado": {},
+        }[situacao]
+        status = "CADASTRADO" if situacao == "cadastrado" else "CONFERIR"
+        processo = _processo(usuarios, 5200 + len(situacao), status, **extra)
+        if situacao == "divergente_cnj":
+            from apps.juridico import mescla
+
+            mescla.recalcular(processo)
+            processo.save()
+        return {"processo_demo": processo}
+
+    return preparar
+
+
+def _so_acesso(usuarios):
+    _acesso_ao_cadastro(usuarios)
+
+
+def _erro_envio_sem_arquivo(page, base):
+    """Envia o formulário sem arquivo (sem esbarrar no `required` do navegador)."""
+    with page.expect_navigation():
+        page.locator("main form").first.evaluate("f => setTimeout(() => f.submit(), 0)")
+    page.wait_for_load_state("networkidle")
+
+
+def _erro_cnj_vazio(page, base):
+    with page.expect_navigation():
+        page.locator("main form").first.evaluate("f => setTimeout(() => f.submit(), 0)")
+    page.wait_for_load_state("networkidle")
+
+
+def _envio_demo(cenario):
+    def preparar(usuarios):
+        from django.utils import timezone
+
+        from apps.juridico.models import Envio, ItemEnvio
+
+        _acesso_ao_cadastro(usuarios)
+        processo = _processo(usuarios, 5301, criado_por=usuarios["adm"])
+        base = usuarios["base"]
+        envio = Envio.objects.create(origem="pdf", enviado_por=base, iniciado_em=timezone.now())
+        if cenario == "em_andamento":
+            for nome, status in (
+                ("peticao-inicial.pdf", "concluido"),
+                ("contrato.pdf", "processando"),
+                ("anexos.pdf", "na_fila"),
+            ):
+                item = ItemEnvio.objects.create(envio=envio, nome_arquivo=nome, status=status)
+                if status == "concluido":
+                    item.processo, item.acao = processo, "novo"
+                    item.save()
+            return {"envio_demo": envio}
+        envio.terminado_em = timezone.now()
+        envio.save()
+        ItemEnvio.objects.create(
+            envio=envio, nome_arquivo="peticao-inicial.pdf", status="concluido",
+            processo=processo, acao="novo",
+        )  # fmt: skip
+        if cenario == "concluido":
+            ItemEnvio.objects.create(
+                envio=envio, nome_arquivo="escaneado.pdf", status="erro", etapa_erro="IA (Dify)",
+                motivo="A IA não respondeu: o servidor demorou demais.",
+            )  # fmt: skip
+        else:  # duplicado: mesmo arquivo e mesmo número já cadastrados por outra pessoa
+            anterior = ItemEnvio.objects.create(
+                envio=Envio.objects.create(origem="pdf", enviado_por=usuarios["adm"]),
+                nome_arquivo="peticao-inicial.pdf", status="concluido", processo=processo,
+            )  # fmt: skip
+            from apps.juridico import apresentacao
+
+            ItemEnvio.objects.create(
+                envio=envio, nome_arquivo="peticao-inicial-copia.pdf", status="ignorado",
+                processo=processo, duplicado_de=anterior,
+                aviso=(
+                    f"Já temos este arquivo: processo {processo.numero} · enviado por "
+                    f"{apresentacao.quem(usuarios['adm'])} em "
+                    f"{apresentacao.data_hora(timezone.now())}."
+                ),
+            )  # fmt: skip
+            ItemEnvio.objects.create(
+                envio=envio, nome_arquivo="outro-pdf-mesmo-numero.pdf", status="concluido",
+                processo=processo, acao="atualizado",
+                aviso=(
+                    f"Este processo já existia: cadastrado por "
+                    f"{apresentacao.quem(usuarios['adm'])} em "
+                    f"{apresentacao.data(timezone.now())} via PDF. Atualizado: comarca, juízo."
+                ),
+            )  # fmt: skip
+        return {"envio_demo": envio}
+
+    return preparar
+
+
+def _log_com_dados(usuarios):
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.juridico.models import Envio, ItemEnvio
+
+    _acesso_ao_cadastro(usuarios)
+    processo = _processo(usuarios, 5401)
+    erros = (
+        ("CNJ (DataJud)", "Chave do DataJud recusada: atualize a credencial em Configuração."),
+        ("Dados incompletos", "Processo 0005401-14.2023.8.26.0100 gravado, mas faltou: Juízo"),
+        ("Leitura do PDF", "Não foi possível abrir o PDF nem lê-lo como imagem."),
+        ("IA (Dify)", "A IA não devolveu os dados no formato esperado."),
+    )
+    for indice in range(5):
+        envio = Envio.objects.create(
+            origem="pdf" if indice % 2 else "cnj",
+            enviado_por=usuarios["adm"],
+            iniciado_em=timezone.now(),
+            terminado_em=timezone.now(),
+        )
+        envio.criado_em = timezone.now() - timedelta(days=indice * 3)
+        Envio.objects.filter(pk=envio.pk).update(criado_em=envio.criado_em)
+        ItemEnvio.objects.create(
+            envio=envio, nome_arquivo=f"caso-{indice}.pdf", status="concluido",
+            processo=processo, duracao_ms=4000 + indice * 900,
+        )  # fmt: skip
+        if indice < len(erros):
+            etapa, motivo = erros[indice]
+            ItemEnvio.objects.create(
+                envio=envio, nome_arquivo=f"problema-{indice}.pdf", status="erro",
+                etapa_erro=etapa, motivo=motivo, duracao_ms=1500,
+            )  # fmt: skip
+
+
+def _config_teste_falhou(page, base):
+    """Clica em 'Testar conexão': sem credenciais configuradas o resultado é 'falhou' (sem rede)."""
+    page.get_by_role("button", name="Testar conexão").first.click()
+    page.wait_for_load_state("networkidle")
+
+
+def _audiencias_com_dados(usuarios):
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    _acesso_ao_cadastro(usuarios)
+    agora = timezone.now()
+    for indice, dias in enumerate((2, 6, 20, 45), start=1):
+        _processo(usuarios, 5500 + indice, proxima_audiencia=agora + timedelta(days=dias))
+
+
+def _erro_processo_novo(page, base):
+    _enviar(page, "", {"numero": "123", "adverso_nome": "Fulano de Tal"})
+
+
+def _processo_novo_duplicado(usuarios):
+    _acesso_ao_cadastro(usuarios)
+    return {"processo_demo": _processo(usuarios, 5601)}
+
+
+def _duplicar_numero(page, base):
+    from apps.juridico.models import Processo
+
+    numero = Processo.objects.order_by("pk").first().numero
+    _enviar(page, "", {"numero": numero, "adverso_nome": "Outra Pessoa"})
+
+
 # (id da tela, estado) -> (preparar(usuarios) -> dict de nomes para kwargs | None,
 #                          acao(page, base) depois do goto | None, querystring opcional)
 PREPARADORES = {
@@ -847,6 +1118,29 @@ PREPARADORES = {
     ("TEL-26", "sucesso"): (_resultado_demo("sucesso"), None),
     ("TEL-26", "erro"): (_resultado_demo("erro"), None),
     ("TEL-26", "truncada"): (_resultado_demo("truncada"), None),
+    ("TEL-27", "vazio"): (_painel_vazio, None),
+    ("TEL-27", "com_dados"): (_painel_com_dados, None),
+    ("TEL-27", "com_fila"): (_fila_do_painel, None),
+    ("TEL-28", "conferir"): (_processo_demo("conferir"), None),
+    ("TEL-28", "com_pendencias"): (_processo_demo("com_pendencias"), None),
+    ("TEL-28", "divergente_cnj"): (_processo_demo("divergente_cnj"), None),
+    ("TEL-28", "cadastrado"): (_processo_demo("cadastrado"), None),
+    ("TEL-29", "padrao"): (_so_acesso, None),
+    ("TEL-29", "erro_campo"): (_so_acesso, _erro_envio_sem_arquivo),
+    ("TEL-30", "padrao"): (_so_acesso, None),
+    ("TEL-30", "erro_campo"): (_so_acesso, _erro_cnj_vazio),
+    ("TEL-31", "em_andamento"): (_envio_demo("em_andamento"), None),
+    ("TEL-31", "concluido"): (_envio_demo("concluido"), None),
+    ("TEL-31", "duplicado"): (_envio_demo("duplicado"), None),
+    ("TEL-32", "vazio"): (_so_acesso, None),
+    ("TEL-32", "com_dados"): (_log_com_dados, None),
+    ("TEL-33", "padrao"): (_so_acesso, None),
+    ("TEL-33", "teste_falhou"): (_so_acesso, _config_teste_falhou),
+    ("TEL-34", "vazio"): (_so_acesso, None),
+    ("TEL-34", "com_dados"): (_audiencias_com_dados, None),
+    ("TEL-35", "padrao"): (_so_acesso, None),
+    ("TEL-35", "erro_campo"): (_so_acesso, _erro_processo_novo),
+    ("TEL-35", "duplicado"): (_processo_novo_duplicado, _duplicar_numero),
 }
 
 
