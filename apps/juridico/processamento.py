@@ -5,12 +5,13 @@ item `erro` (nenhum processo gravado) ou `concluido` com `etapa_erro` (processo 
 problema, CAD-23 §5). Nada aqui loga segredo, texto do PDF ou resposta da IA.
 """
 
+import hashlib
 import logging
 import time
 from datetime import timedelta
 
 from django.conf import settings
-from django.db import transaction
+from django.db import connection, transaction
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
@@ -20,7 +21,9 @@ from .clientes import (
     DataJud,
     Dify,
     ErroCliente,
+    mascarar_dados,
     mascarar_texto,
+    segredos_do_cadastro,
 )
 from .models import Carteira, ConfigCadastro, Envio, ItemEnvio, Processo
 
@@ -61,6 +64,18 @@ def aviso_existente(processo, atualizados=None):
     return texto
 
 
+def travar_numero(digitos):
+    """Serializa quem grava o MESMO número (workers e cadastro manual): trava consultiva da
+    transação, liberada no commit. Sem número válido não há o que serializar."""
+    if not cnj.valido(digitos):
+        return
+    chave = int.from_bytes(
+        hashlib.sha256(f"cadastro:{digitos}".encode()).digest()[:8], "big", signed=True
+    )
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT pg_advisory_xact_lock(%s)", [chave])
+
+
 def procurar_existente(numero):
     """Processo (inclusive excluído) de mesmo número VÁLIDO; inválido nunca casa (CAD-06c)."""
     digitos = cnj.so_digitos(numero)
@@ -99,8 +114,15 @@ def consultar_cnj(processo, config=None):
     if fonte is None:
         processo.cnj_validacao = "nao_encontrado"
         return None
-    divergencias = mescla.comparar(processo, fonte)
-    mescla.aplicar_cnj(processo, mescla.campos_do_datajud(fonte, alias))
+    try:
+        fonte = mascarar_dados(fonte, segredos_do_cadastro(config))
+        divergencias = mescla.comparar(processo, fonte)
+        campos = mescla.campos_do_datajud(fonte, alias)
+    except AttributeError, TypeError, ValueError, KeyError, RecursionError:
+        processo.cnj_validacao = "falhou"  # forma inesperada: o processo é gravado mesmo assim
+        processo.cnj_mensagem = "O DataJud devolveu uma resposta inesperada."
+        return processo.cnj_mensagem
+    mescla.aplicar_cnj(processo, campos)
     processo.cnj_divergencias = divergencias
     processo.cnj_validacao = "divergente" if divergencias else "confere"
     return None
@@ -160,7 +182,8 @@ def _consultar_dify(item, config, conteudo):
         campos, pendencias = leitura.ler_resposta(answer)
     except leitura.ErroLeitura as erro:
         raise FalhaItem("IA (Dify)", erro.mensagem, resposta_ia) from None
-    return campos, pendencias, resposta_ia
+    segredos = segredos_do_cadastro(config)  # chave refletida em campo extraído (CAD-18)
+    return mascarar_dados(campos, segredos), mascarar_dados(pendencias, segredos), resposta_ia
 
 
 def _motivo_ia(erro):
@@ -171,6 +194,7 @@ def _motivo_ia(erro):
 
 def _gravar_pdf(item, campos, pendencias, config):
     envio = item.envio
+    travar_numero(cnj.so_digitos(campos.get("numero", "")))
     existente = procurar_existente(campos.get("numero", ""))
     agora = timezone.now()
     if existente is None:
@@ -234,6 +258,7 @@ def _processar_cnj(item, config):
     digitos = cnj.so_digitos(item.numero_informado)
     valido = cnj.valido(digitos)
     with transaction.atomic():
+        travar_numero(digitos)
         existente = procurar_existente(digitos)
         if existente is None:
             processo = Processo(
@@ -285,7 +310,7 @@ def processar_item(item, config=None):
             _processar_cnj(item, config)
     except FalhaItem as falha:
         item.status, item.etapa_erro = ItemEnvio.ERRO, falha.etapa
-        item.motivo = mascarar_texto(falha.motivo, set())[:500]
+        item.motivo = mascarar_texto(falha.motivo, segredos_do_cadastro(config))[:500]
         item.resposta_ia = falha.resposta_ia or item.resposta_ia
     except Exception:  # noqa: BLE001 - o worker não pode morrer por um item
         logger.exception("Falha inesperada ao processar o item %s do cadastro", item.pk)

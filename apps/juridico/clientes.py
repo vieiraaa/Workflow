@@ -30,6 +30,8 @@ MSG_DATAJUD_RECUSOU = "Chave do DataJud recusada: atualize a credencial em Confi
 RE_PEM = re.compile(
     r"-----BEGIN CERTIFICATE-----[A-Za-z0-9+/=\s]+-----END CERTIFICATE-----", re.MULTILINE
 )
+RE_BLOCO_PEM = re.compile(r"-----BEGIN ([A-Z0-9 ]+)-----.*?-----END \1-----", re.DOTALL)
+PALAVRAS_DE_ESQUEMA = {"apikey", "bearer", "basic"}
 QUERY_PDF_ANEXADO = (
     "O processo está no PDF ANEXADO (pode ser escaneado ou protegido contra cópia). "
     "Leia o arquivo inteiro, página por página, e extraia os dados seguindo exatamente as "
@@ -55,17 +57,32 @@ def mascarar_texto(texto, segredos):
 
 
 # ---------------------------------------------------------------- TLS (CAD-07a)
-def validar_pem(pem):
-    """Levanta ValueError(MSG_PEM) se o PEM não carrega como certificado de CA."""
+def normalizar_pem(pem):
+    """Só blocos CERTIFICATE válidos: devolve o PEM limpo (ValueError(MSG_PEM) se houver qualquer
+    outro bloco — chave privada, por exemplo — ou lixo). Vazio = cadeia padrão."""
     pem = (pem or "").strip()
     if not pem:
-        return
-    if not RE_PEM.search(pem):
+        return ""
+    if "PRIVATE" in pem.upper():
         raise ValueError(MSG_PEM)
-    try:
-        ssl.create_default_context().load_verify_locations(cadata=pem)
-    except ssl.SSLError, ValueError:
-        raise ValueError(MSG_PEM) from None
+    blocos = [achado.group(0) for achado in RE_BLOCO_PEM.finditer(pem)]
+    rotulos = [achado.group(1) for achado in RE_BLOCO_PEM.finditer(pem)]
+    sobra = RE_BLOCO_PEM.sub("", pem)
+    if not blocos or any(r != "CERTIFICATE" for r in rotulos) or "-----" in sobra:
+        raise ValueError(MSG_PEM)
+    for bloco in blocos:
+        if not RE_PEM.fullmatch(bloco):
+            raise ValueError(MSG_PEM)
+        try:
+            ssl.create_default_context().load_verify_locations(cadata=bloco)
+        except ssl.SSLError, ValueError:
+            raise ValueError(MSG_PEM) from None
+    return "\n".join(blocos)
+
+
+def validar_pem(pem):
+    """Levanta ValueError(MSG_PEM) se o PEM não for só de certificados de CA válidos."""
+    normalizar_pem(pem)
 
 
 def contextos_tls(url, ca_pem=""):
@@ -122,9 +139,38 @@ def _cabecalho(nome, tipo, rotulo):
     except FalhaNo as falha:
         raise ErroCliente("credencial", falha.mensagem) from None
     cabecalho, valor, segredos = credenciais.cabecalho_http(tipo_cred, dados)
+    segredos = set(segredos)
+    for parte in str(dados.get("valor", "")).split():  # 'APIKey <chave>': a chave sozinha também
+        if parte.lower() not in PALAVRAS_DE_ESQUEMA:
+            segredos.add(parte)
     return {"nome": cabecalho, "valor": valor}, {
         s for s in segredos if isinstance(s, str) and len(s) >= 4
     }
+
+
+def segredos_do_cadastro(config):
+    """Valores das credenciais do Dify e do DataJud em uso (para mascarar por VALOR, CAD-18)."""
+    achados = set()
+    for nome, tipo in ((config.dify_credencial, "bearer"), (config.datajud_credencial, "header")):
+        if (nome or "").strip():
+            try:
+                achados |= _cabecalho(nome, tipo, "")[1]
+            except ErroCliente:
+                continue
+    return achados
+
+
+def mascarar_dados(valor, segredos):
+    """Copia de `valor` (str/dict/list) com os segredos trocados por •••• em todo texto."""
+    if not segredos:
+        return valor
+    if isinstance(valor, str):
+        return mascarar_texto(valor, segredos)
+    if isinstance(valor, dict):
+        return {k: mascarar_dados(v, segredos) for k, v in valor.items()}
+    if isinstance(valor, list):
+        return [mascarar_dados(v, segredos) for v in valor]
+    return valor
 
 
 def _juntar(base, caminho):

@@ -55,7 +55,7 @@ FASES = {
     "ARQUIVADO": "ARQUIVADO",
 }
 _RE_VAZIO = re.compile(r"^n[aã]o\s+(localizad|encontrad|informad|consta)", re.IGNORECASE)
-_RE_DATA = re.compile(r"(\d{1,2})/(\d{1,2})/(\d{4})")
+_RE_DATA = re.compile(r"([0-9]{1,2})/([0-9]{1,2})/([0-9]{4})")
 
 
 class ErroLeitura(Exception):
@@ -110,12 +110,12 @@ def converter_data(texto):
 
 def converter_valor(texto):
     """'R$ 1.234,56' → Decimal; None se ilegível."""
-    limpo = re.sub(r"[^\d,.\-]", "", texto or "")
+    limpo = re.sub(r"[^0-9,.\-]", "", texto or "")
     if not limpo:
         return None
     if "," in limpo:
         limpo = limpo.replace(".", "").replace(",", ".")
-    elif limpo.count(".") > 1 or re.fullmatch(r"-?\d{1,3}(\.\d{3})+", limpo):
+    elif limpo.count(".") > 1 or re.fullmatch(r"-?[0-9]{1,3}(\.[0-9]{3})+", limpo):
         limpo = limpo.replace(".", "")
     try:
         valor = Decimal(limpo).quantize(Decimal("0.01"))

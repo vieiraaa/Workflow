@@ -171,9 +171,17 @@ def _data_iso(texto):
         return None
 
 
+def _obj(valor):
+    return valor if isinstance(valor, dict) else {}
+
+
+def _texto(valor):
+    return valor if isinstance(valor, str) else ""
+
+
 def campos_do_datajud(fonte, alias):
     """Campos do modelo a partir do `_source` do DataJud (só o que o CNJ traz: sem partes/valor)."""
-    orgao = (fonte.get("orgaoJulgador") or {}).get("nome") or ""
+    orgao = _texto(_obj(fonte.get("orgaoJulgador")).get("nome"))
     comarca = re.search(r"comarca\s+d[aeo]s?\s+(.+)$", orgao, re.IGNORECASE)
     grau = str(fonte.get("grau") or "").upper()
     movimentos = [m for m in (fonte.get("movimentos") or []) if isinstance(m, dict)]
@@ -194,14 +202,14 @@ def campos_do_datajud(fonte, alias):
         if isinstance(a, dict) and a.get("nome")
     ]
     return {
-        "tipo_acao": str((fonte.get("classe") or {}).get("nome") or ""),
+        "tipo_acao": _texto(_obj(fonte.get("classe")).get("nome")),
         "juizo": orgao,
         "comarca": comarca.group(1).strip() if comarca else "",
         "instancia": {"G1": "1° Grau de Jurisdição", "G2": "2° Grau de Jurisdição"}.get(grau, ""),
-        "tribunal": str(fonte.get("tribunal") or alias.replace("-", "").upper()),
+        "tribunal": _texto(fonte.get("tribunal")) or alias.replace("-", "").upper(),
         "distribuido_em": _data_iso(str(fonte.get("dataAjuizamento") or "")),
         "meio_tramitacao": "Eletrônico"
-        if (fonte.get("formato") or {}).get("nome", "").lower().startswith("eletr")
+        if _texto(_obj(fonte.get("formato")).get("nome")).lower().startswith("eletr")
         else "",
         "assuntos_cnj": "; ".join(assuntos),
         "andamentos": andamentos,
@@ -241,7 +249,7 @@ def comparar(processo, fonte):
             f"distribuído em (PDF: {apresentacao.data(processo.distribuido_em)} · "
             f"CNJ: {apresentacao.data(data_cnj)})"
         )
-    orgao = (fonte.get("orgaoJulgador") or {}).get("nome") or ""
+    orgao = _texto(_obj(fonte.get("orgaoJulgador")).get("nome"))
     comarca = _so_letras(processo.comarca or "")
     if comarca and orgao and comarca not in _so_letras(orgao):
         divergencias.append(f"comarca (PDF: {processo.comarca} · CNJ: {orgao})")

@@ -1,8 +1,11 @@
 """Formulários do cadastro: processo (conferência/manual) e configuração (CAD-14/15/21)."""
 
+import unicodedata
 from decimal import Decimal
+from urllib.parse import urlsplit
 
 from django import forms
+from django.db.models import Q
 
 from apps.contas.models import Setor
 from apps.credenciais.models import Credencial
@@ -51,6 +54,26 @@ def texto_valor(valor):
     return f"{inteiro.replace(',', '.')},{centavos}"
 
 
+def _url_http(valor):
+    """http(s) com host válido (ASCII/IDNA, sem controle nem bidi/formatação)."""
+    valor = (valor or "").strip()
+    erro = forms.ValidationError("Informe uma URL http:// ou https:// com um endereço válido.")
+    if not valor or any(
+        c.isspace() or unicodedata.category(c) in ("Cc", "Cf", "Cs", "Co") for c in valor
+    ):
+        raise erro
+    try:
+        partes = urlsplit(valor)
+        host = partes.hostname or ""
+        partes.port  # noqa: B018 - valida a porta
+        host.encode("idna")
+    except UnicodeError, ValueError:
+        raise erro from None
+    if partes.scheme not in ("http", "https") or not host or not host.isascii():
+        raise erro
+    return valor
+
+
 class ProcessoForm(forms.ModelForm):
     numero = forms.CharField(label="Número", required=False, max_length=60)
     valor_causa = forms.CharField(label="Valor da causa", required=False, max_length=30)
@@ -85,6 +108,8 @@ class ProcessoForm(forms.ModelForm):
             campo.required = nome == "numero" and self.instance.pk is None
         if self.instance.pk is None:
             self.fields["numero"].required = True
+        ativas = Q(ativa=True) | Q(pk=self.instance.carteira_id or 0)  # a atual segue válida
+        self.fields["carteira"].queryset = Carteira.objects.filter(ativas)
         if self.instance.pk:  # o ModelForm já preencheu 'valor_causa' com 12500.00: troca
             self.initial["valor_causa"] = texto_valor(self.instance.valor_causa)
 
@@ -131,13 +156,20 @@ class ConfigForm(forms.ModelForm):
             "datajud_url", "datajud_credencial", "setores_com_acesso",
         )  # fmt: skip
 
+    dify_url = forms.CharField(label="URL do Dify", max_length=300)
+    datajud_url = forms.CharField(label="URL do DataJud", max_length=300)
+
     def clean_dify_ca_pem(self):
-        pem = (self.cleaned_data.get("dify_ca_pem") or "").strip()
         try:
-            clientes.validar_pem(pem)
+            return clientes.normalizar_pem(self.cleaned_data.get("dify_ca_pem"))
         except ValueError as erro:
             raise forms.ValidationError(str(erro)) from None
-        return pem
+
+    def clean_dify_url(self):
+        return _url_http(self.cleaned_data.get("dify_url"))
+
+    def clean_datajud_url(self):
+        return _url_http(self.cleaned_data.get("datajud_url"))
 
     def _credencial(self, campo, tipo, rotulo):
         nome = (self.cleaned_data.get(campo) or "").strip()

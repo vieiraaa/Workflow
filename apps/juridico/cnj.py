@@ -8,11 +8,14 @@ import unicodedata
 
 # Código TR (segmento 8 = Justiça Estadual; 6 = Eleitoral) → UF, na ordem oficial do CNJ.
 UFS = "ac al ap am ba ce dft es go ma mt ms mg pa pb pr pe pi rj rn rs ro rr sc se sp to".split()
-_RE_NUMERO = re.compile(r"\D")
+_RE_NUMERO = re.compile(r"[^0-9]")  # \D aceitaria dígitos Unicode (largura total, árabe-índicos)
 
 
 def so_digitos(texto):
-    return _RE_NUMERO.sub("", texto or "")
+    """Só [0-9] ASCII. Dígitos Unicode (largura total, árabe-índicos...) valem pelo valor
+    decimal: viram o mesmo número ASCII e nunca furam a unicidade."""
+    ascii_ = "".join(str(int(c)) if c.isdecimal() else c for c in (texto or ""))
+    return _RE_NUMERO.sub("", ascii_)
 
 
 def valido(numero):

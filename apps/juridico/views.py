@@ -11,6 +11,7 @@ from datetime import timedelta
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Avg, Count, F, Q, Value
 from django.db.models.functions import Replace, TruncDate
 from django.http import FileResponse, Http404, JsonResponse
@@ -30,7 +31,7 @@ from . import apresentacao, cnj, mescla, servico
 from .clientes import DataJud, Dify, ErroCliente
 from .forms import GRUPOS, CarteiraForm, ConfigForm, ProcessoForm
 from .models import Carteira, ConfigCadastro, Envio, ItemEnvio, Processo
-from .processamento import aviso_existente, consultar_cnj, procurar_existente
+from .processamento import aviso_existente, consultar_cnj, procurar_existente, travar_numero
 
 ORDENS = {"": "-atualizado_em", "numero": "numero_digitos", "distribuido": "-distribuido_em"}
 ROTULOS_ORIGEM = {"pdf": "PDF", "cnj": "CNJ"}
@@ -192,7 +193,7 @@ class PainelView(CadastroMixin, TemplateView):
         carteira = filtros["carteira"]
         if carteira == "outros":
             qs = qs.filter(carteira__isnull=True)
-        elif carteira.isdigit():
+        elif carteira.isascii() and carteira.isdigit():
             qs = qs.filter(carteira_id=int(carteira))
         if filtros["tribunal"]:
             qs = qs.filter(tribunal__iexact=filtros["tribunal"])
@@ -268,7 +269,7 @@ class PainelView(CadastroMixin, TemplateView):
         pode_editar = pode(usuario, "cadastro.editar")
         objetos = list(pagina.object_list)
         escolhido = next((o for o in objetos if str(o.pk) == pede.get("p", "")), None)
-        if escolhido is None and pede.get("p", "").isdigit():
+        if escolhido is None and (pede.get("p", "").isascii() and pede.get("p", "").isdigit()):
             escolhido = qs.filter(pk=int(pede["p"])).first()
         escolhido = escolhido or (objetos[0] if objetos else None)
         agora = timezone.now()
@@ -611,20 +612,24 @@ class ProcessoNovoView(CadastroMixin, View):
 
     def post(self, request):
         digitos = cnj.so_digitos(request.POST.get("numero", ""))
-        existente = procurar_existente(digitos)
-        if existente is not None:
+        with transaction.atomic():
+            travar_numero(digitos)  # dois cadastros do mesmo número: um cria, o outro vê o aviso
+            existente = procurar_existente(digitos)
+            if existente is not None:
+                form = ProcessoForm(request.POST)
+                aviso = aviso_existente(existente).replace(" Atualizado: nenhum dado novo.", "")
+                return self._render(
+                    request, form, aviso, reverse("juridico:processo", kwargs={"pk": existente.pk})
+                )
             form = ProcessoForm(request.POST)
-            aviso = aviso_existente(existente, []).replace(" Atualizado: nenhum dado novo.", "")
-            return self._render(
-                request, form, aviso, reverse("juridico:processo", kwargs={"pk": existente.pk})
+            if not form.is_valid():
+                return self._render(request, form)
+            processo = Processo(
+                criado_por=request.user, criado_via=Processo.MANUAL, origem_campos={}
             )
-        form = ProcessoForm(request.POST)
-        if not form.is_valid():
-            return self._render(request, form)
-        processo = Processo(criado_por=request.user, criado_via=Processo.MANUAL, origem_campos={})
-        _aplicar_edicao(processo, form, request.user, novo=True)
-        consultar_cnj(processo)
-        _salvar_recalculando(processo)
+            _aplicar_edicao(processo, form, request.user, novo=True)
+            consultar_cnj(processo)
+            _salvar_recalculando(processo)
         messages.success(request, "Processo cadastrado.")
         return redirect("juridico:processo", pk=processo.pk)
 
@@ -913,7 +918,7 @@ class StatusView(CadastroMixin, View):
         resposta = {**resumo, "em_andamento": andamento}
         envio_pk = request.GET.get("envio", "")
         if envio_pk:
-            if not envio_pk.isdigit():
+            if not (envio_pk.isascii() and envio_pk.isdigit()):
                 raise Http404
             envio = get_object_or_404(_envios_visiveis(request), pk=int(envio_pk))
             resposta["itens"] = [
