@@ -213,3 +213,75 @@ telas:
     papel: adm
     estados: [sucesso, erro, truncada]
     regras: [FUN-09]
+  - id: TEL-27
+    modulo: m8
+    nome: Cadastro de processos (painel)
+    rota: juridico:painel
+    papel: adm
+    estados: [vazio, com_dados, com_fila]
+    regras: [CAD-16, CAD-20]
+  - id: TEL-27
+    modulo: m8
+    nome: Cadastro de processos (painel, usuário base com acesso)
+    rota: juridico:painel
+    papel: base
+    estados: [com_dados]
+    regras: [CAD-02, CAD-16]
+  - id: TEL-28
+    modulo: m8
+    nome: Conferência do processo
+    rota: juridico:processo
+    kwargs: {pk: processo_demo}
+    papel: adm
+    estados: [conferir, com_pendencias, divergente_cnj, cadastrado]
+    regras: [CAD-15]
+  - id: TEL-29
+    modulo: m8
+    nome: Enviar PDFs
+    rota: juridico:enviar_pdfs
+    papel: base
+    estados: [padrao, erro_campo]
+    regras: [CAD-03]
+  - id: TEL-30
+    modulo: m8
+    nome: Cadastrar pelo CNJ
+    rota: juridico:enviar_cnj
+    papel: base
+    estados: [padrao, erro_campo]
+    regras: [CAD-05]
+  - id: TEL-31
+    modulo: m8
+    nome: Envio (detalhe, com duplicidade)
+    rota: juridico:envio
+    kwargs: {pk: envio_demo}
+    papel: base
+    estados: [em_andamento, concluido, duplicado]
+    regras: [CAD-06, CAD-17]
+  - id: TEL-32
+    modulo: m8
+    nome: Log de erros e desempenho
+    rota: juridico:erros
+    papel: adm
+    estados: [vazio, com_dados]
+    regras: [CAD-17]
+  - id: TEL-33
+    modulo: m8
+    nome: Configuração do cadastro
+    rota: juridico:config
+    papel: adm
+    estados: [padrao, teste_falhou]
+    regras: [CAD-07a, CAD-14]
+  - id: TEL-34
+    modulo: m8
+    nome: Audiências
+    rota: juridico:audiencias
+    papel: adm
+    estados: [vazio, com_dados]
+    regras: [CAD-20]
+  - id: TEL-35
+    modulo: m8
+    nome: Cadastro manual de processo
+    rota: juridico:processo_novo
+    papel: adm
+    estados: [padrao, erro_campo, duplicado]
+    regras: [CAD-21]

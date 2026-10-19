@@ -32,3 +32,6 @@
 - D-030 · 13/10 · Núcleo das Funções (M7a, docs/spec/funcoes.yaml) adiantado antes do M6; "Atualizar para todos", efeito geral, agenda e massa ficam para depois do M6 (D-d em aberto).
 - D-031 · 13/10 · Execução de Função "para mim" é privada: só o executor e o Adm a veem (FUN-10), inclusive para o Coordenador do setor.
 - D-032 · 14/10 · Nó 'Chamar n8n' (docs/spec/no-n8n.yaml) sobre o cliente HTTP do motor: mesmo SSRF; n8n em endereço interno segue bloqueado (liberação é decisão de segurança à parte).
+- D-033 · 19/10 · M8 Cadastro de processos (docs/spec/juridico-cadastro.yaml): LLM = o MESMO app do Dify do n8n (não Claude, revendo o handoff); PDFs pelo nosso site, dados no nosso banco, PDF no disco do servidor; validação no DataJud; painel com a ESTRUTURA do Power Apps e a NOSSA identidade visual.
+- D-034 · 19/10 · Fase única no cadastro = lista do Dify; SENTENÇA do caminho CNJ → DECISÓRIA (provisório até a Controladoria confirmar).
+- D-035 · 19/10 · TLS do Dify (certificado do FortiGate): verificação nunca desligada; confia no repositório do SO (truststore) e numa CA colada na Configuração só para o host do Dify; testes reais no notebook da empresa.
