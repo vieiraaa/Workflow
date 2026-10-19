@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load static %}
+{% block estilos %}<link rel="stylesheet" href="{% static 'css/home.css' %}"><link rel="stylesheet" href="{% static 'css/juridico.css' %}">{% endblock %}
+{% block scripts %}<script src="{% static 'js/graficos.js' %}" defer></script><script src="{% static 'js/juridico.js' %}" defer></script>{% endblock %}
+{% block titulo %}Envio · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}Envio de {{ envio.quando }}{% endblock %}
+{% block acoes %}{% url "juridico:envios" as url_envios_ %}{% include "componentes/botao.html" with rotulo="Envios" icone="chevron-left" href=url_envios_ %}{% endblock %}
+{% block conteudo %}
+<section class="card" data-envio{% if url_status %} data-status-url="{{ url_status }}"{% endif %}>
+  <div class="envio-cab">
+    <p class="texto-2">{{ envio.origem }} · enviado por {{ envio.enviado_por }}{% if envio.carteira %} · {{ envio.carteira }}{% endif %}</p>
+    <p class="texto-2 texto-sm" data-envio-andamento role="status" hidden>{% include "componentes/icone.html" with nome="loader-circle" tamanho=16 gira=True %}<span>Processando… a página atualiza sozinha.</span></p>
+  </div>
+  {% if itens %}
+  <ul class="itens-envio">
+    {% for i in itens %}
+    <li class="item-envio" data-item="{{ i.pk }}" data-item-status="{{ i.status }}">
+      <div class="item-envio__topo">
+        <strong class="item-envio__nome">{{ i.nome }}</strong>
+        {% include "componentes/badge_item.html" with status=i.status rotulo=i.status_rotulo %}
+      </div>
+      {% if i.aviso_duplicidade %}{% include "componentes/aviso.html" with texto=i.aviso_duplicidade tipo="aviso" estado="duplicado" link_url=i.processo_url link_rotulo="Abrir o processo" %}{% endif %}
+      <p class="item-envio__motivo texto-2 texto-sm" data-item-motivo{% if not i.motivo %} hidden{% endif %}>{{ i.motivo }}{% if i.etapa %} <span class="chip">{{ i.etapa }}</span>{% endif %}</p>
+      <p class="item-envio__acoes">
+        <a href="{{ i.processo_url }}" data-item-processo{% if not i.processo_url %} hidden{% endif %}>{% if i.acao == "atualizado" %}Processo atualizado{% else %}Abrir processo{% endif %}{% if i.processo_numero %} {{ i.processo_numero }}{% endif %}</a>
+        {% if i.pode_tentar %}<span class="item-envio__tentar"><form method="post" action="{{ i.url_tentar }}">{% csrf_token %}{% include "componentes/botao.html" with rotulo="Tentar de novo" icone="rotate-ccw" tipo="submit" carregando="Reenviando…" %}</form></span>{% endif %}
+      </p>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  {% include "componentes/vazio.html" with icone="inbox" titulo="Este envio não tem itens" texto="Nada para mostrar." %}
+  {% endif %}
+</section>
+{% endblock %}

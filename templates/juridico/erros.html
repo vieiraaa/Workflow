@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load static %}
+{% block estilos %}<link rel="stylesheet" href="{% static 'css/home.css' %}"><link rel="stylesheet" href="{% static 'css/juridico.css' %}">{% endblock %}
+{% block scripts %}<script src="{% static 'js/graficos.js' %}" defer></script><script src="{% static 'js/juridico.js' %}" defer></script>{% endblock %}
+{% block titulo %}Log de erros e desempenho · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}Log de erros e desempenho{% endblock %}
+{% block acoes %}{% url "juridico:painel" as url_painel_ %}{% include "componentes/botao.html" with rotulo="Painel" icone="chevron-left" href=url_painel_ %}{% endblock %}
+{% block conteudo %}
+<p class="texto-2">Últimos 30 dias.</p>
+<section class="resumos" aria-label="Desempenho">
+  {% if cartoes.ultima %}{% include "componentes/cartao_resumo.html" with rotulo="Última execução" valor=cartoes.ultima.quando detalhe=cartoes.ultima.origem %}{% else %}{% include "componentes/cartao_resumo.html" with rotulo="Última execução" valor="—" detalhe="Nenhum envio" %}{% endif %}
+  {% include "componentes/cartao_resumo.html" with rotulo="Execuções" valor=cartoes.execucoes.envios|add:" · "|add:cartoes.execucoes.casos %}
+  {% include "componentes/cartao_resumo.html" with rotulo="Casos com erro" valor=cartoes.casos_erro.n detalhe=cartoes.casos_erro.pct|add:" dos casos" tom="erro" %}
+  {% include "componentes/cartao_resumo.html" with rotulo="Tempo médio por execução" valor=cartoes.tempo_medio.execucao detalhe=cartoes.tempo_medio.caso|add:" por caso" %}
+  {% include "componentes/cartao_resumo.html" with rotulo="Erros pendentes" valor=cartoes.erros_pendentes tom="erro" %}
+</section>
+
+{% include "componentes/grafico.html" with id="grafico-casos" id_dados="juridico-casos" titulo="Casos por dia" tipo="empilhado" dados=casos_por_dia vazio_texto="Sem envios nos últimos 30 dias." %}
+{% include "componentes/grafico.html" with id="grafico-etapas" id_dados="juridico-etapas" titulo="Erros pendentes por etapa" tipo="barras" unidade="Erros" dados=erros_por_etapa vazio_texto="Nenhum erro pendente." %}
+
+<section class="card card--semrecuo" aria-labelledby="envios-titulo">
+  <h2 class="painel__titulo painel__titulo--cartao" id="envios-titulo">Envios</h2>
+  {% if envios %}{% include "componentes/tabela_envios.html" %}
+  {% else %}{% include "componentes/vazio.html" with icone="list-checks" titulo="Nenhum envio no período" texto="Os envios recentes aparecem aqui." %}{% endif %}
+</section>
+
+<section class="card card--semrecuo" aria-labelledby="erros-titulo">
+  <div class="card__cabecalho card__cabecalho--recuo">
+    <h2 class="card__titulo" id="erros-titulo">Erros {% if filtro_resolvido %}(com resolvidos){% else %}pendentes{% endif %}</h2>
+    {% if filtro_resolvido %}<a class="botao botao--secundario" href="?">Ocultar resolvidos</a>{% else %}<a class="botao botao--secundario" href="?resolvido=1">Mostrar resolvidos</a>{% endif %}
+  </div>
+  {% if itens %}
+  <ul class="erros-lista">
+    {% for i in itens %}
+    <li class="erro-item{% if i.resolvido %} erro-item--resolvido{% endif %}">
+      <div class="erro-item__texto">
+        <p><strong>{{ i.nome }}</strong> <span class="chip">{{ i.etapa }}</span></p>
+        <p class="texto-2 texto-sm">{{ i.quando }} · {{ i.motivo }}</p>
+      </div>
+      <div class="erro-item__acoes">
+        {% if i.resolvido %}<span class="badge badge--sucesso">Resolvido</span>{% else %}
+        <form method="post" action="{{ i.url_tentar }}">{% csrf_token %}{% include "componentes/botao.html" with rotulo="Tentar de novo" icone="rotate-ccw" tipo="submit" %}</form>
+        <form method="post" action="{{ i.url_resolvido }}">{% csrf_token %}{% include "componentes/botao.html" with rotulo="Resolvido" icone="circle-check" tipo="submit" %}</form>
+        {% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% include "componentes/paginacao.html" with page_obj=itens consulta=filtro_resolvido|yesno:"resolvido=1&," %}
+  {% else %}
+  {% include "componentes/vazio.html" with icone="circle-check" titulo="Nenhum erro pendente" texto="Tudo certo nos últimos 30 dias." %}
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load static %}
+{% block estilos %}<link rel="stylesheet" href="{% static 'css/juridico.css' %}">{% endblock %}
+{% block scripts %}<script src="{% static 'js/juridico.js' %}" defer></script>{% endblock %}
+{% block titulo %}Processos excluídos · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}Processos excluídos{% endblock %}
+{% block acoes %}{% url "juridico:config" as url_config_ %}{% include "componentes/botao.html" with rotulo="Configuração" icone="chevron-left" href=url_config_ %}{% endblock %}
+{% block conteudo %}
+<div class="card card--semrecuo">
+  {% if processos %}
+  <div class="tabela-rolagem"><table class="tabela">
+    <thead><tr><th scope="col">Processo</th><th scope="col">Adverso</th><th scope="col">Excluído</th><th scope="col"><span class="sr-only">Ações</span></th></tr></thead>
+    <tbody>{% for p in processos %}
+    <tr class="tabela__linha">
+      <td class="tabela__principal">{{ p.numero }}</td>
+      <td class="tabela__secundario texto-2">{{ p.adverso|default:"—" }}</td>
+      <td class="tabela__papel texto-2">{{ p.excluido_em }} · {{ p.excluido_por }}</td>
+      <td class="tabela__acoes"><form method="post" action="{{ p.url_restaurar }}">{% csrf_token %}{% include "componentes/botao.html" with rotulo="Restaurar" icone="undo-2" tipo="submit" %}</form></td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}
+  {% include "componentes/vazio.html" with icone="trash" titulo="Nenhum processo excluído" texto="Quando um processo for excluído, ele aparece aqui e pode ser restaurado." %}
+  {% endif %}
+</div>
+{% endblock %}

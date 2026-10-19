@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% load static %}
+{% block titulo %}Cadastro de processos · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}Painel de Processos{% endblock %}
+{% block estilos %}<link rel="stylesheet" href="{% static 'css/juridico.css' %}">{% endblock %}
+{% block scripts %}<script src="{% static 'js/juridico.js' %}" defer></script>{% endblock %}
+{% block conteudo_classe %}conteudo--largo{% endblock %}
+
+{% block conteudo %}
+{% include "componentes/aviso.html" with texto=aviso_datajud tipo="aviso" estado="aviso_datajud" link_url=url_config link_rotulo="Abrir configuração" %}
+
+<div class="painel" data-painel{% if atualizar_auto %} data-status-url="{{ url_status }}"{% endif %}>
+  <div class="painel__topo">
+  <div class="painel__barra">
+<details class="menu" data-menu>
+  <summary class="botao botao--secundario menu__gatilho" aria-label="Menu do cadastro">{% include "componentes/icone.html" with nome="menu" tamanho=16 %}<span class="botao__rotulo-desktop">Menu</span></summary>
+  <div class="menu__lista" role="menu">
+    {% if pode_enviar %}
+    <a class="menu__item" role="menuitem" href="{{ url_enviar_pdfs }}">{% include "componentes/icone.html" with nome="file-up" tamanho=16 %}<span>Enviar PDFs para leitura</span></a>
+    <a class="menu__item" role="menuitem" href="{{ url_enviar_cnj }}">{% include "componentes/icone.html" with nome="hash" tamanho=16 %}<span>Cadastrar pelo nº (CNJ)</span></a>
+    {% endif %}
+    {% if pode_editar %}<a class="menu__item" role="menuitem" href="{{ url_processo_novo }}">{% include "componentes/icone.html" with nome="plus" tamanho=16 %}<span>Cadastro manual de processo</span></a>{% endif %}
+    <a class="menu__item" role="menuitem" href="{{ url_erros }}">{% include "componentes/icone.html" with nome="bug" tamanho=16 %}<span>Log de erros e desempenho</span></a>
+    <a class="menu__item" role="menuitem" href="{{ url_envios }}">{% include "componentes/icone.html" with nome="list-checks" tamanho=16 %}<span>Envios</span></a>
+    {% if pode_configurar %}<a class="menu__item" role="menuitem" href="{{ url_config }}">{% include "componentes/icone.html" with nome="settings" tamanho=16 %}<span>Configuração</span></a>{% endif %}
+  </div>
+</details>
+<a class="botao {% if audiencias_urgente %}botao--destrutivo botao--alerta{% else %}botao--secundario{% endif %}" href="{{ url_audiencias }}">{% include "componentes/icone.html" with nome="calendar-clock" tamanho=16 %}<span>Audiências ({{ audiencias_n|default:0 }})</span></a>
+  </div>
+  <p class="painel__contagem" data-painel-contagem><span data-contagem="total">{{ resumo.total }}</span> processos · <span data-contagem="com_pendencias">{{ resumo.com_pendencias }}</span> com pendências · <span data-contagem="cadastrados">{{ resumo.cadastrados }}</span> cadastrados</p>
+  <section class="resumos" aria-label="Resumo do cadastro">
+    {% include "componentes/cartao_resumo.html" with rotulo="Processos" valor=resumo.total chave="total" href="?" filtravel=1 atual=filtros.status ativo_valor="" %}
+    {% include "componentes/cartao_resumo.html" with rotulo="Com pendências" valor=resumo.com_pendencias chave="com_pendencias" tom="erro" href="?status=COM_PENDENCIAS" filtravel=1 atual=filtros.status ativo_valor="COM_PENDENCIAS" %}
+    {% include "componentes/cartao_resumo.html" with rotulo="Conferir" valor=resumo.conferir chave="conferir" tom="aviso" href="?status=CONFERIR" filtravel=1 atual=filtros.status ativo_valor="CONFERIR" %}
+    {% include "componentes/cartao_resumo.html" with rotulo="Cadastrados" valor=resumo.cadastrados chave="cadastrados" tom="ok" href="?status=CADASTRADO" filtravel=1 atual=filtros.status ativo_valor="CADASTRADO" %}
+    {% include "componentes/cartao_resumo.html" with rotulo="Na fila" valor=resumo.na_fila chave="na_fila" href=url_envios %}
+    {% include "componentes/cartao_resumo.html" with rotulo="Erros" valor=resumo.erros chave="erros" tom="erro" href=url_erros %}
+  </section>
+  </div>
+
+  <div class="painel__aviso" data-painel-aviso hidden role="status">
+    {% include "componentes/icone.html" with nome="loader-circle" tamanho=16 gira=True %}<span data-painel-aviso-texto>Processando envios…</span>
+    <a href="" data-painel-recarregar hidden>Atualizar lista</a>
+  </div>
+
+
+  <div class="painel__colunas">
+    <nav class="card painel__clientes" aria-label="Clientes">
+      <h2 class="painel__titulo">CLIENTES</h2>
+      <ul class="carteiras">
+        {% for c in carteiras %}
+        <li><a class="carteira{% if c.ativo %} carteira--ativa{% endif %}" href="{{ c.url }}"{% if c.ativo %} aria-current="true"{% endif %}><span>{{ c.nome }}</span><span class="carteira__total">{{ c.total }}</span></a></li>
+        {% endfor %}
+      </ul>
+    </nav>
+
+    <section class="card painel__processos" aria-labelledby="titulo-processos">
+      <h2 class="painel__titulo" id="titulo-processos">{{ titulo_lista|default:"Processos" }} ({{ processos.paginator.count }})</h2>
+      <form class="painel__filtros" method="get" role="search">
+        {% if filtros.carteira %}<input type="hidden" name="carteira" value="{{ filtros.carteira }}">{% endif %}
+        {% if filtros.status %}<input type="hidden" name="status" value="{{ filtros.status }}">{% endif %}
+        <div class="campo filtros__busca">
+          <label class="sr-only" for="busca">Buscar por número, parte, CPF/CNPJ, comarca ou empresa</label>
+          <input id="busca" type="search" name="q" value="{{ filtros.q }}" placeholder="Buscar processo"  maxlength="200">
+        </div>
+        <div class="campo"><label class="sr-only" for="f-cnj">Situação no CNJ</label>
+          <div class="campo__select"><select id="f-cnj" name="cnj" data-auto-enviar>
+            <option value="">CNJ: todos</option>
+            <option value="confere"{% if filtros.cnj == "confere" %} selected{% endif %}>Confere</option>
+            <option value="divergente"{% if filtros.cnj == "divergente" %} selected{% endif %}>Diverge</option>
+            <option value="nao_encontrado"{% if filtros.cnj == "nao_encontrado" %} selected{% endif %}>Não encontrado</option>
+          </select>{% include "componentes/icone.html" with nome="chevron-down" tamanho=16 %}</div></div>
+        <div class="campo"><label class="sr-only" for="f-ordem">Ordenar por</label>
+          <div class="campo__select"><select id="f-ordem" name="ordem" data-auto-enviar>
+            <option value="">Mais recentes</option>
+            <option value="numero"{% if filtros.ordem == "numero" %} selected{% endif %}>Número</option>
+            <option value="distribuido"{% if filtros.ordem == "distribuido" %} selected{% endif %}>Distribuição</option>
+          </select>{% include "componentes/icone.html" with nome="chevron-down" tamanho=16 %}</div></div>
+        {% include "componentes/botao.html" with rotulo="Buscar" icone="search" tipo="submit" %}
+      </form>
+      {% if processos %}
+      <div class="painel__lista">{% for p in processos %}{% include "componentes/cartao_processo.html" %}{% endfor %}</div>
+      {% if consulta %}{% with c=consulta|add:"&" %}{% include "componentes/paginacao.html" with page_obj=processos consulta=c %}{% endwith %}{% else %}{% include "componentes/paginacao.html" with page_obj=processos %}{% endif %}
+      {% elif filtros.q or filtros.status or filtros.cnj or filtros.carteira %}
+      {% include "componentes/vazio.html" with icone="search" titulo="Nenhum processo encontrado" texto="Nenhum resultado para esta busca ou filtro. Tente outros termos." acao_rotulo="Limpar filtros" acao_url="?" %}
+      {% else %}
+      {% include "componentes/vazio.html" with icone="scale" frase="Nenhum processo cadastrado ainda. Envie os PDFs ou cadastre pelo número." acao_rotulo="Enviar PDFs" acao_url=url_enviar_pdfs %}
+      {% endif %}
+    </section>
+
+    <aside class="card painel__detalhe" aria-label="Detalhes do processo">
+      <h2 class="painel__titulo">DETALHES DO PROCESSO</h2>
+      {% if processo_sel %}
+      {% with s=processo_sel %}
+      <div class="detalhe__acoes">
+        {% if s.pode_marcar %}
+        <form method="post" action="{{ s.url_marcar }}">{% csrf_token %}{% include "componentes/botao.html" with rotulo="Marcar cadastrado no Espaider" icone="circle-check" tipo="submit" variante="primario" carregando="Marcando…" %}</form>
+        {% endif %}
+        {% if s.pode_editar %}{% include "componentes/botao.html" with rotulo="Editar" icone="pencil" href=s.url_detalhe %}{% else %}{% include "componentes/botao.html" with rotulo="Abrir" icone="external-link" href=s.url_detalhe %}{% endif %}
+      </div>
+      <p class="texto-2 texto-sm">{{ s.carteira|default:"Sem carteira" }} · {{ s.tribunal|default:"—" }}</p>
+      <h2 class="detalhe__numero">{{ s.numero }}</h2>
+      <div>{% include "componentes/badge_status.html" with status=s.status|lower rotulo=s.status_rotulo %}</div>
+      {% if s.pendencias %}<ul class="pendencias" aria-label="Pendências">{% for pend in s.pendencias %}<li>{% include "componentes/icone.html" with nome="triangle-alert" tamanho=16 %}<span>{{ pend }}</span></li>{% endfor %}</ul>{% endif %}
+      {% for g in s.grupos %}{% include "componentes/grupo.html" with titulo=g.titulo|upper linhas=g.campos %}{% endfor %}
+      {% if s.andamentos %}
+      <section class="grupo"><h2 class="grupo__titulo">ANDAMENTOS</h2>
+        <ol class="andamentos">{% for a in s.andamentos %}<li><span class="andamentos__data">{{ a.data }}</span><span>{{ a.evento }}</span><span class="origem origem--{{ a.fonte }}">{{ a.fonte|upper }}</span></li>{% endfor %}</ol>
+      </section>
+      {% endif %}
+      {% endwith %}
+      {% else %}
+      {% include "componentes/vazio.html" with icone="file-text" titulo="Nenhum processo selecionado" texto="Escolha um processo na lista para ver os detalhes." %}
+      {% endif %}
+    </aside>
+  </div>
+  {% if ultimos_envios %}
+  <section class="card" aria-labelledby="ultimos-envios">
+    <div class="card__cabecalho"><h2 class="card__titulo" id="ultimos-envios">Últimos envios</h2><a href="{{ url_envios }}">Ver todos</a></div>
+    {% include "componentes/tabela_envios.html" with envios=ultimos_envios %}
+  </section>
+  {% endif %}
+</div>
+
+{% endblock %}

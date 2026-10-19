@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% load static %}
+{% block estilos %}<link rel="stylesheet" href="{% static 'css/juridico.css' %}">{% endblock %}
+{% block scripts %}<script src="{% static 'js/juridico.js' %}" defer></script>{% endblock %}
+{% block titulo %}Configuração do cadastro · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}Configuração do cadastro{% endblock %}
+{% block acoes %}{% url "juridico:painel" as url_painel_ %}{% include "componentes/botao.html" with rotulo="Painel" icone="chevron-left" href=url_painel_ %}{% endblock %}
+{% block conteudo %}
+{% if resultado_teste %}{% include "componentes/aviso.html" with texto=resultado_teste tipo="info" icone="plug" estado="teste_resultado" %}{% endif %}
+<form class="formulario" method="post" novalidate data-form-config>
+  {% csrf_token %}
+  {% include "componentes/alerta.html" with erros=form.non_field_errors estado="erro_validacao" %}
+  <section class="card" aria-labelledby="c-dify">
+    <h2 class="card__titulo" id="c-dify">IA (Dify)</h2>
+    <div class="processo-form__grade">
+      {% include "componentes/campo.html" with campo=form.dify_url %}
+      {% include "componentes/campo.html" with campo=form.dify_credencial ajuda="Credencial do tipo bearer, sem setor. O valor nunca é exibido." %}
+      {% include "componentes/campo.html" with campo=form.dify_usuario %}
+      {% include "componentes/campo.html" with campo=form.dify_ca_pem ajuda="Opcional. Certificado da CA (PEM) em que confiar só para o endereço do Dify." %}
+    </div>
+  </section>
+  <section class="card" aria-labelledby="c-datajud">
+    <h2 class="card__titulo" id="c-datajud">CNJ (DataJud)</h2>
+    <div class="processo-form__grade">
+      {% include "componentes/campo.html" with campo=form.datajud_url %}
+      {% include "componentes/campo.html" with campo=form.datajud_credencial ajuda="Credencial do tipo cabeçalho (Authorization). O valor nunca é exibido." %}
+    </div>
+  </section>
+  <section class="card" aria-labelledby="c-setores">
+    <h2 class="card__titulo" id="c-setores">Setores com acesso</h2>
+    <p class="texto-2">Sem nenhum setor marcado, só o Adm usa o cadastro.</p>
+    <div class="setores">
+      {% for op in form.setores_com_acesso %}<label class="setores__opcao">{{ op.tag }}<span>{{ op.choice_label }}</span></label>{% endfor %}
+    </div>
+    {% for erro in form.setores_com_acesso.errors %}<p class="campo__erro" role="alert">{{ erro }}</p>{% endfor %}
+  </section>
+  <div class="formulario__acoes">
+    {% include "componentes/botao.html" with rotulo="Salvar" icone="save" variante="primario" tipo="submit" carregando="Salvando…" %}
+  </div>
+</form>
+
+<section class="card" aria-labelledby="c-teste">
+  <h2 class="card__titulo" id="c-teste">Testar conexão</h2>
+  <p class="texto-2">Chama o Dify e o DataJud com dados de exemplo e mostra se responderam. Nenhum valor secreto aparece.</p>
+  <form method="post" action="{% url 'juridico:testar_conexao' %}">{% csrf_token %}{% include "componentes/botao.html" with rotulo="Testar conexão" icone="plug" tipo="submit" carregando="Testando…" %}</form>
+</section>
+
+<section class="card card--semrecuo" aria-labelledby="c-carteiras">
+  <h2 class="painel__titulo painel__titulo--cartao" id="c-carteiras">Carteiras</h2>
+  <ul class="carteiras-config">
+    {% for c in carteiras %}
+    <li>
+      <form class="carteira-form" method="post" action="{% url 'juridico:carteira_editar' c.pk %}">{% csrf_token %}
+        <div class="campo"><label class="sr-only" for="cn-{{ c.pk }}">Nome</label><input id="cn-{{ c.pk }}" name="nome" value="{{ c.nome }}" maxlength="60" required></div>
+        <div class="campo"><label class="sr-only" for="ce-{{ c.pk }}">Empresa</label><input id="ce-{{ c.pk }}" name="empresa" value="{{ c.empresa }}" maxlength="200" placeholder="Empresa cliente"></div>
+        <label class="toggle"><span>Ativa</span><input type="checkbox" name="ativa"{% if c.ativa %} checked{% endif %}><span class="toggle__trilho"></span></label>
+        {% include "componentes/botao.html" with rotulo="Salvar" icone="save" tipo="submit" %}
+      </form>
+    </li>
+    {% empty %}
+    <li>{% include "componentes/vazio.html" with icone="layers" titulo="Nenhuma carteira" texto="Adicione a primeira abaixo." %}</li>
+    {% endfor %}
+    <li>
+      <form class="carteira-form" method="post" action="{% url 'juridico:carteira_nova' %}">{% csrf_token %}
+        <div class="campo"><label class="sr-only" for="cn-nova">Nome da nova carteira</label><input id="cn-nova" name="nome" maxlength="60" placeholder="Nova carteira" required></div>
+        <div class="campo"><label class="sr-only" for="ce-nova">Empresa</label><input id="ce-nova" name="empresa" maxlength="200" placeholder="Empresa cliente"></div>
+        {% include "componentes/botao.html" with rotulo="Adicionar" icone="plus" variante="primario" tipo="submit" %}
+      </form>
+    </li>
+  </ul>
+</section>
+
+<section class="card" aria-labelledby="c-excl">
+  <h2 class="card__titulo" id="c-excl">Excluídos</h2>
+  <p class="texto-2">Processos excluídos ({{ excluidos|length }}) podem ser restaurados.</p>
+  {% url 'juridico:excluidos' as url_excluidos_ %}{% include "componentes/botao.html" with rotulo="Ver processos excluídos" icone="trash" href=url_excluidos_ %}
+</section>
+{% endblock %}

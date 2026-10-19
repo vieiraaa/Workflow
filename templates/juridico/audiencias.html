@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load static %}
+{% block estilos %}<link rel="stylesheet" href="{% static 'css/juridico.css' %}">{% endblock %}
+{% block scripts %}<script src="{% static 'js/juridico.js' %}" defer></script>{% endblock %}
+{% block titulo %}Audiências · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}Audiências{% endblock %}
+{% block acoes %}{% url "juridico:painel" as url_painel_ %}{% include "componentes/botao.html" with rotulo="Painel" icone="chevron-left" href=url_painel_ %}{% endblock %}
+{% block conteudo %}
+<div class="card card--semrecuo">
+  {% if processos %}
+  <div class="tabela-rolagem"><table class="tabela">
+    <thead><tr><th scope="col">Data e hora</th><th scope="col">Processo</th><th scope="col">Adverso</th><th scope="col">Comarca</th></tr></thead>
+    <tbody>{% for p in processos %}
+    <tr class="tabela__linha tabela__linha--clicavel" data-href="{{ p.url_detalhe }}">
+      <td class="tabela__papel"><span class="chip{% if p.audiencia_proxima %} chip--erro{% endif %}">{% include "componentes/icone.html" with nome="calendar-clock" tamanho=16 %}<span>{{ p.audiencia_texto }}</span></span></td>
+      <td class="tabela__principal"><a class="tabela__link" href="{{ p.url_detalhe }}">{{ p.numero }}</a></td>
+      <td class="tabela__secundario texto-2">{{ p.adverso|default:"—" }}</td>
+      <td class="tabela__extra texto-2">{{ p.comarca|default:"—" }}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}
+  {% include "componentes/vazio.html" with icone="calendar-clock" titulo="Nenhuma audiência marcada" texto="As audiências detectadas nos PDFs e no CNJ aparecem aqui." %}
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,19 @@
+{# Formulário em grupos (conferência e cadastro manual). form, grupos, pode_editar, rotulo_salvar, url_cancelar. Mutação: POST + CSRF. #}
+<form class="formulario processo-form" method="post" novalidate data-form-processo>
+  {% csrf_token %}
+  {% include "componentes/alerta.html" with erros=form.non_field_errors estado="erro_validacao" %}
+  {% for g in grupos %}{% if g.campos %}
+  <section class="card" aria-labelledby="g-{{ forloop.counter }}">
+    <h2 class="card__titulo" id="g-{{ forloop.counter }}">{{ g.titulo }}</h2>
+    <div class="processo-form__grade">
+      {% for item in g.campos %}{% include "componentes/campo_origem.html" %}{% endfor %}
+    </div>
+  </section>{% endif %}
+  {% endfor %}
+  {% if pode_editar %}
+  <div class="formulario__acoes">
+    {% if url_cancelar %}{% include "componentes/botao.html" with rotulo="Cancelar" href=url_cancelar %}{% endif %}
+    {% include "componentes/botao.html" with rotulo=rotulo_salvar|default:"Salvar" variante="primario" tipo="submit" icone="save" carregando="Salvando…" %}
+  </div>
+  {% endif %}
+</form>

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% load static %}
+{% block estilos %}<link rel="stylesheet" href="{% static 'css/juridico.css' %}">{% endblock %}
+{% block scripts %}<script src="{% static 'js/juridico.js' %}" defer></script>{% endblock %}
+{% block titulo %}Cadastro manual de processo · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}Cadastro manual de processo{% endblock %}
+{% block acoes %}{% url "juridico:painel" as url_painel_ %}{% include "componentes/botao.html" with rotulo="Painel" icone="chevron-left" href=url_painel_ %}{% endblock %}
+{% block conteudo %}{% url "juridico:painel" as url_painel_ %}{% url "juridico:enviar_pdfs" as url_enviar_pdfs_ %}
+{% include "componentes/aviso.html" with texto=aviso_duplicidade tipo="aviso" estado="duplicado" link_url=url_duplicado link_rotulo="Abrir o processo" %}
+{% include "componentes/formulario_processo.html" with pode_editar=True rotulo_salvar="Cadastrar processo" url_cancelar=url_painel_ %}
+{% endblock %}

@@ -1,0 +1,5 @@
+{# item: {nome, rotulo, campo (BoundField), origem: pdf|cnj|manual|''}. O campo com a etiqueta de onde veio o dado (CAD-15). #}
+<div class="campo-origem{% if item.campo.field.widget.input_type == 'textarea' or item.campo.field.widget.attrs.rows %} campo-origem--largo{% endif %}">
+  {% include "componentes/campo.html" with campo=item.campo rotulo=item.rotulo %}
+  {% if item.origem %}<span class="origem origem--{{ item.origem }}" title="Origem do dado">{% if item.origem == "pdf" %}PDF{% elif item.origem == "cnj" %}CNJ{% else %}Manual{% endif %}</span>{% endif %}
+</div>

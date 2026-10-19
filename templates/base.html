@@ -16,6 +16,7 @@
     <div class="sidebar__marca">{% include "componentes/icone.html" with nome="workflow" %}<span>Construtor</span></div>
     <ul class="sidebar__menu">
       {% for item in menu %}
+      {% ifchanged item.grupo %}{% if item.grupo %}<li class="sidebar__grupo" role="presentation">{{ item.grupo }}</li>{% endif %}{% endifchanged %}
       <li><a class="sidebar__item" href="{{ item.url }}"{% if item.ativo %} aria-current="page"{% endif %}>{% include "componentes/icone.html" with nome=item.icone %}<span>{{ item.rotulo }}</span></a></li>
       {% endfor %}
     </ul>

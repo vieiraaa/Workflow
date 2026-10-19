@@ -1,0 +1,2 @@
+{# Status de ItemEnvio: status (na_fila|processando|concluido|erro|ignorado), rotulo. #}
+<span class="badge badge--{% if status == 'concluido' %}sucesso{% elif status == 'processando' %}executando{% elif status == 'erro' %}erro{% else %}rascunho{% endif %}" data-item-badge>{{ rotulo|default:status }}</span>

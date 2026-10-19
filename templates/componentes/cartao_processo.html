@@ -1,0 +1,21 @@
+{# p: item da lista do painel (CAD-19). Desktop: o clique seleciona (url_painel, via data-href-desktop); celular: abre o detalhe. #}
+<article class="proc{% if p.selecionado %} proc--ativo{% endif %}" data-processo="{{ p.pk }}">
+  <a class="proc__link" href="{{ p.url_detalhe }}" data-href-desktop="{{ p.url_painel }}"{% if p.selecionado %} aria-current="true"{% endif %}>
+    <span class="proc__linha"><strong class="proc__numero">{{ p.numero }}</strong>{% include "componentes/badge_status.html" with status=p.status|lower rotulo=p.status_rotulo %}</span>
+    <span class="proc__adverso">{{ p.adverso|default:"—" }}{% if p.cpf_cnpj_mascarado %} · {{ p.cpf_cnpj_mascarado }}{% endif %}</span>
+    <span class="proc__meta">{{ p.carteira|default:"—" }} · {{ p.comarca|default:"—" }} · {{ p.valor_texto|default:"—" }}</span>
+  </a>
+  {% if p.audiencia_texto or p.cnj_situacao != "nao_consultado" or p.pode_excluir %}
+  <div class="proc__rodape">
+    {% if p.audiencia_texto %}<span class="chip{% if p.audiencia_proxima %} chip--erro{% endif %}" title="Próxima audiência">{% include "componentes/icone.html" with nome="calendar-clock" tamanho=16 %}<span>{{ p.audiencia_texto }}</span></span>{% endif %}
+    {% include "componentes/icone_cnj.html" with situacao=p.cnj_situacao %}
+    {% if p.pode_excluir %}<details class="proc__excluir">
+      <summary class="botao botao--destrutivo botao--pequeno">{% include "componentes/icone.html" with nome="trash" tamanho=16 %}<span>Excluir</span></summary>
+      <form class="proc__confirmar" method="post" action="{{ p.url_excluir }}">{% csrf_token %}
+        <p>Excluir o processo {{ p.numero }}? Ele some do painel; o histórico fica guardado.</p>
+        <button class="botao botao--destrutivo botao--pequeno" type="submit">Confirmar exclusão</button>
+      </form>
+    </details>{% endif %}
+  </div>
+  {% endif %}
+</article>
