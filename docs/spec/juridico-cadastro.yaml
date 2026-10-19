@@ -62,7 +62,7 @@ modelo:
     numero_informado: {tipo: texto, max: 40, regra: "só na origem cnj"}
     status:        {tipo: escolha, valores: [na_fila, processando, concluido, erro, ignorado]}
     tentativas:    {tipo: inteiro, padrao: 0}
-    etapa_erro:    {tipo: escolha, valores: ["Leitura do PDF", "IA (Dify)", "CNJ (DataJud)", "Gravação"], nulo: true}
+    etapa_erro:    {tipo: escolha, valores: ["Leitura do PDF", "Envio do PDF", "IA (Dify)", "CNJ (DataJud)", "Dados incompletos", "Gravação"], nulo: true, regra: CAD-23 (5)}
     motivo:        {tipo: texto, max: 500}
     resolvido:     {tipo: booleano, padrao: false, regra: "marcado no Log de erros (CAD-13)"}
     processo:      {tipo: FK Processo, nulo: true, on_delete: SET_NULL}
@@ -267,6 +267,34 @@ regras:
     texto: >
       FORA do M8 (aparecem no menu do Power Apps): "Assistente IA", "Robô Espaider (relatórios)" e "Mais ferramentas
       (duplicados, status)" — a deduplicação da CAD-06 substitui a ferramenta de duplicados.
+
+  - id: CAD-23
+    texto: >
+      CONTRATO (fecha as dúvidas da T-077, 19/10). Ver o bloco `contrato` abaixo; ele vale como regra.
+
+contrato:
+  app: "app label juridico; modelos Carteira, ConfigCadastro, Processo, Envio, ItemEnvio em apps.juridico.models; ConfigCadastro.obter() devolve a linha única (cria se faltar). Testes podem preparar estado pelo ORM (config, carteiras, usuários, processos); a verificação é pelas telas/rotas e pelos modelos acima."
+  worker: "call_command('processar_cadastros', '--uma-vez') processa toda a fila atual e sai."
+  "1_dify":
+    chat_resposta: '{"answer": "<texto>"} (pode vir com cercas ```json); upload_resposta: {"id": "<id>"}'
+    chaves_canonicas: "as do prompt do Dify (Anexo A do handoff): numero_cnj, numero_contrato_operacao, empresa, condicao, advogado_empresa, adverso_nome, adverso_cpf_cnpj, advogado_adverso_nome, advogado_adverso_oab, tipo_acao, rito, natureza, meio_tramitacao, instancia, distribuido_em (DD/MM/AAAA), tribunal (sigla), juizo, comarca, estado, desdobramento, fase_atual (rótulos do Dify: POSTULATÓRIA, INSTRUTÓRIA, DECISÓRIA, RECURSAL, EXECUÇÃO/CUMPRIMENTO, ARQUIVADO), data_citacao (DD/MM/AAAA), valor_causa ('R$ 1.234,56'), pedidos_completos, ultimas_movimentacoes [{data, evento}], observacoes"
+    alternativas: "numero_processo|numero → numero_cnj; adverso|parte_adversa → adverso_nome; cpf_cnpj_adverso|adverso_cpf|adverso_cnpj → adverso_cpf_cnpj; advogado_adverso → advogado_adverso_nome; oab_advogado_adverso → advogado_adverso_oab; classe|classe_acao → tipo_acao; valor_da_causa → valor_causa; vara|orgao_julgador → juizo; pedidos → pedidos_completos; andamentos|movimentacoes → ultimas_movimentacoes; operacoes_vinculadas|numero_contrato|contrato → numero_contrato_operacao; parte_empresa → empresa; polo_empresa → condicao; data_distribuicao → distribuido_em. Comparação de chave sem acento, caixa e não alfanuméricos."
+    para_o_modelo: "numero_cnj→numero; numero_contrato_operacao→operacoes_vinculadas; pedidos_completos→pedidos; ultimas_movimentacoes→andamentos (fonte pdf); demais = mesmo nome. O Dify não devolve carteira (CAD-08)."
+    query_texto: "normalização igual ao n8n: sequências de espaço/tab → 1 espaço; quebras com espaços em volta → 1 quebra; trim; depois o corte da CAD-07 (settings abaixo)."
+    query_pdf_anexado: "literal: O processo está no PDF ANEXADO (pode ser escaneado ou protegido contra cópia). Leia o arquivo inteiro, página por página, e extraia os dados seguindo exatamente as instruções e o formato JSON."
+  "2_rotas":
+    GET: "juridico:painel · juridico:processo {pk} · juridico:processo_novo · juridico:enviar_pdfs · juridico:enviar_cnj · juridico:envios · juridico:envio {pk} · juridico:erros (?resolvido=1 mostra resolvidos) · juridico:audiencias · juridico:config · juridico:excluidos (Adm) · juridico:pdf {pk = ItemEnvio} · juridico:status (JSON)"
+    POST_processo: "juridico:processo {pk} (salvar) · juridico:processo_novo (criar) — campos = nomes do modelo: numero, carteira (pk ou vazio), empresa, condicao, advogado_empresa, adverso_nome, adverso_cpf_cnpj, advogado_adverso_nome, advogado_adverso_oab, tipo_acao, rito, natureza, meio_tramitacao, instancia, desdobramento, tribunal, comarca, juizo, estado, fase_atual (token do enum), distribuido_em e data_citacao (AAAA-MM-DD), valor_causa ('1234,56', '1.234,56' ou '1234.56'), pedidos, operacoes_vinculadas, observacoes, gerencia, categoria, escritorio, peticionamento, na_fase_desde, responsavel, proxima_audiencia (AAAA-MM-DDTHH:MM). Campo ausente no POST = não muda."
+    POST_acoes: "juridico:marcar_cadastrado {pk} · juridico:desfazer_cadastrado {pk} (Adm) · juridico:consultar_cnj {pk} · juridico:excluir {pk} · juridico:restaurar {pk} (Adm) · juridico:tentar_de_novo {pk = ItemEnvio} · juridico:resolver {pk = ItemEnvio} (marca resolvido=true) · juridico:testar_conexao (Adm) — todas sem campos, redirect + messages."
+    POST_config: "juridico:config — dify_url, dify_credencial, dify_usuario, dify_ca_pem, datajud_url, datajud_credencial, setores_com_acesso (ids, múltiplo). juridico:carteira_nova — nome, empresa · juridico:carteira_editar {pk} — nome, empresa, ativa (on/vazio)."
+    POST_envio: "juridico:enviar_pdfs — arquivos (múltiplo), carteira (pk ou vazio) · juridico:enviar_cnj — numeros, carteira, confirmar."
+  "3_cnj_dois_passos": "1º POST numeros+carteira: se TODOS forem novos e válidos → enfileira direto (redirect juridico:envio). Se algum já existir → 200 com a tela de confirmação listando cada número (novo / 'Este processo já existia: cadastrado por …' / inválido) e o botão Confirmar; 2º POST com os mesmos numeros+carteira + confirmar=1 → enfileira e redireciona. Inválidos (≠ 20 dígitos) viram item com erro em qualquer caso."
+  "4_carteira": "sempre por pk; 'Outra / não sei' = valor vazio."
+  "5_log_e_status_do_item": "status=erro só quando NENHUM processo foi gravado. Processo gravado com problema → status concluido + etapa_erro + motivo (ex.: 'Dados incompletos' com 'Processo <n> gravado, mas faltou: …'; 'CNJ (DataJud)' com o 401 da CAD-10). Log de erros (TEL-32) = itens com etapa_erro preenchida (erro ou concluido). 'Envio do PDF' = falha no files/upload do Dify."
+  "6_comparacao_cnj": "Só compara campo que o PDF trouxe (vazio → o CNJ preenche, sem divergência). tribunal: igual depois de maiúsculas e sem espaço, hífen e ponto ('TJ-SP' = 'TJSP'); DataJud campo tribunal. distribuido_em: data do PDF = parte de data (AAAA-MM-DD) de dataAjuizamento, sem conversão de fuso. comarca: comarca do PDF normalizada (sem acento, minúsculas, só letras e espaços) contida no orgaoJulgador.nome normalizado."
+  "7_mascara_documento": "CPF (11 dígitos) → ***.456.789-** ; CNPJ (14) → **.345.678/0001-** ; outro tamanho → •••. Vários documentos separados por '; ' mascarados um a um."
+  "8_settings": "JURIDICO_DIFY_TIMEOUT_S=300, JURIDICO_DATAJUD_TIMEOUT_S=30, JURIDICO_DATAJUD_INTERVALO_S=1.5, JURIDICO_TRAVADO_MIN=15, JURIDICO_TEXTO_MAX=40000, JURIDICO_TEXTO_INICIO=25000, JURIDICO_TEXTO_FIM=15000, JURIDICO_PDF_MAX_MB=30, JURIDICO_PDF_MAX_ARQUIVOS=10, JURIDICO_RESPOSTA_MAX_BYTES=2097152 (os testes podem sobrescrever com o fixture settings)."
+  "8b_status_json": "juridico:status → {total, com_pendencias, conferir, cadastrados, na_fila, erros, em_andamento (bool: itens do usuário na fila/processando)}; com ?envio=<pk> (só quem enviou ou Adm) também itens: [{pk, status, processo_url|null, aviso|null, motivo|null}]."
 
 telas:
   - {id: TEL-27, rota: juridico:painel, titulo: "Cadastro de processos", estados: [vazio, com_dados, filtrado, com_fila]}
