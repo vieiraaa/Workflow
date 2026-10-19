@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from .conftest import campos_dify, cnj, criar_processo, pdf_processo, upload
 
-pytestmark = [pytest.mark.django_db(transaction=True), pytest.mark.modulo("m8")]
+pytestmark = [pytest.mark.django_db(transaction=True, serialized_rollback=True), pytest.mark.modulo("m8")]
 
 NUM, DIG = cnj(1234)
 
