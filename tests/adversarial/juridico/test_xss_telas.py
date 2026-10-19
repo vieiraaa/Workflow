@@ -17,7 +17,7 @@ from .conftest import (
     tudo_que_o_usuario_pode_ver,
 )
 
-pytestmark = [pytest.mark.django_db, pytest.mark.modulo("m8")]
+pytestmark = [pytest.mark.django_db(transaction=True, serialized_rollback=True), pytest.mark.modulo("m8")]
 
 NUM, DIG = cnj(1234)
 
