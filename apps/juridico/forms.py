@@ -44,7 +44,11 @@ GRUPOS = (
 
 
 def texto_valor(valor):
-    return "" if valor is None else f"{Decimal(valor):.2f}".replace(".", ",")
+    """Valor no formato brasileiro do formulário: 12500 → '12.500,00'."""
+    if valor is None:
+        return ""
+    inteiro, _, centavos = f"{Decimal(valor):,.2f}".partition(".")
+    return f"{inteiro.replace(',', '.')},{centavos}"
 
 
 class ProcessoForm(forms.ModelForm):
@@ -81,7 +85,7 @@ class ProcessoForm(forms.ModelForm):
             campo.required = nome == "numero" and self.instance.pk is None
         if self.instance.pk is None:
             self.fields["numero"].required = True
-        if self.instance.pk and "valor_causa" not in self.initial:
+        if self.instance.pk:  # o ModelForm já preencheu 'valor_causa' com 12500.00: troca
             self.initial["valor_causa"] = texto_valor(self.instance.valor_causa)
 
     def clean_numero(self):
