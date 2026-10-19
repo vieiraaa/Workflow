@@ -37,6 +37,7 @@ def test_shell_do_adm(usuario_adm):
         "usuarios",
         "setores",
         "credenciais",
+        "juridico",
     ]
 
 
@@ -67,6 +68,7 @@ def test_menu_por_papel(monkeypatch, usuario_adm, usuario_coordenador, usuario_b
         "usuarios",
         "setores",
         "credenciais",
+        "juridico",
     ]
     assert chaves(usuario_coordenador) == ["inicio", "funcoes", "fluxos", "execucoes"]
     assert chaves(usuario_base) == ["inicio", "funcoes", "fluxos", "execucoes"]
@@ -85,6 +87,7 @@ def test_item_ativo_pelo_namespace(monkeypatch, usuario_adm):
         "usuarios": False,
         "setores": False,
         "credenciais": False,
+        "juridico": False,
     }
 
 
@@ -92,3 +95,16 @@ def test_pagina_renderiza_shell(cliente_adm):
     assert reverse("inicio")
     resposta = cliente_adm.get("/nao-existe/")
     assert resposta.context["usuario_papel"] == "Administrador"
+
+
+def test_item_do_juridico_traz_o_grupo_e_so_aparece_com_acesso(
+    monkeypatch, usuario_adm, usuario_coordenador
+):
+    monkeypatch.setattr(contexto, "reverse", lambda rota: f"/{rota}/")
+    menu = {i["chave"]: i for i in contexto.montar_menu(_request(usuario_adm))}
+    assert menu["juridico"]["grupo"] == "Jurídico" and menu["juridico"]["icone"] == "scale"
+    assert menu["inicio"]["grupo"] == ""
+    # coordenador sem setor na lista de acesso: o menu não mostra o Jurídico (CAD-02)
+    assert "juridico" not in {
+        i["chave"] for i in contexto.montar_menu(_request(usuario_coordenador))
+    }

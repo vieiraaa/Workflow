@@ -20,6 +20,15 @@ ITENS_MENU = [
         "credenciais",
         "credenciais.gerenciar",
     ),
+    (
+        "juridico",
+        "Cadastro de processos",
+        "juridico:painel",
+        "scale",
+        "juridico",
+        "cadastro.ver",
+        "Jurídico",
+    ),
 ]
 
 
@@ -31,7 +40,7 @@ def montar_menu(request):
     namespace = getattr(resolvida, "namespace", "")
     rota_atual = getattr(resolvida, "view_name", "")
     menu = []
-    for chave, rotulo, rota, icone, ns, acao in ITENS_MENU:
+    for chave, rotulo, rota, icone, ns, acao, *grupo in ITENS_MENU:
         if not pode(request.user, acao):
             continue
         try:
@@ -44,7 +53,16 @@ def montar_menu(request):
             ativo = rota_atual.startswith(f"contas:{'setor' if chave == 'setores' else 'usuario'}")
         else:
             ativo = namespace == ns
-        menu.append({"chave": chave, "rotulo": rotulo, "url": url, "icone": icone, "ativo": ativo})
+        menu.append(
+            {
+                "chave": chave,
+                "rotulo": rotulo,
+                "url": url,
+                "icone": icone,
+                "ativo": ativo,
+                "grupo": grupo[0] if grupo else "",
+            }
+        )
     return menu
 
 
@@ -53,7 +71,8 @@ def atalhos_do_usuario(request):
 
 
 def shell(request):
-    """Variáveis: `menu` [{chave, rotulo, url, icone, ativo}], `usuario_nome`, `usuario_papel`,
+    """Variáveis: `menu` [{chave, rotulo, url, icone, ativo, grupo ('' ou 'Jurídico')}],
+    `usuario_nome`, `usuario_papel`,
     `sem_papel` (True para usuário logado sem papel)."""
     logado = request.user.is_authenticated
     return {

@@ -365,8 +365,8 @@ class _Descompactador:
 def _ler_limitado(resposta, limite_tempo):
     """Lê o corpo (descompactado aos poucos) até o limite. Devolve (bytes, truncado)."""
     limite_corpo = _limite("LIMITE_RESPOSTA")
-    if _CORPO_MAX.get() is not None:
-        limite_corpo = min(limite_corpo, _CORPO_MAX.get())
+    if _CORPO_MAX.get() is not None:  # por chamada: o n8n reduz (64 KB); o Jurídico amplia (2 MB)
+        limite_corpo = _CORPO_MAX.get()
     descompactador = _Descompactador(resposta.headers.get("content-encoding"))
     pedacos, total = [], 0
 
@@ -433,6 +433,12 @@ def _headers_em_bytes(cabecalhos):
         raise ErroHttp("conexao", "Cabeçalho inválido: use só letras ASCII no nome.") from None
 
 
+def _em_bytes(corpo):
+    if not corpo:
+        return None
+    return corpo if isinstance(corpo, bytes) else corpo.encode("utf-8")
+
+
 def _ip_na_url(ip):
     return f"[{ip}]" if ip.version == 6 else str(ip)
 
@@ -447,7 +453,7 @@ def _enviar_uma_vez(cliente, metodo, destino, ips, cabecalhos, corpo, limite_tem
                 metodo,
                 url,
                 headers=_headers_em_bytes(cabecalhos),
-                content=corpo.encode("utf-8") if corpo else None,
+                content=_em_bytes(corpo),
                 extensions={"sni_hostname": destino.host},
                 timeout=_timeout_do_salto(limite_tempo),
             )
@@ -477,7 +483,16 @@ def _timeout_do_salto(limite_tempo):
 
 
 def requisitar(
-    *, metodo, url, headers=(), query=(), corpo="", prazo_s=None, prazo_max_s=None, corpo_max=None
+    *,
+    metodo,
+    url,
+    headers=(),
+    query=(),
+    corpo="",
+    prazo_s=None,
+    prazo_max_s=None,
+    corpo_max=None,
+    contexto_tls=None,
 ):
     """Faz a requisição com proteção SSRF. Devolve {status, headers, corpo, truncado}.
 
@@ -493,15 +508,17 @@ def requisitar(
     prazo_s = prazo_no if prazo_s is None else min(prazo_s, prazo_no)
     marcas = (_PRAZO_MAX.set(prazo_max_s), _CORPO_MAX.set(corpo_max))
     try:
-        return _requisitar(metodo, url, headers, query, corpo, prazo_s)
+        return _requisitar(metodo, url, headers, query, corpo, prazo_s, contexto_tls)
     finally:
         _PRAZO_MAX.reset(marcas[0])
         _CORPO_MAX.reset(marcas[1])
 
 
-def _requisitar(metodo, url, headers, query, corpo, prazo_s):
+def _requisitar(metodo, url, headers, query, corpo, prazo_s, contexto_tls=None):
     limite_tempo = time.monotonic() + max(0.1, prazo_s)
-    cliente = httpx.Client(trust_env=False, follow_redirects=False)
+    cliente = httpx.Client(
+        trust_env=False, follow_redirects=False, verify=contexto_tls if contexto_tls else True
+    )
     vigia = threading.Timer(max(0.1, prazo_s), _fechar_sem_erro, args=(cliente,))
     vigia.daemon = True
     vigia.start()

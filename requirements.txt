@@ -5,3 +5,5 @@ python-dotenv==1.2.4
 PyYAML==6.0.3
 httpx==0.28.1
 cryptography==50.0.2
+pypdf==6.21.1
+truststore==0.10.5
