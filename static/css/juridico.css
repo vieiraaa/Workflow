@@ -168,7 +168,7 @@ a.resumo:hover { background: var(--surface-2); }
 .setores__opcao input { width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
 
 .botao--alerta { color: var(--danger); }
-.painel__contagem { font-size: var(--text-sm); color: var(--text-2); }
+.painel__contagem { font-size: var(--text-sm); color: var(--text-2); flex: 1 1 100%; order: -2; }
 .vazio__frase { max-width: 36ch; }
 .resumo-grupos { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(var(--col-grade) * 2)), 1fr)); gap: var(--sp-3); }
 .resumo-grupos .grupo { box-shadow: none; background: var(--surface-2); }
