@@ -1,0 +1,14 @@
+id: T-076
+titulo: Nó "Chamar n8n" · JSON muito aninhado derruba o motor (RecursionError)
+dono: Forja (back)
+regras: [N8N-04, SEG-07]
+defeito: >
+  tests/adversarial/n8n/test_n8n_ataques.py::test_resposta_json_muito_aninhada_nao_derruba_o_motor[1000|20000]
+  falha: resposta do webhook com milhares de níveis ([[[[…]]]]) gera RecursionError e o nó NÃO é gravado
+  (execução sem ExecucaoNo). Esperado: a execução termina e o nó fica com status sucesso ou erro, sem 500.
+aceite:
+  - "Resposta aninhada além de um limite (sugestão: 100 níveis) vira erro do nó, categoria resposta_invalida, mensagem
+     'A resposta do n8n é aninhada demais (mais de 100 níveis).'; o nó é gravado; nada de RecursionError em nenhum
+     ponto (parse, mascaramento, gravação, resumo). Vale também para o nó HTTP se o caminho for o mesmo."
+  - "Os 2 casos do adversarial verdes sem alterá-los; tests/acceptance/n8n e tests/adversarial/n8n inteiros verdes."
+arquivos: [apps/, tests/unit/ (menos frontend/)]
