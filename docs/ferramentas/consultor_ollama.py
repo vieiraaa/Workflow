@@ -29,11 +29,7 @@ NOTAS = [
     "Relatório do Processo",
     "Organograma dos Agentes",
     "Prompt Ideal · Workflow Maestri",
-    "Log de Atividades",
-    "Log de Atividades · M2",
-    "Log de Atividades · M3",
-    "Log de Atividades · M4",
-    "Log de Atividades · M5",
+    "Log de Atividades",  # nota única, com todos os módulos (compilada em 19/10/2026)
     "Painel",
 ]
 ARQUIVOS = [
