@@ -1,0 +1,16 @@
+{# Escolha de credencial do cofre (só o NOME; o valor nunca aparece). campo (BoundField), nomes (lista de nomes do tipo certo), ajuda, url_nova. #}
+{% with atual=campo.value|default:"" %}
+<div class="campo{% if campo.errors %} campo--erro{% endif %}">
+  <label class="campo__rotulo" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+  <div class="campo__select">
+    <select id="{{ campo.id_for_label }}" name="{{ campo.html_name }}"{% if campo.errors %} aria-invalid="true"{% endif %}>
+      <option value="">Escolha a credencial</option>
+      {% for n in nomes %}<option value="{{ n }}"{% if n == atual %} selected{% endif %}>{{ n }}</option>{% endfor %}
+      {% if atual and atual not in nomes %}<option value="{{ atual }}" selected>{{ atual }} (não encontrada)</option>{% endif %}
+    </select>{% include "componentes/icone.html" with nome="chevron-down" tamanho=16 %}
+  </div>
+  {% if nomes %}{% if ajuda %}<p class="campo__ajuda">{{ ajuda }}</p>{% endif %}
+  {% else %}<p class="campo__ajuda">Nenhuma credencial deste tipo sem setor. <a href="{{ url_nova }}">Nova credencial</a></p>{% endif %}
+  {% for erro in campo.errors %}<p class="campo__erro" role="alert">{{ erro }}</p>{% endfor %}
+</div>
+{% endwith %}

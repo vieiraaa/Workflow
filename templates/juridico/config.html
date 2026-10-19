@@ -5,7 +5,7 @@
 {% block titulo %}Configuração do cadastro · Construtor de Workflows{% endblock %}
 {% block titulo_pagina %}Configuração do cadastro{% endblock %}
 {% block acoes %}{% url "juridico:painel" as url_painel_ %}{% include "componentes/botao.html" with rotulo="Painel" icone="chevron-left" href=url_painel_ %}{% endblock %}
-{% block conteudo %}
+{% block conteudo %}{% url "credenciais:nova" as url_credencial_nova %}
 {% if resultado_teste %}{% include "componentes/aviso.html" with texto=resultado_teste tipo="info" icone="plug" estado="teste_resultado" %}{% endif %}
 <form class="formulario" method="post" novalidate data-form-config>
   {% csrf_token %}
@@ -14,7 +14,7 @@
     <h2 class="card__titulo" id="c-dify">IA (Dify)</h2>
     <div class="processo-form__grade">
       {% include "componentes/campo.html" with campo=form.dify_url %}
-      {% include "componentes/campo.html" with campo=form.dify_credencial ajuda="Credencial do tipo bearer, sem setor. O valor nunca é exibido." %}
+      {% include "componentes/campo_credencial.html" with campo=form.dify_credencial nomes=credenciais_bearer url_nova=url_credencial_nova ajuda="Credencial do tipo Bearer, sem setor. O valor nunca é exibido." %}
       {% include "componentes/campo.html" with campo=form.dify_usuario %}
       {% include "componentes/campo.html" with campo=form.dify_ca_pem ajuda="Opcional. Certificado da CA (PEM) em que confiar só para o endereço do Dify." %}
     </div>
@@ -23,7 +23,7 @@
     <h2 class="card__titulo" id="c-datajud">CNJ (DataJud)</h2>
     <div class="processo-form__grade">
       {% include "componentes/campo.html" with campo=form.datajud_url %}
-      {% include "componentes/campo.html" with campo=form.datajud_credencial ajuda="Credencial do tipo cabeçalho (Authorization). O valor nunca é exibido." %}
+      {% include "componentes/campo_credencial.html" with campo=form.datajud_credencial nomes=credenciais_header url_nova=url_credencial_nova ajuda="Credencial do tipo Header (Authorization). O valor nunca é exibido." %}
     </div>
   </section>
   <section class="card" aria-labelledby="c-setores">

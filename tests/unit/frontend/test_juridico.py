@@ -252,9 +252,11 @@ def test_configuracao_campos_carteiras_e_teste(pedido):
         setores_com_acesso = forms.MultipleChoiceField(label="Setores", choices=[("1", "Jurídico")], widget=forms.CheckboxSelectMultiple, required=False)
 
     html = tela(pedido, "juridico/config.html", form=F(), carteiras=[{"pk": 1, "nome": "Ativos", "empresa": "ATIVOS S.A.", "ativa": True}], excluidos=[],
-                resultado_teste="Dify: ok · DataJud: falhou (timeout)")
-    for trecho in ("Dify: ok · DataJud: falhou (timeout)", "Testar conexão", "Carteiras", "Setores com acesso", "Jurídico", 'value="Ativos"', "Adicionar"):
+                credenciais_bearer=["dify-prod"], credenciais_header=[], resultado_teste="Dify: ok · DataJud: falhou (timeout)")
+    for trecho in ("Dify: ok · DataJud: falhou (timeout)", "Testar conexão", "Carteiras", "Setores com acesso", "Jurídico", 'value="Ativos"', "Adicionar",
+                   'name="dify_credencial"', '<option value="dify-prod"', "Escolha a credencial", "Nenhuma credencial deste tipo sem setor.", "Nova credencial"):
         assert trecho in html, trecho
+    assert 'name="datajud_credencial"' in html and '<select id="id_dify_credencial"' in html
 
 
 def test_excluidos_lista_e_vazio(pedido):

@@ -112,3 +112,17 @@ def test_sem_acesso_403_e_menu_so_com_acesso(cliente_base, cliente_adm):
     assert cliente_base.get(reverse("juridico:painel")).status_code == 403
     html = cliente_adm.get(reverse("inicio")).content
     assert b"Cadastro de processos" in html and b"sidebar__grupo" in html
+
+
+def test_config_credenciais_sao_selects_com_a_atual_marcada(cliente_adm, db):
+    from apps.juridico.models import ConfigCadastro
+
+    cliente_adm.post(reverse("credenciais:nova"), {"nome": "dify-prod", "tipo": "bearer", "valor": "segredo-ficticio-123", "setor": ""})
+    cfg = ConfigCadastro.obter()
+    cfg.dify_credencial = "dify-prod"
+    cfg.save()
+    r = cliente_adm.get(reverse("juridico:config"))
+    html = r.content.decode()
+    assert '<select id="id_dify_credencial" name="dify_credencial"' in html and '<option value="dify-prod" selected>' in html
+    assert "segredo-ficticio-123" not in html and "dify-prod" in html
+    assert '<select id="id_datajud_credencial" name="datajud_credencial"' in html and "Nova credencial" in html
