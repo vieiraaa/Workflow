@@ -1,0 +1,18 @@
+id: T-080
+titulo: M8 · Cadastro de processos · adversarial
+dono: Lupa (qa)
+regras: [CAD-01..23, SEG-*]
+aceite:
+  - "tests/adversarial/juridico/ ataca, sem ler o código da aplicação:
+     IDOR/escopo (setor sem acesso, Base vendo envio/PDF de outro, ações de Adm por Base/Coordenador, excluídos);
+     upload hostil (não-PDF com extensão .pdf, PDF com JavaScript/anexos, nome de arquivo com ../ e caracteres de
+     controle, PDF bomba de páginas/objetos, mais de 10 arquivos, > 30 MB, zip disfarçado);
+     resposta hostil do Dify falso (JSON enorme ou aninhado, campos com HTML/script, CPF/valor malformados, prompt
+     injection no texto do PDF tentando mudar status/carteira/marcar cadastrado, chave refletida na resposta);
+     DataJud falso hostil (redirect para loopback, 401, resposta gigante, tribunal com caracteres estranhos);
+     configuração (dify_url para endereço interno/metadata, CA PEM inválido ou outra CA, credencial de outro setor);
+     duplicidade (corrida de 2 envios do mesmo arquivo, número com dígito inválido igual a um válido, restaurar
+     excluído); CSRF/GET em mutações; XSS nas telas (nome de arquivo, adverso, observações, motivo) em chromium e webkit;
+     chave do Dify/DataJud nunca em tela, log, resposta_ia, motivo ou JSON de status."
+  - "Achado vira relato ao Lead com o teste que falha; não enfraqueça teste. Nada de internet nem DATABASE_URL."
+arquivos: [tests/adversarial/juridico/]
