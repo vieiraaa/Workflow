@@ -190,7 +190,14 @@
     palco.style.height = Math.ceil(alturaTotal * escala) + "px";
   }
   enquadrar();
-  if (window.ResizeObserver) new ResizeObserver(enquadrar).observe(palco);
+  /* O enquadramento altera o layout observado: adiar para o próximo quadro (e juntar chamadas do mesmo quadro) evita o laço do ResizeObserver. */
+  var quadroPendente = false;
+  function enquadrarNoProximoQuadro() {
+    if (quadroPendente) return;
+    quadroPendente = true;
+    requestAnimationFrame(function () { quadroPendente = false; enquadrar(); });
+  }
+  if (window.ResizeObserver) new ResizeObserver(enquadrarNoProximoQuadro).observe(palco);
   else window.addEventListener("resize", enquadrar);
   var cartao = raiz.closest("details");
   if (cartao) cartao.addEventListener("toggle", enquadrar);
