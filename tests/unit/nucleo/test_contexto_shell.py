@@ -34,10 +34,10 @@ def test_shell_do_adm(usuario_adm):
         "funcoes",
         "fluxos",
         "execucoes",
+        "juridico",
         "usuarios",
         "setores",
         "credenciais",
-        "juridico",
     ]
 
 
@@ -65,10 +65,10 @@ def test_menu_por_papel(monkeypatch, usuario_adm, usuario_coordenador, usuario_b
         "funcoes",
         "fluxos",
         "execucoes",
+        "juridico",
         "usuarios",
         "setores",
         "credenciais",
-        "juridico",
     ]
     assert chaves(usuario_coordenador) == ["inicio", "funcoes", "fluxos", "execucoes"]
     assert chaves(usuario_base) == ["inicio", "funcoes", "fluxos", "execucoes"]
@@ -84,10 +84,10 @@ def test_item_ativo_pelo_namespace(monkeypatch, usuario_adm):
         "funcoes": False,
         "fluxos": True,
         "execucoes": False,
+        "juridico": False,
         "usuarios": False,
         "setores": False,
         "credenciais": False,
-        "juridico": False,
     }
 
 
@@ -108,3 +108,18 @@ def test_item_do_juridico_traz_o_grupo_e_so_aparece_com_acesso(
     assert "juridico" not in {
         i["chave"] for i in contexto.montar_menu(_request(usuario_coordenador))
     }
+
+
+def test_grupos_do_menu_e_ordem(monkeypatch, usuario_adm):
+    monkeypatch.setattr(contexto, "reverse", lambda rota: f"/{rota}/")
+    menu = contexto.montar_menu(_request(usuario_adm))
+    assert [(i["chave"], i["grupo"]) for i in menu] == [
+        ("inicio", ""),
+        ("funcoes", ""),
+        ("fluxos", ""),
+        ("execucoes", ""),
+        ("juridico", "Jurídico"),
+        ("usuarios", "Administração"),
+        ("setores", "Administração"),
+        ("credenciais", "Administração"),
+    ]

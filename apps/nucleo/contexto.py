@@ -10,16 +10,6 @@ ITENS_MENU = [
     ("funcoes", "Funções", "funcoes:catalogo", "square-function", "funcoes", "funcoes.ver"),
     ("fluxos", "Fluxos", "fluxos:lista", "workflow", "fluxos", "fluxos.ver"),
     ("execucoes", "Execuções", "execucoes:lista", "clock", "execucoes", "execucoes.ver"),
-    ("usuarios", "Usuários", "contas:usuarios", "users", "contas", "usuarios.gerenciar"),
-    ("setores", "Setores", "contas:setores", "layers", "contas", "setores.gerenciar"),
-    (
-        "credenciais",
-        "Credenciais",
-        "credenciais:lista",
-        "key-round",
-        "credenciais",
-        "credenciais.gerenciar",
-    ),
     (
         "juridico",
         "Cadastro de processos",
@@ -28,6 +18,33 @@ ITENS_MENU = [
         "juridico",
         "cadastro.ver",
         "Jurídico",
+    ),
+    (
+        "usuarios",
+        "Usuários",
+        "contas:usuarios",
+        "users",
+        "contas",
+        "usuarios.gerenciar",
+        "Administração",
+    ),
+    (
+        "setores",
+        "Setores",
+        "contas:setores",
+        "layers",
+        "contas",
+        "setores.gerenciar",
+        "Administração",
+    ),
+    (
+        "credenciais",
+        "Credenciais",
+        "credenciais:lista",
+        "key-round",
+        "credenciais",
+        "credenciais.gerenciar",
+        "Administração",
     ),
 ]
 
@@ -71,8 +88,8 @@ def atalhos_do_usuario(request):
 
 
 def shell(request):
-    """Variáveis: `menu` [{chave, rotulo, url, icone, ativo, grupo ('' ou 'Jurídico')}],
-    `usuario_nome`, `usuario_papel`,
+    """Variáveis: `menu` [{chave, rotulo, url, icone, ativo, grupo}] (grupo: '', 'Jurídico' ou
+    'Administração'), `usuario_nome`, `usuario_papel`,
     `sem_papel` (True para usuário logado sem papel)."""
     logado = request.user.is_authenticated
     return {
