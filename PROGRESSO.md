@@ -15,3 +15,6 @@ Servidores: :8000 = demo local · Métricas: python3 docs/metricas/metricas.py
   (serialized_rollback nos adversariais) · check completo VERDE · 96 capturas em docs/telas/m8 · PR em
   docs/prs/modulo-8.md (com roteiro de teste no notebook). Merge na main só a pedido do usuário (leva junto o nó n8n).
   Demo agora em :8001 (8000 fica para a cópia estável/Supabase, D-018). Notas de log compiladas numa só ("Log de Atividades").
+
+## 20/10/2026
+- Identidade visual Egger e Mesquita (branch feat/identidade-eem, sobre feat/m8-cadastro): design-base nova, todas as telas, papel do Vitral reescrito; T-086..089; check completo VERDE; 336 capturas; PR em docs/prs/identidade-eem.md. Merge/push só a pedido. Pendente do usuário: logo negativo PNG transparente.
