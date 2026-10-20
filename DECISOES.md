@@ -36,3 +36,4 @@
 - D-034 · 19/10 · Fase única no cadastro = lista do Dify; SENTENÇA do caminho CNJ → DECISÓRIA (provisório até a Controladoria confirmar).
 - D-035 · 19/10 · TLS do Dify (certificado do FortiGate): verificação nunca desligada; confia no repositório do SO (truststore) e numa CA colada na Configuração só para o host do Dify; testes reais no notebook da empresa.
 - D-036 · 20/10 · Identidade visual Egger e Mesquita em todo o sistema (design-base reescrita): escuro azul-marinho quase preto com primário ouro; claro na mesma base com primário roxo; Montserrat (títulos, KPIs) + Inter; logos oficiais; nomes de tokens mantidos; contraste AA conferido. Papel do Vitral reescrito (maestri/papeis/front.md).
+- D-037 · 20/10 · Montserrat vendorizada como fonte variável (@fontsource-variable/montserrat 5.2.8, OFL, latin + latin-ext) em static/vendor/montserrat/5.2.8; logo no escuro = oficial com filtro branco até chegar a versão negativa transparente.

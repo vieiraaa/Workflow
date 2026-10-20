@@ -1,0 +1,9 @@
+id: T-088
+titulo: Identidade · título longo no celular e rótulo de KPI quebrando
+dono: Vitral (front)
+regras: [D-036, design-base]
+aceite:
+  - "Título de página longo (ex.: 'Processo 0005214-60.2023.8.26.0100') a 390 px: no máximo 2 linhas, tamanho reduzido no celular (token), sem empurrar as ações para fora; número do processo sem quebrar no meio."
+  - "Rótulo de cartão de resumo ('Com pendências') não quebra a 1440 px (reduzir o espaço do ponto ou permitir 1 linha com reticências e title)."
+  - "Capturas regeneradas dos módulos afetados; frontend + e2e verdes."
+arquivos: [templates/, static/, tests/unit/frontend/, tests/e2e/]

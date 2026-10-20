@@ -1,0 +1,8 @@
+id: T-087
+titulo: Identidade · grupo "Administração" no menu lateral
+dono: Forja (back)
+regras: [D-036, prévia aprovada]
+aceite:
+  - "Itens Usuários, Setores e Credenciais do menu ganham grupo 'Administração' (como 'Jurídico' já tem), mesma estrutura que o Vitral usa (item.grupo); ordem: Início, Funções, Fluxos, Execuções · Jurídico · Administração. Só para quem já os vê (motor de permissão, sem mudança de regra)."
+  - "tests/unit verdes (ajuste os do menu/contexto do shell que fixam a lista); aceite de todos os módulos verde."
+arquivos: [apps/, tests/unit/ (menos frontend/)]
