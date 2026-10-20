@@ -1,48 +1,68 @@
-/* Design base: tokens. Toda decisão visual mora aqui (o designer refina este arquivo). */
+/* Design base: tokens da identidade Egger e Mesquita (D-036). Toda decisão visual mora aqui.
+   Os NOMES dos tokens são estáveis (as telas dependem deles); mude só os valores. */
 :root {
   color-scheme: light;
   --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  --font-titulo: "Montserrat", "Inter", "Segoe UI", system-ui, sans-serif;   /* a letra do logo */
   --font-mono: ui-monospace, "Cascadia Code", "SF Mono", Consolas, monospace;
-  --text-title: 1.75rem; --text-h2: 1.25rem; --text-body: 0.9375rem; --text-sm: 0.8125rem;
+  --text-title: 1.625rem; --text-h2: 1.25rem; --text-body: 0.9375rem; --text-sm: 0.8125rem;
+  --text-kpi: 2.125rem;      /* números de destaque (cartões de resumo) */
+  --text-rotulo: 0.6875rem;  /* rótulos de seção em caixa alta (Montserrat, espaçado) */
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-6: 24px; --sp-8: 32px; --sp-12: 48px;
-  --content-max: 1200px;
+  --content-max: 1440px;
 
-  --bg: #f2f2f7;            /* fundo agrupado do iOS */
-  --surface: #ffffff;
-  --surface-2: #f9f9fb;
-  --text: #1c1c1e; --text-2: rgba(60,60,67,.70); --text-3: rgba(60,60,67,.45);
-  --hairline: rgba(60,60,67,.14);
-  --fill: rgba(120,120,128,.10); --fill-2: rgba(120,120,128,.16);
+  /* marca (iguais nos dois temas) */
+  --marca-roxo: #4F1F5C;     /* letras do logo */
+  --marca-ameixa: #3E2745;   /* fundo da versão negativa */
+  --marca-ouro: #F8B334;     /* o "e" do logo */
 
-  --accent: #007aff; --fill-accent: rgba(0,122,255,.10);
-  --success: #34c759; --warning: #ff9f0a; --danger: #ff3b30; --orange: #ff9500; --purple: #af52de;
-  --ring: 0 0 0 4px rgba(0,122,255,.22);
+  /* claro: mesma base, cartões brancos sobre cinza-lilás */
+  --bg: #F5F4F7;
+  --surface: #FFFFFF;
+  --surface-2: #F3F1F5;
+  --sidebar: #FFFFFF;
+  --text: #1C1422; --text-2: #5C5266; --text-3: #766D80;
+  --hairline: #E6E2EA; --borda-forte: #D6D0DC;
+  --fill: rgba(79,31,92,.06); --fill-2: rgba(79,31,92,.10);
+
+  --accent: var(--marca-roxo); --on-accent: #FFFFFF; --fill-accent: rgba(79,31,92,.08);
+  --destaque: #9A6200;       /* rótulos de seção e detalhes em ouro (escurecido p/ contraste AA no claro) */
+  --success: #0B7A5F; --warning: #9A6200; --danger: #D03548; --orange: #C2660A; --purple: #7A3D8C;
+  --fill-success: rgba(15,157,122,.10); --fill-warning: rgba(248,179,52,.18); --fill-danger: rgba(208,53,72,.09);
+  --ring: 0 0 0 3px rgba(79,31,92,.25);
 
   --r-s: 6px; --r-m: 10px; --r-l: 14px; --r-xl: 20px; --r-pill: 999px;
-  --shadow-1: 0 1px 2px rgba(0,0,0,.04), 0 1px 8px rgba(0,0,0,.04);
-  --shadow-2: 0 4px 12px rgba(0,0,0,.06), 0 16px 40px rgba(0,0,0,.10);
+  --shadow-1: 0 1px 2px rgba(28,20,34,.05), 0 6px 18px rgba(28,20,34,.05);
+  --shadow-2: 0 4px 12px rgba(28,20,34,.08), 0 16px 40px rgba(28,20,34,.12);
+  --brilho-status: 0 0 8px currentColor;   /* ponto de status "aceso" */
   --ease: cubic-bezier(.2,.8,.2,1); --dur: 180ms;
 }
 
+/* escuro: azul-marinho quase preto (referência: painel de monitoramento da TI) */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #000000;
-  --surface: #1c1c1e;
-  --surface-2: #2c2c2e;
-  --text: #f5f5f7; --text-2: rgba(235,235,245,.68); --text-3: rgba(235,235,245,.40);
-  --hairline: rgba(84,84,88,.55);
-  --fill: rgba(118,118,128,.22); --fill-2: rgba(118,118,128,.32);
-  --accent: #0a84ff; --fill-accent: rgba(10,132,255,.18);
-  --success: #30d158; --warning: #ffd60a; --danger: #ff453a; --orange: #ff9f0a; --purple: #bf5af2;
-  --ring: 0 0 0 4px rgba(10,132,255,.35);
-  --shadow-1: 0 1px 2px rgba(0,0,0,.4);
-  --shadow-2: 0 8px 32px rgba(0,0,0,.5);
+  --bg: #060A12;
+  --surface: #0F1726;
+  --surface-2: #141E31;
+  --sidebar: #0A101C;
+  --text: #E8ECF4; --text-2: #9AA6BC; --text-3: #7D8AA3;
+  --hairline: #1D2940; --borda-forte: #2A3956;
+  --fill: rgba(154,166,188,.08); --fill-2: rgba(154,166,188,.14);
+
+  --accent: var(--marca-ouro); --on-accent: #1A1206; --fill-accent: rgba(248,179,52,.12);
+  --destaque: #B48CC8;       /* roxo da marca clareado p/ contraste no escuro */
+  --success: #34E0B4; --warning: #F8B334; --danger: #FF6B7A; --orange: #FF9F43; --purple: #B48CC8;
+  --fill-success: rgba(52,224,180,.12); --fill-warning: rgba(248,179,52,.12); --fill-danger: rgba(255,107,122,.12);
+  --ring: 0 0 0 3px rgba(248,179,52,.35);
+  --shadow-1: 0 1px 0 rgba(255,255,255,.03) inset, 0 8px 24px rgba(0,0,0,.35);
+  --shadow-2: 0 12px 40px rgba(0,0,0,.55);
 }
 
 html, body { background: var(--bg); color: var(--text); font: 400 var(--text-body)/1.5 var(--font); }
 body { margin: 0; min-height: 100vh; -webkit-font-smoothing: antialiased; }
+h1, h2, h3 { font-family: var(--font-titulo); }
 
-/* Opcional, DESLIGADO por padrão: vidro para a etapa de acabamento (designer). */
+/* Opcional, DESLIGADO: vidro. Não usar sem decisão de design. */
 .vidro {
   background: color-mix(in srgb, var(--surface) 70%, transparent);
   -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);

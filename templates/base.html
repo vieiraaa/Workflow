@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block titulo %}Construtor de Workflows{% endblock %}</title>
   {% include "componentes/_tema_inicial.html" %}
+  <link rel="icon" type="image/png" sizes="32x32" href="{% static 'img/marca/favicon-32.png' %}">
+  <link rel="apple-touch-icon" href="{% static 'img/marca/apple-touch-icon.png' %}">
   <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
   {% block estilos %}{% endblock %}
@@ -13,7 +15,7 @@
 <div class="shell" data-shell>
   <aside class="sidebar" id="sidebar" aria-label="Menu principal">
   <div class="sidebar__interno">
-    <div class="sidebar__marca">{% include "componentes/icone.html" with nome="workflow" %}<span>Construtor</span></div>
+    <a class="sidebar__marca" href="{% url 'inicio' %}" aria-label="Egger e Mesquita Advogados Associados · Workflows"><img class="sidebar__logo" src="{% static 'img/marca/logo.png' %}" alt="Egger e Mesquita" width="100" height="40"><span class="sidebar__produto">Workflows</span></a>
     <ul class="sidebar__menu">
       {% for item in menu %}
       {% ifchanged item.grupo %}{% if item.grupo %}<li class="sidebar__grupo" role="presentation">{{ item.grupo }}</li>{% endif %}{% endifchanged %}

@@ -1,6 +1,6 @@
-{# Cartão de número. rotulo, valor, chave (data-resumo, usada pelo auto-refresh), href (opcional: vira atalho/filtro), tom: ok|aviso|erro, detalhe (texto pequeno). Cartão-filtro: filtravel=1 + atual (valor em uso) + ativo_valor (valor que este cartão aplica; "" = sem filtro). #}
+{# Cartão de número. rotulo, valor, valor_texto (1 = valor em frase/data, fonte menor), chave (data-resumo, usada pelo auto-refresh), href (opcional: vira atalho/filtro), tom: ok|aviso|erro, detalhe (texto pequeno). Cartão-filtro: filtravel=1 + atual (valor em uso) + ativo_valor (valor que este cartão aplica; "" = sem filtro). #}
 {% if href %}<a class="resumo{% if filtravel and atual == ativo_valor or filtravel and not atual and not ativo_valor %} resumo--ativo{% endif %}{% if tom %} resumo--{{ tom }}{% endif %}" href="{{ href }}"{% if filtravel and atual == ativo_valor or filtravel and not atual and not ativo_valor %} aria-current="true"{% endif %}>{% else %}<div class="resumo{% if tom %} resumo--{{ tom }}{% endif %}">{% endif %}
-  <span class="resumo__rotulo">{{ rotulo }}</span>
-  <span class="resumo__valor"{% if chave %} data-resumo="{{ chave }}"{% endif %}>{{ valor }}</span>
+  <span class="resumo__cab"><span class="resumo__rotulo">{{ rotulo }}</span>{% if tom %}<span class="resumo__ponto" aria-hidden="true"></span>{% endif %}</span>
+  <span class="resumo__valor{% if valor_texto %} resumo__valor--texto{% endif %}"{% if chave %} data-resumo="{{ chave }}"{% endif %}>{{ valor }}</span>
   {% if detalhe %}<span class="resumo__detalhe">{{ detalhe }}</span>{% endif %}
 {% if href %}</a>{% else %}</div>{% endif %}

@@ -8,8 +8,8 @@
 {% block conteudo %}
 <p class="texto-2">Últimos 30 dias.</p>
 <section class="resumos" aria-label="Desempenho">
-  {% if cartoes.ultima %}{% include "componentes/cartao_resumo.html" with rotulo="Última execução" valor=cartoes.ultima.quando detalhe=cartoes.ultima.origem %}{% else %}{% include "componentes/cartao_resumo.html" with rotulo="Última execução" valor="—" detalhe="Nenhum envio" %}{% endif %}
-  {% include "componentes/cartao_resumo.html" with rotulo="Execuções" valor=cartoes.execucoes.envios|add:" · "|add:cartoes.execucoes.casos %}
+  {% if cartoes.ultima %}{% include "componentes/cartao_resumo.html" with rotulo="Última execução" valor_texto=1 valor=cartoes.ultima.quando detalhe=cartoes.ultima.origem %}{% else %}{% include "componentes/cartao_resumo.html" with rotulo="Última execução" valor_texto=1 valor="—" detalhe="Nenhum envio" %}{% endif %}
+  {% include "componentes/cartao_resumo.html" with rotulo="Execuções" valor_texto=1 valor=cartoes.execucoes.envios|add:" · "|add:cartoes.execucoes.casos %}
   {% include "componentes/cartao_resumo.html" with rotulo="Casos com erro" valor=cartoes.casos_erro.n detalhe=cartoes.casos_erro.pct|add:" dos casos" tom="erro" %}
   {% include "componentes/cartao_resumo.html" with rotulo="Tempo médio por execução" valor=cartoes.tempo_medio.execucao detalhe=cartoes.tempo_medio.caso|add:" por caso" %}
   {% include "componentes/cartao_resumo.html" with rotulo="Erros pendentes" valor=cartoes.erros_pendentes tom="erro" %}

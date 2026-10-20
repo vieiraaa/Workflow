@@ -12,7 +12,7 @@
     <thead><tr><th scope="col">Data e hora</th><th scope="col">Processo</th><th scope="col">Adverso</th><th scope="col">Comarca</th></tr></thead>
     <tbody>{% for p in processos %}
     <tr class="tabela__linha tabela__linha--clicavel" data-href="{{ p.url_detalhe }}">
-      <td class="tabela__papel"><span class="chip{% if p.audiencia_proxima %} chip--erro{% endif %}">{% include "componentes/icone.html" with nome="calendar-clock" tamanho=16 %}<span>{{ p.audiencia_texto }}</span></span></td>
+      <td class="tabela__papel"><span class="chip chip--audiencia{% if p.audiencia_proxima %} chip--erro{% endif %}">{% include "componentes/icone.html" with nome="calendar-clock" tamanho=16 %}<span>{{ p.audiencia_texto }}</span></span></td>
       <td class="tabela__principal"><a class="tabela__link" href="{{ p.url_detalhe }}">{{ p.numero }}</a></td>
       <td class="tabela__secundario texto-2">{{ p.adverso|default:"—" }}</td>
       <td class="tabela__extra texto-2">{{ p.comarca|default:"—" }}</td>

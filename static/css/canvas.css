@@ -1,6 +1,6 @@
 /* Editor de canvas (TEL-05). Só tokens. Sobrescreve o CSS padrão do Drawflow. */
 .conteudo--cheio { max-width: none; padding: 0; gap: 0; }
-:root { --paleta-w: 200px; --inspector-w: 340px; --no-w: 220px; --porta-passo: 36px; --porta: 18px; --cor-gatilho: var(--orange); --cor-http: var(--accent); --cor-saida: var(--success); --cor-dados: var(--purple); --cor-fluxo: var(--warning); --cor-canvas: var(--text-2); }
+:root { --paleta-w: 200px; --inspector-w: 340px; --no-w: 220px; --porta-passo: 36px; --porta: 18px; --cor-gatilho: var(--marca-ouro); --cor-http: var(--purple); --cor-saida: var(--success); --cor-dados: var(--text-2); --cor-fluxo: var(--orange); --cor-canvas: var(--text-3); }
 
 .editor { position: relative; display: grid; grid-template-columns: var(--paleta-w) minmax(0, 1fr) var(--inspector-w); height: calc(100dvh - var(--topbar-h)); min-height: 480px; background: var(--bg); overflow: hidden; }
 .editor__paleta, .editor__inspector { background: var(--surface); overflow-y: auto; padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-3); }
@@ -126,7 +126,7 @@
 /* Notas (sticky) */
 .nota { --nota: var(--warning); position: relative; min-width: 160px; min-height: 80px; padding: var(--sp-3); border-radius: var(--r-m); background: color-mix(in srgb, var(--nota) 22%, var(--surface)); border: 1px solid color-mix(in srgb, var(--nota) 45%, transparent); box-shadow: var(--shadow-1); color: var(--text); overflow: hidden; }
 .nota--amarela { --nota: var(--warning); }
-.nota--azul { --nota: var(--accent); }
+.nota--azul { --nota: var(--purple); }
 .nota--verde { --nota: var(--success); }
 .nota--cinza { --nota: var(--text-3); }
 .nota__texto { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--text-sm); height: 100%; overflow: hidden; }

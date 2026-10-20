@@ -7,7 +7,7 @@
   </a>
   {% if p.audiencia_texto or p.cnj_situacao != "nao_consultado" or p.pode_excluir %}
   <div class="proc__rodape">
-    {% if p.audiencia_texto %}<span class="chip{% if p.audiencia_proxima %} chip--erro{% endif %}" title="Próxima audiência">{% include "componentes/icone.html" with nome="calendar-clock" tamanho=16 %}<span>{{ p.audiencia_texto }}</span></span>{% endif %}
+    {% if p.audiencia_texto %}<span class="chip chip--audiencia{% if p.audiencia_proxima %} chip--erro{% endif %}" title="Próxima audiência">{% include "componentes/icone.html" with nome="calendar-clock" tamanho=16 %}<span>{{ p.audiencia_texto }}</span></span>{% endif %}
     {% include "componentes/icone_cnj.html" with situacao=p.cnj_situacao %}
     {% if p.pode_excluir %}<details class="proc__excluir">
       <summary class="botao botao--destrutivo botao--pequeno">{% include "componentes/icone.html" with nome="trash" tamanho=16 %}<span>Excluir</span></summary>
