@@ -1,0 +1,17 @@
+id: T-086
+titulo: Identidade visual Egger e Mesquita em todo o sistema (D-036)
+dono: Vitral (front)
+regras: [design-base (reescrita 20/10), D-036]
+referencias:
+  - ".claude/skills/design-base/SKILL.md e tokens.css (novos) — fonte da verdade"
+  - "Prévia aprovada pelo usuário: ~/Downloads/Agente de IA para Prazos e Cadastro/previa-identidade/ (painel-escuro.png, painel-claro.png, painel.html)"
+  - "Logos oficiais: ~/Downloads/Agente de IA para Prazos e Cadastro/fotos/ (egger&mesquita_logo_prioritaria_.png = principal p/ fundo claro; logo-dark.png = versão compacta; egger&mesquita_logo_reduzida_prioritaria.png = emblema E·e·M). NÃO usar os arquivos ArcollTech/araucária."
+aceite:
+  - "Copiar o tokens.css novo para static/css/tokens.css (sem alterar nomes). Trocar todo texto fixo sobre --accent por --on-accent em static/css e templates."
+  - "Montserrat vendorizada (OFL) em static/vendor/montserrat/<versao>/ (woff2 latin 400/500/600/700, ex.: @fontsource/montserrat via jsdelivr), com @font-face; nada de Google Fonts em runtime."
+  - "Logos em static/img/marca/ (otimizados: o principal tem 8063 px — gere versões de até ~600 px). Shell com o logo no topo + rótulo 'Workflows'. Escuro: versão clara do logo (enquanto o usuário não manda a negativa transparente, use o logo com filtro para branco e anote a pendência). Favicon com o emblema."
+  - "Aplicar a design-base em TODAS as telas (M1..M8, Funções, editor de fluxos/canvas, erros 403/404, login): shell, KPIs com número Montserrat e ponto aceso, rótulos de seção, chips, botões, campos, listas selecionadas, gráficos do Log de erros, nós do canvas. Login com a marca."
+  - "Nada muda em regra, rota, contexto ou texto de mensagem (só visual). Testes de tela atualizados só onde verificavam cor/classe antiga — nunca enfraquecidos."
+  - "Contraste AA nos dois temas; 390 px sem rolagem horizontal; scripts/telas.py de TODOS os módulos sem console error/overflow; revisar você mesmo as capturas com a checklist nova."
+  - "tests/unit/frontend e tests/e2e verdes; check --rapido verde."
+arquivos: [templates/, static/, tests/unit/frontend/, tests/e2e/]
