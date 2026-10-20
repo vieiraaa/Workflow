@@ -3,7 +3,7 @@
 {% block estilos %}<link rel="stylesheet" href="{% static 'css/juridico.css' %}">{% endblock %}
 {% block scripts %}<script src="{% static 'js/juridico.js' %}" defer></script>{% endblock %}
 {% block titulo %}Processo {{ processo.numero }} · Construtor de Workflows{% endblock %}
-{% block titulo_pagina %}Processo {{ processo.numero }}{% endblock %}
+{% block titulo_pagina %}Processo <span class="nowrap">{{ processo.numero }}</span>{% endblock %}
 {% block acoes %}{% url "juridico:painel" as url_painel_ %}{% include "componentes/botao.html" with rotulo="Painel" icone="chevron-left" href=url_painel_ %}{% endblock %}
 {% block conteudo %}{% url "juridico:painel" as url_painel_ %}{% url "juridico:enviar_pdfs" as url_enviar_pdfs_ %}
 <section class="card processo-cab">

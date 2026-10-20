@@ -75,6 +75,7 @@ table, .num, .indicador__valor, .resumo__valor { font-variant-numeric: tabular-n
   padding: var(--sp-4) var(--sp-8) var(--sp-2);
 }
 .topbar__titulo { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.nowrap { white-space: nowrap; }
 .topbar { align-items: flex-end; }
 .topbar__acoes { display: flex; align-items: center; gap: var(--sp-2); }
 .botao.topbar__menu { display: none; }
@@ -88,7 +89,9 @@ table, .num, .indicador__valor, .resumo__valor { font-variant-numeric: tabular-n
   .shell.menu-aberto .sidebar { transform: none; box-shadow: var(--shadow-2); }
   .shell.menu-aberto .sidebar-fundo { display: block; position: fixed; inset: 0; z-index: 10; background: var(--fill-2); }
   :root { --topbar-h: 56px; --logo-h: 36px; }
-  .topbar { padding: var(--sp-3) var(--sp-4) var(--sp-2); }
+  .topbar { padding: var(--sp-3) var(--sp-4) var(--sp-2); flex-wrap: wrap; }
+  .topbar__titulo { order: 3; flex: 1 1 100%; font-size: var(--text-h2); overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+  .topbar__acoes { margin-left: auto; }
   .botao.topbar__menu { display: inline-flex; }
   .conteudo { padding: var(--sp-3) var(--sp-4) var(--sp-8); }
   h1 { font-size: var(--text-h2); }

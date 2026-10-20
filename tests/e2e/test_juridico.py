@@ -121,3 +121,27 @@ def test_painel_atualiza_contagens_e_para_quando_acaba(pagina, live_server, proc
     pagina.wait_for_function("document.querySelector('[data-painel-aviso-texto]').textContent.indexOf('concluído') >= 0", timeout=20000)
     assert pagina.locator('[data-resumo="na_fila"]').inner_text() == "0"
     assert pagina.locator("[data-painel-recarregar]").is_visible()
+
+
+def test_titulo_longo_no_celular_tem_ate_2_linhas_e_numero_inteiro(pagina, live_server, processos):
+    pagina.set_viewport_size({"width": 390, "height": 844})
+    pagina.goto(live_server.url + reverse("juridico:processo", kwargs={"pk": processos[0].pk}))
+    medidas = pagina.evaluate(
+        """() => {
+          const t = document.querySelector('.topbar__titulo'), n = t.querySelector('.nowrap');
+          const lh = parseFloat(getComputedStyle(t).lineHeight);
+          return {linhas: Math.round(t.getBoundingClientRect().height / lh), pedacos: n.getClientRects().length,
+                  acoes: document.querySelector('.topbar__acoes').getBoundingClientRect().right <= window.innerWidth};
+        }"""
+    )
+    assert medidas["linhas"] <= 2 and medidas["pedacos"] == 1 and medidas["acoes"]
+    assert _sem_rolagem_horizontal(pagina)
+
+
+def test_rotulo_do_kpi_nao_quebra_a_1440(pagina, live_server, processos):
+    pagina.goto(live_server.url + reverse("juridico:painel"))
+    alturas = pagina.evaluate(
+        "[...document.querySelectorAll('.resumo__rotulo')].map(e => [e.getBoundingClientRect().height, parseFloat(getComputedStyle(e).lineHeight)])"
+    )
+    assert alturas and all(h <= lh + 1 for h, lh in alturas)
+    assert not pagina.evaluate("[...document.querySelectorAll('.resumo__rotulo')].some(e => e.scrollWidth > e.clientWidth)")
