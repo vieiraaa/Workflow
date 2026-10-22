@@ -1,0 +1,8 @@
+id: T-095
+titulo: Restaurar aria-current="page" no item ativo do menu lateral
+dono: Vitral (front)
+depende_de: [T-094]
+aceite:
+  - "Item ativo da lateral volta a ter aria-current='page' em todas as telas (o sr-only 'página atual' pode sair); nenhuma outra mudança."
+  - "Depois da T-094 da Lupa (teste do painel passa a procurar o aria-current dentro da lista): aceite juridico + frontend + e2e verdes."
+arquivos: [templates/, tests/unit/frontend/, tests/e2e/]
