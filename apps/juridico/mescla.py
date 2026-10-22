@@ -173,10 +173,15 @@ def extrair_audiencia(processo, agora=None):
 def atualizar_audiencia(processo, agora=None):
     """Data e tipo vêm do mesmo trecho; cada um respeita a edição manual (CAD-20/26)."""
     quando, tipo = extrair_audiencia_e_tipo(processo, agora)
+    tinha_data = processo.proxima_audiencia is not None
     if processo.origem_campos.get("proxima_audiencia") != "manual":
         processo.proxima_audiencia = quando
     if processo.origem_campos.get("proxima_audiencia_tipo") != "manual":
-        processo.proxima_audiencia_tipo = tipo if quando else ""
+        if quando:
+            processo.proxima_audiencia_tipo = tipo
+        elif tinha_data:  # a audiência saiu do texto: o tipo que ela trouxe sai junto
+            processo.proxima_audiencia_tipo = ""
+        # sem audiência no texto e sem data antes: não mexe (campo ausente não muda)
 
 
 # ---------------------------------------------------------------- DataJud

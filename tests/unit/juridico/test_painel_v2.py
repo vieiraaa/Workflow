@@ -256,3 +256,25 @@ def test_tipo_da_audiencia_editavel_na_conferencia_vira_manual(cliente_adm):
     assert p.origem_campos["proxima_audiencia_tipo"] == "manual"
     resposta = cliente_adm.post(url, {"proxima_audiencia_tipo": "x" * 81})
     assert resposta.status_code == 200 and "Máximo de 80 caracteres." in resposta.content.decode()
+
+
+def test_tipo_sem_audiencia_no_texto_nao_e_zerado_pela_recalculo():
+    processo = Processo(origem_campos={}, proxima_audiencia_tipo="mediação")
+    mescla.atualizar_audiencia(processo)  # nada no texto e sem data antes
+    assert processo.proxima_audiencia_tipo == "mediação"
+    processo.proxima_audiencia = timezone.now() + timedelta(days=2)  # data de extração antiga
+    mescla.atualizar_audiencia(processo)  # a audiência saiu do texto: tipo sai junto
+    assert processo.proxima_audiencia is None and processo.proxima_audiencia_tipo == ""
+
+
+@pytest.mark.django_db
+def test_post_sem_o_campo_do_tipo_nao_o_altera(cliente_adm):
+    p = _processo(1)
+    Processo.objects.filter(pk=p.pk).update(proxima_audiencia_tipo="mediação")
+    url = reverse("juridico:processo", kwargs={"pk": p.pk})
+    cliente_adm.post(url, {"comarca": "Outra"})
+    p.refresh_from_db()
+    assert p.proxima_audiencia_tipo == "mediação" and p.comarca == "Outra"
+    cliente_adm.post(url, {"proxima_audiencia_tipo": ""})
+    p.refresh_from_db()
+    assert p.proxima_audiencia_tipo == ""
