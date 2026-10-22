@@ -1,7 +1,6 @@
 """Render das telas do Jurídico (M8, TEL-27..35) com contexto de exemplo (contrato CAD-19/CAD-23), sem depender das views."""
 
 import json
-import re
 
 import pytest
 from django.core.paginator import Paginator
@@ -31,7 +30,8 @@ def tela(pedido, nome, **ctx):
 
 def proc(pk=1, **extra):
     base = {
-        "pk": pk, "numero": f"000{pk}655-91.2025.8.16.0024", "adverso": f"Fulano {HOSTIL}", "cpf_cnpj_mascarado": "***.456.789-**",
+        "pk": pk, "numero": f"000{pk}655-91.2025.8.16.0024", "numero_sequencial": f"000{pk}655", "numero_resto": "-91.2025.8.16.0024",
+        "faltando": 2, "adverso": f"Fulano {HOSTIL}", "cpf_cnpj_mascarado": "***.456.789-**",
         "carteira": "Ativos", "comarca": "Curitiba", "valor_texto": "R$ 1.234,56", "status": "CONFERIR", "status_rotulo": "Conferir",
         "cnj_situacao": "confere", "audiencia_texto": "18/09/2026 10:00", "audiencia_proxima": True, "selecionado": pk == 1,
         "url_painel": f"/juridico/?p={pk}", "url_detalhe": f"/juridico/processos/{pk}/", "url_excluir": f"/juridico/processos/{pk}/excluir/",
@@ -42,24 +42,38 @@ def proc(pk=1, **extra):
 
 
 RESUMO = {"total": 3, "com_pendencias": 1, "conferir": 1, "cadastrados": 1, "na_fila": 2, "erros": 0}
-CARTEIRAS = [
-    {"chave": "todos", "nome": "Todos", "total": 3, "ativa": True, "ativo": True, "url": "?"},
-    {"chave": "1", "nome": "Ativos", "total": 3, "ativa": True, "ativo": False, "url": "?carteira=1"},
-    {"chave": "outros", "nome": "Outros", "total": 0, "ativa": True, "ativo": False, "url": "?carteira=outros"},
+FLUXO = {"em_leitura": 2, "erros_leitura": 3, "url_erros": "/juridico/erros/", "com_pendencias": 1, "conferir": 1, "cadastrados": 1, "total": 3, "pct_cadastrados": 33}
+CLIENTES = [
+    {"pk": None, "nome": "Todos", "total": 3, "cadastrados": 1, "pct": 33, "url": "?", "ativo": True},
+    {"pk": 1, "nome": "Ativos", "total": 3, "cadastrados": 1, "pct": 33, "url": "?carteira=1", "ativo": False},
+    {"pk": "outros", "nome": "Outros", "total": 0, "cadastrados": 0, "pct": 0, "url": "?carteira=outros", "ativo": False},
 ]
+PARTES = [{"valor": "0001655", "legenda": "sequencial"}, {"valor": "91", "legenda": "dígito"}, {"valor": "2025", "legenda": "ano"},
+          {"valor": "8", "legenda": "estadual"}, {"valor": "16", "legenda": "TJPR"}, {"valor": "0024", "legenda": "origem"}]
+OBRIG = [{"campo": c, "rotulo": c.title(), "ok": i != 2} for i, c in enumerate(("numero", "tribunal", "comarca", "juizo", "adverso", "valor", "distribuido"))]
+
+
+def ficha(acao="conferir", **extra):
+    base = {
+        "processo": {"pk": 1, "numero": "0001655-91.2025.8.16.0024", "status": "CONFERIR", "status_rotulo": "Conferir", "carteira": "Ativos", "tribunal": "TJPR",
+                     "fase": "Postulatória", "empresa": "ATIVOS S.A.", "condicao": "Réu", "adverso_nome": HOSTIL, "cpf_cnpj_mascarado": "***.111.222-**",
+                     "comarca": "", "juizo": "1º JEC", "distribuido_em": "21/06/2026", "valor_texto": "R$ 12.594,40", "cadastrado_em": "03/10/2026", "pendencias": []},
+        "cnj": {"valido": True, "partes": PARTES, "sigla": "TJPR"}, "obrigatorios": OBRIG, "obrig_ok": 6, "acao": acao,
+        "url_editar": "/juridico/processos/1/", "url_pdf": "/juridico/itens/9/pdf/", "url_marcar": "/juridico/processos/1/marcar-cadastrado/",
+        "audiencia": {"dia": "05", "mes_ano": "out 2026", "hora": "10:00", "tipo": "Audiência de conciliação", "local": "Curitiba · 1º JEC"},
+        "cnj_situacao": "confere", "cnj_info": {"situacao": "confere", "rotulo": "Confere", "divergencias": [], "mensagem": "", "consultado_em": ""},
+        "pode_editar": True, "pode_marcar": acao == "conferir",
+    }
+    base.update(extra)
+    return base
 
 
 def contexto_painel(**extra):
     base = {
-        "titulo_lista": "Processos · Todos", "consulta": "", "resumo": RESUMO, "carteiras": CARTEIRAS, "filtros": {"status": "", "carteira": "", "tribunal": "", "cnj": "", "q": "", "ordem": ""},
-        "processos": pagina([proc(1), proc(2, selecionado=False, status="COM_PENDENCIAS", status_rotulo="Com pendências", cnj_situacao="divergente")]),
-        "processo_sel": {
-            "pk": 1, "numero": "0008655-91.2025.8.16.0024", "status": "CONFERIR", "status_rotulo": "Conferir", "carteira": "Ativos",
-            "tribunal": "TJPR", "pendencias": ["Verificar: Juízo"], "url_detalhe": "/juridico/processos/1/", "url_marcar": "/juridico/processos/1/marcar/",
-            "pode_marcar": True, "pode_editar": True,
-            "grupos": [{"titulo": "PARTES", "campos": [{"rotulo": "Adverso", "valor": HOSTIL}]}],
-            "andamentos": [{"data": "18/08/2026", "evento": "Petição", "fonte": "cnj"}],
-        },
+        "fluxo": FLUXO, "clientes": CLIENTES, "filtro_audiencia": False, "atualizado_em": "16:42", "selecionado": ficha(),
+        "titulo_lista": "Processos · Todos", "consulta": "", "resumo": RESUMO,
+        "filtros": {"status": "", "carteira": "", "tribunal": "", "cnj": "", "q": "", "ordem": "", "audiencia": ""},
+        "processos": pagina([proc(1), proc(2, selecionado=False, status="COM_PENDENCIAS", status_rotulo="Com pendências", valor_texto="")]),
         "aviso_datajud": "", "atualizar_auto": False, "url_status": "/juridico/status/", "ultimos_envios": [],
         "pode_enviar": True, "pode_editar": True, "pode_configurar": True, "url_enviar_pdfs": "/juridico/enviar-pdfs/", "url_enviar_cnj": "/juridico/enviar-cnj/",
         "url_processo_novo": "/juridico/processos/novo/", "url_erros": "/juridico/erros/", "url_envios": "/juridico/envios/", "url_config": "/juridico/config/",
@@ -69,17 +83,34 @@ def contexto_painel(**extra):
     return base
 
 
-def test_painel_tres_colunas_escapa_e_tem_menu(pedido):
+def test_painel_fluxo_clientes_lista_e_ficha(pedido):
     html = tela(pedido, "juridico/painel.html", **contexto_painel())
     assert HOSTIL not in html and "&lt;script&gt;" in html
-    sem_tags = re.sub(r"<[^>]+>", "", html)
-    assert "3 processos · 1 com pendências · 1 cadastrados" in sem_tags
-    for trecho in ("Painel de Processos", "CLIENTES", "Processos · Todos (2)", "DETALHES DO PROCESSO", "PARTES", "Audiências (5)", "botao--destrutivo botao--alerta",
-                   "Enviar PDFs para leitura", "Cadastrar pelo nº (CNJ)", "Log de erros e desempenho", "Configuração",
-                   "***.456.789-**", "R$ 1.234,56", "18/09/2026 10:00", "Marcar cadastrado no Espaider", "Verificar: Juízo", "Ele some do painel; o histórico fica guardado.", "Confirmar exclusão", 'data-resumo="com_pendencias"'):
+    for trecho in ("Painel de Processos", "Atualizado às 16:42 · 3 processos", "Entrada de PDFs", "em leitura", "com erro de leitura", "ver log",
+                   "processos extraídos", "% já cadastrados no Espaider", "falta campo obrigatório", "7 de 7 campos, revisão humana", "lançado no Espaider",
+                   "Clientes", "cadastrados / total", "1/3", "Processos · Todos (2)", "Audiências", "botao--destrutivo botao--alerta", "+ Enviar PDFs",
+                   "Com pendências · 2", "sem valor da causa", "<b>0001655</b>", "18/09/2026 10:00", 'aria-current="true"',
+                   "Detalhes do processo", "sequencial", "estadual", "TJPR", "6 de 7 campos obrigatórios", "✓ Marcar cadastrado no Espaider", "Editar",
+                   "não encontrado no PDF", "obg", "Agenda manual: crie a agenda da audiência no Espaider.", "out 2026", "Audiência de conciliação",
+                   "Confere com o CNJ", "Ele some do painel; o histórico fica guardado.", "Confirmar exclusão", "***.111.222-**"):
         assert trecho in html, trecho
+    assert 'aria-pressed="false"' in html and "data-status-url" not in html
     assert 'data-href-desktop="/juridico/?p=2"' in html and 'href="/juridico/processos/2/"' in html
-    assert "data-status-url" not in html  # sem fila, sem auto-atualização
+
+
+def test_painel_etapa_ativa_filtra_e_limpa(pedido):
+    html = tela(pedido, "juridico/painel.html", **contexto_painel(filtros={"status": "CONFERIR", "carteira": "1", "tribunal": "", "cnj": "", "q": "", "ordem": "", "audiencia": ""}))
+    # as etapas são botões de um form GET: a ativa envia status vazio (limpa) e as demais enviam o seu; a carteira é preservada
+    assert '<button class="etapa etapa--conf" type="submit" name="status" value="" aria-pressed="true"' in html
+    assert 'name="status" value="COM_PENDENCIAS" aria-pressed="false"' in html and '<input type="hidden" name="carteira" value="1">' in html
+    assert "barra--filtrando" in html and 'class="barra--conf on"' in html
+
+
+def test_painel_audiencias_alterna_filtro(pedido):
+    html = tela(pedido, "juridico/painel.html", **contexto_painel(filtro_audiencia=True, audiencias_urgente=False))
+    assert 'aria-pressed="true" href="?"' in html
+    html = tela(pedido, "juridico/painel.html", **contexto_painel())
+    assert 'href="?audiencia=1"' in html
 
 
 def test_painel_com_fila_liga_auto_atualizacao(pedido):
@@ -88,25 +119,30 @@ def test_painel_com_fila_liga_auto_atualizacao(pedido):
 
 
 def test_painel_vazio_e_filtrado(pedido):
-    vazio = tela(pedido, "juridico/painel.html", **contexto_painel(processos=pagina([]), processo_sel=None))
+    vazio = tela(pedido, "juridico/painel.html", **contexto_painel(processos=pagina([]), selecionado=None))
     assert "Nenhum processo cadastrado ainda. Envie os PDFs ou cadastre pelo número." in vazio and "Nenhum processo selecionado" in vazio
     filtrado = tela(pedido, "juridico/painel.html", **contexto_painel(
-        processos=pagina([]), processo_sel=None, filtros={"status": "CONFERIR", "carteira": "", "tribunal": "", "cnj": "", "q": "zz", "ordem": ""}))
-    assert "Nenhum processo encontrado" in filtrado and "Limpar filtros" in filtrado
-    assert 'aria-current="true"' in filtrado  # cartão do filtro em uso
+        processos=pagina([]), selecionado=None, filtros={"status": "CONFERIR", "carteira": "", "tribunal": "", "cnj": "", "q": "zz", "ordem": "", "audiencia": ""}))
+    assert "Nenhum processo com esses filtros. Limpe a busca ou escolha outro cliente." in filtrado
 
 
-def test_painel_sem_permissoes_esconde_acoes_do_menu(pedido):
+def test_painel_sem_permissoes_esconde_acoes(pedido):
     html = tela(pedido, "juridico/painel.html", **contexto_painel(
-        pode_enviar=False, pode_editar=False, pode_configurar=False,
-        processo_sel={**contexto_painel()["processo_sel"], "pode_marcar": False, "pode_editar": False}, audiencias_urgente=False))
-    assert "Enviar PDFs para leitura" not in html and "Cadastro manual" not in html and "Configuração" not in html
-    assert "Marcar cadastrado" not in html
+        pode_enviar=False, pode_editar=False, pode_configurar=False, audiencias_urgente=False,
+        selecionado=ficha(pode_editar=False, pode_marcar=False)))
+    assert "+ Enviar PDFs" not in html and "Cadastro manual" not in html and "Configuração" not in html
+    assert "Marcar cadastrado" not in html and "Confirmar exclusão" not in html
 
 
-def test_painel_aviso_datajud_so_com_texto(pedido):
-    html = tela(pedido, "juridico/painel.html", **contexto_painel(aviso_datajud="Chave do DataJud recusada."))
-    assert "Chave do DataJud recusada." in html and 'data-estado="aviso_datajud"' in html
+def test_ficha_por_status(pedido):
+    pend = tela(pedido, "juridico/painel.html", **contexto_painel(selecionado=ficha("pendencias", cnj_info={"situacao": "divergente", "rotulo": "Diverge", "divergencias": ["Comarca (PDF: x · CNJ: y)"], "mensagem": "", "consultado_em": ""})))
+    assert "Completar campos" in pend and "Abrir PDF" in pend and "Diverge do CNJ" in pend and "Comarca (PDF: x · CNJ: y)" in pend and "Marcar cadastrado" not in pend
+    sem_pdf = tela(pedido, "juridico/painel.html", **contexto_painel(selecionado=ficha("pendencias", url_pdf=None)))
+    assert "Abrir PDF" not in sem_pdf
+    cad = tela(pedido, "juridico/painel.html", **contexto_painel(selecionado=ficha("cadastrado", audiencia=None, cnj={"valido": False, "partes": [], "sigla": ""},
+                                                                                       cnj_info={"situacao": "falhou", "rotulo": "Falhou", "divergencias": [], "mensagem": "Tribunal não suportado no DataJud.", "consultado_em": ""})))
+    assert "✓ Cadastrado no Espaider em 03/10/2026" in cad and "Marcar cadastrado" not in cad and "Agenda manual" not in cad
+    assert "Tribunal não suportado no DataJud." in cad and 'class="cnj-texto"' in cad
 
 
 def grupos_form(form):

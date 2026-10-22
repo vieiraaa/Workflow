@@ -44,19 +44,36 @@ def _sem_rolagem_horizontal(pagina):
 
 
 @pytest.mark.parametrize("tema", ["light", "dark"])
-def test_painel_desktop_tres_colunas_e_selecao(pagina, live_server, processos, tema):
+def test_painel_desktop_fluxo_tres_colunas_e_selecao(pagina, live_server, processos, tema):
     pagina.goto(live_server.url + reverse("juridico:painel"))
     pagina.evaluate(f"document.documentElement.dataset.theme = '{tema}'")
-    caixas = [pagina.locator(s).bounding_box() for s in (".painel__clientes", ".painel__processos", ".painel__detalhe")]
+    fluxo = pagina.locator(".fluxo").bounding_box()
+    caixas = [pagina.locator(f".pn-grade > .pn:nth-child({i})").bounding_box() for i in (1, 2, 3)]
+    assert fluxo["y"] < caixas[0]["y"]  # fluxo no topo, antes das colunas
     assert caixas[0]["x"] < caixas[1]["x"] < caixas[2]["x"]
     assert abs(caixas[0]["y"] - caixas[2]["y"]) < 4
     assert _sem_rolagem_horizontal(pagina)
     segundo = processos[1]
-    pagina.click(f'[data-processo="{segundo.pk}"] .proc__link')
+    pagina.click(f'a.proc[data-processo="{segundo.pk}"]')
     pagina.wait_for_url(f"**?p={segundo.pk}*")
-    assert segundo.numero in pagina.locator(".painel__detalhe .detalhe__numero").inner_text()
-    pagina.click("a.resumo:has-text(\"Com pendências\")")
-    pagina.wait_for_url("**status=COM_PENDENCIAS*")
+    assert segundo.numero in pagina.locator(".pn--ficha").inner_text()
+    assert pagina.locator(f'a.proc[data-processo="{segundo.pk}"]').get_attribute("aria-current") == "true"
+
+
+def test_painel_etapa_filtra_e_limpa_pelo_servidor(pagina, live_server, processos):
+    pagina.goto(live_server.url + reverse("juridico:painel"))
+    etapa = pagina.locator('.etapa[data-status="CONFERIR"]')
+    assert etapa.get_attribute("aria-pressed") == "false"
+    etapa.click()
+    pagina.wait_for_url("**status=CONFERIR*")
+    assert pagina.locator('.etapa[data-status="CONFERIR"]').get_attribute("aria-pressed") == "true"
+    assert pagina.locator("a.proc").count() == 2
+    pagina.locator('.etapa[data-status="CONFERIR"]').click()
+    pagina.wait_for_function("!location.search.includes('status=CONFERIR')")
+    assert pagina.locator('.etapa[data-status="CONFERIR"]').get_attribute("aria-pressed") == "false"
+    pagina.click('a[role="button"]:has-text("Audiências")')
+    pagina.wait_for_url("**audiencia=1*")
+    assert pagina.locator('a[role="button"]:has-text("Audiências")').get_attribute("aria-pressed") == "true"
 
 
 @pytest.mark.parametrize("tema", ["light", "dark"])
@@ -65,9 +82,9 @@ def test_painel_390_uma_coluna_sem_overflow(pagina, live_server, processos, tema
     pagina.goto(live_server.url + reverse("juridico:painel"))
     pagina.evaluate(f"document.documentElement.dataset.theme = '{tema}'")
     assert _sem_rolagem_horizontal(pagina)
-    assert not pagina.locator(".painel__detalhe").is_visible()
-    assert pagina.locator(".carteiras").is_visible()
-    pagina.click(f'[data-processo="{processos[0].pk}"] .proc__link')
+    assert not pagina.locator(".pn--ficha").is_visible()
+    assert pagina.locator(".clientes").is_visible()
+    pagina.click(f'a.proc[data-processo="{processos[0].pk}"]')
     pagina.wait_for_url(f"**/juridico/processos/{processos[0].pk}/")
     assert pagina.locator("[data-form-processo]").count() == 1 and _sem_rolagem_horizontal(pagina)
 
@@ -115,8 +132,8 @@ def test_envio_atualiza_sozinho_e_para(pagina, live_server, envio_na_fila):
 def test_painel_atualiza_contagens_e_para_quando_acaba(pagina, live_server, processos, envio_na_fila):
     _, item = envio_na_fila
     pagina.goto(live_server.url + reverse("juridico:painel"))
-    assert pagina.locator("[data-painel-aviso]").is_visible()
     assert pagina.locator('[data-resumo="na_fila"]').inner_text() == "1"
+    assert pagina.locator(".pulso").is_visible()
     ItemEnvio.objects.filter(pk=item.pk).update(status=ItemEnvio.CONCLUIDO)
     pagina.wait_for_function("document.querySelector('[data-painel-aviso-texto]').textContent.indexOf('concluído') >= 0", timeout=20000)
     assert pagina.locator('[data-resumo="na_fila"]').inner_text() == "0"
@@ -138,10 +155,9 @@ def test_titulo_longo_no_celular_tem_ate_2_linhas_e_numero_inteiro(pagina, live_
     assert _sem_rolagem_horizontal(pagina)
 
 
-def test_rotulo_do_kpi_nao_quebra_a_1440(pagina, live_server, processos):
+def test_nome_das_etapas_nao_quebra_a_1440(pagina, live_server, processos):
     pagina.goto(live_server.url + reverse("juridico:painel"))
     alturas = pagina.evaluate(
-        "[...document.querySelectorAll('.resumo__rotulo')].map(e => [e.getBoundingClientRect().height, parseFloat(getComputedStyle(e).lineHeight)])"
+        "[...document.querySelectorAll('.etapa > span')].map(e => [e.getBoundingClientRect().height, parseFloat(getComputedStyle(e).fontSize) * 1.6])"
     )
-    assert alturas and all(h <= lh + 1 for h, lh in alturas)
-    assert not pagina.evaluate("[...document.querySelectorAll('.resumo__rotulo')].some(e => e.scrollWidth > e.clientWidth)")
+    assert len(alturas) == 3 and all(h <= lh + 1 for h, lh in alturas)

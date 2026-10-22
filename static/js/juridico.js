@@ -25,7 +25,7 @@
   document.addEventListener("click", function (ev) {
     var link = ev.target.closest && ev.target.closest("a[data-href-desktop]");
     if (!link || ev.defaultPrevented || ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey) return;
-    if (window.matchMedia && window.matchMedia("(min-width: 1001px)").matches) {
+    if (window.matchMedia && window.matchMedia("(min-width: 901px)").matches) {
       ev.preventDefault();
       window.location.assign(link.getAttribute("data-href-desktop"));
     }
@@ -35,27 +35,24 @@
     if (campo.matches && campo.matches("select[data-auto-enviar]") && campo.form) campo.form.submit();
   });
 
-  /* Painel: contagens a cada 10 s enquanto houver itens do usuário em andamento. */
+  /* Painel: contagens a cada 10 s enquanto houver itens do usuário em andamento (o fluxo e as etapas se atualizam sozinhos). */
   var painel = document.querySelector("[data-painel][data-status-url]");
   if (painel) {
     var aviso = painel.querySelector("[data-painel-aviso]"), texto = painel.querySelector("[data-painel-aviso-texto]");
     var recarregar = painel.querySelector("[data-painel-recarregar]"), totalInicial = null;
-    aviso.hidden = false;
     recarregar.setAttribute("href", window.location.href);
     repetir(function () {
       return buscarJson(painel.getAttribute("data-status-url")).then(function (d) {
-        ["total", "com_pendencias", "conferir", "cadastrados", "na_fila", "erros"].forEach(function (k) {
+        ["total", "com_pendencias", "conferir", "cadastrados", "na_fila"].forEach(function (k) {
           var el = painel.querySelector('[data-resumo="' + k + '"]');
           if (el && d[k] != null) el.textContent = String(d[k]);
-          var frase = painel.querySelector('[data-contagem="' + k + '"]');
-          if (frase && d[k] != null) frase.textContent = String(d[k]);
         });
+        var pct = painel.querySelector('[data-pct="pct_cadastrados"]');
+        if (pct && d.total) pct.textContent = String(Math.floor(d.cadastrados * 100 / d.total));
         if (totalInicial === null) totalInicial = d.total;
-        if (d.total !== totalInicial) recarregar.hidden = false;
-        if (d.em_andamento) { texto.textContent = d.na_fila + (d.na_fila === 1 ? " item na fila…" : " itens na fila…"); return true; }
-        texto.textContent = "Processamento concluído.";
-        painel.querySelector(".painel__aviso .icone").style.display = "none";
-        recarregar.hidden = false;
+        if (d.total !== totalInicial) { aviso.hidden = false; texto.textContent = "Há processos novos."; }
+        if (d.em_andamento) return true;
+        aviso.hidden = false; texto.textContent = "Processamento concluído.";
         return false;
       });
     });

@@ -1,0 +1,2 @@
+{# Etapa do fluxo do cadastro: botão de um <form method="get"> (name=status). status (valor de ?status=), tom (pend|conf|ok), rotulo, valor, chave (data-resumo), legenda. Clicar filtra; clicar de novo envia status vazio e limpa. #}
+<button class="etapa etapa--{{ tom }}" type="submit" name="status" value="{% if filtros.status != status %}{{ status }}{% endif %}" aria-pressed="{% if filtros.status == status %}true{% else %}false{% endif %}" data-status="{{ status }}"><b data-resumo="{{ chave }}">{{ valor }}</b><span>{{ rotulo }}</span><small>{{ legenda }}</small></button>

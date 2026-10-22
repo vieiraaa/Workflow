@@ -54,7 +54,7 @@ def test_painel_com_fila_liga_o_refresh(cliente_adm, envio):
 
 def test_painel_filtrado(cliente_adm, processo):
     r = cliente_adm.get(reverse("juridico:painel") + "?q=zzzz&status=CONFERIR")
-    assert b"Nenhum processo encontrado" in r.content
+    assert b"Nenhum processo com esses filtros. Limpe a busca ou escolha outro cliente." in r.content
 
 
 def test_conferencia(cliente_adm, processo):

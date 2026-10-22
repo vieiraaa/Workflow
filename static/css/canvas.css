@@ -97,7 +97,7 @@
 }
 
 .topbar__titulo { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-@media (max-width: 800px) { .topbar { flex-wrap: nowrap; } .topbar__titulo { order: 0; flex: 1 1 0; display: block; } }
+@media (max-width: 800px) { .topbar { flex-wrap: nowrap; } .topbar__texto { order: 0; flex: 1 1 0; } .topbar__titulo { display: block; } }
 
 /* O enquadramento (ajustar) calcula a translação a partir do canto superior esquerdo. */
 .canvas .drawflow { transform-origin: 0 0; }
