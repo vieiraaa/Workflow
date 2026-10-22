@@ -1,0 +1,10 @@
+id: T-094
+titulo: Reconciliar o aceite antigo do painel (CAD-16) com o painel v2 (CAD-24/25)
+dono: Lupa (qa)
+depende_de: [T-092]
+regras: [CAD-16 (nota de substituição de 22/10), CAD-24, CAD-25]
+aceite:
+  - "Depois que a T-092 (HTML do painel v2) estiver commitada: revisar tests/acceptance/juridico/ (ex.: test_cad_painel_audiencias_manual.py) e ajustar SÓ as asserções que a nota da CAD-16 declara substituídas, trocando-as pelas equivalentes da CAD-24/25 — nada de apagar cobertura: cada comportamento continua testado (contagens agora na esteira, clientes 'cadastrados/total', Audiências como filtro, ficha)."
+  - "O que continua valendo da CAD-16 segue testado como antes. Relate ao Lead cada asserção trocada (antes → depois)."
+  - "tests/acceptance/juridico inteiro verde."
+arquivos: [tests/acceptance/juridico/]

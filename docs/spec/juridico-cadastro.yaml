@@ -204,6 +204,10 @@ regras:
       histórico dos envios que tocaram o processo. Mutação só POST + CSRF → redirect + messages.
   - id: CAD-16
     texto: >
+      [SUBSTITUÍDA EM PARTE pela CAD-24/25 em 22/10 (D-038): os 6 cartões de resumo, os contadores "N processos · N com
+      pendências · N cadastrados", o formato "Todos (N)" dos clientes, o botão Audiências vermelho e os grupos da coluna de
+      detalhes (agora a ficha da CAD-25) seguem a CAD-24/25. CONTINUAM valendo da CAD-16: o Menu e seus itens, busca e
+      filtros, paginação 25, queries constantes, datas DD/MM/AAAA, auto-refresh e o estado vazio quando NÃO há processos.]
       Painel (TEL-27) no formato do Power Apps (prints LOCAIS, fora do git por terem dados reais: docs/briefs/agentes-juridicos/powerapps/; só a ESTRUTURA vale; a identidade visual é a NOSSA (skill design-base: tokens, light/dark, Inter, Lucide), nunca o roxo/escuro do Power Apps; os dados dos prints nunca): barra superior com
       título "Painel de Processos", botão "Menu" (Enviar PDFs para leitura, Cadastrar pelo nº (CNJ), Cadastro manual de
       processo, Log de erros e desempenho, Envios, Configuração (Adm)), botão de alerta "Audiências (N)" (CAD-20) e
