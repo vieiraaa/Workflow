@@ -1,0 +1,12 @@
+id: T-090
+titulo: Identidade v2 · 1) tokens, fontes e shell (lateral ameixa) — todo o sistema
+dono: Vitral (front)
+regras: [D-038, design-base v2]
+referencias: [".claude/skills/design-base/SKILL.md + tokens.css (v2)", "docs/design/IMPLEMENTACAO-PAINEL.md §1, §2, §3.1", "docs/design/painel-v2.html (aparência alvo)"]
+aceite:
+  - "static/css/tokens.css = tokens v2 da skill (nomes antigos mantidos; novos: --font-num, --text-cnj, --ouro, --ouro-texto, --lat-*, --conf, --pend, --fill-conf/pend)."
+  - "IBM Plex Sans 400/500/600 e IBM Plex Mono 400/500/600 vendorizadas (OFL, ex.: @fontsource via jsdelivr, latin + latin-ext) em static/vendor/<fonte>/<versao>/ com @font-face; Montserrat continua; Inter deixa de ser carregada."
+  - "Shell em todas as telas: lateral ameixa nos dois temas (236px), emblema dourado redondo + 'Workflows / Egger e Mesquita', seções em caixa normal, item ativo com fundo --lat-ativo-fundo e texto --ouro SEM barrinha, rodapé com usuário + botão de tema; < 900px vira barra no topo."
+  - "Remover CAIXA ALTA espaçada dos rótulos de seção/painel em todas as telas; chips de status: Conferir = --conf (azul), Pendências = --pend, Cadastrado = --success; nenhum status em dourado (inclusive canvas/execuções: 'executando' não pode ser ouro)."
+  - "Contraste AA nos dois temas; 390px sem rolagem; capturas de todos os módulos sem console error/overflow; frontend + e2e verdes (teste ajustado só onde fixava cor/fonte antiga, nunca enfraquecido)."
+arquivos: [templates/, static/, tests/unit/frontend/, tests/e2e/]

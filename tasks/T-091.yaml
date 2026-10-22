@@ -1,0 +1,11 @@
+id: T-091
+titulo: Identidade v2 · contexto do painel do Cadastro (CAD-24..27) e tipo da audiência
+dono: Forja (back)
+regras: [CAD-24, CAD-25, CAD-26, CAD-27, CAD-19]
+aceite:
+  - "Painel: contexto `fluxo`, `clientes` (cadastrados/total por carteira + Outros), `filtro_audiencia` (?audiencia=1), `atualizado_em`, `selecionado` (ficha) exatamente como CAD-27; nada do contexto atual removido; queries constantes (agregados no banco)."
+  - "CNJ decomposto com legenda da justiça (J: 1 STF, 2 CNJ, 3 STJ, 4 federal, 5 trabalho, 6 eleitoral, 7 militar da União, 8 estadual, 9 militar estadual) e sigla pelo mapa COMPLETO (reusar apps/juridico/cnj.py); número inválido → valido=False sem partes."
+  - "obrigatorios = os 7 campos (Número, Tribunal, Comarca, Juízo, Adverso, Valor da causa, Distribuído em) com ok; acao por status; url_pdf do último ItemEnvio com arquivo (ou None); audiencia só se futura, mes_ano como 'mar 2027'."
+  - "CAD-26: campo Processo.proxima_audiencia_tipo (migração nova, NÃO aplicar no Supabase) preenchido pela extração junto com a data; editável no formulário da conferência."
+  - "tests/unit verdes; aceite juridico verde (o novo aceite CAD-24..27 da Lupa chega em paralelo)."
+arquivos: [apps/, tests/unit/ (menos frontend/)]

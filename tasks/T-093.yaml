@@ -1,0 +1,8 @@
+id: T-093
+titulo: Aceite CAD-24..27 (painel v2 do Cadastro)
+dono: Lupa (qa)
+regras: [CAD-24, CAD-25, CAD-26, CAD-27]
+aceite:
+  - "tests/acceptance/juridico/ cobre CAD-24..27 só pela spec: contagens do fluxo e do em leitura/erro de leitura, filtros ?status/?audiencia/?carteira, clientes cadastrados/total, ficha (CNJ decomposto e sigla, número inválido, 7 obrigatórios, ação por status, url do PDF, audiência futura e tipo, faixa CNJ), queries constantes."
+  - "Nada de internet nem DATABASE_URL; @pytest.mark.modulo('m8')."
+arquivos: [tests/acceptance/juridico/]

@@ -272,6 +272,55 @@ regras:
     texto: >
       CONTRATO (fecha as dúvidas da T-077, 19/10). Ver o bloco `contrato` abaixo; ele vale como regra.
 
+  - id: CAD-24
+    texto: >
+      PAINEL v2 (pedido do usuário 22/10; referência visual: ~/Downloads/Agente de IA para Prazos e Cadastro/previa-identidade/
+      painel-v2.html e IMPLEMENTACAO-PAINEL.md; identidade D-038). Substitui os 6 cartões de resumo da CAD-16 pelo bloco
+      "Fluxo do cadastro": (a) ENTRADA DE PDFS — "N em leitura" (itens ItemEnvio na_fila + processando, de todos os usuários
+      com acesso; ponto dourado pulsando, parado com prefers-reduced-motion) e "N com erro de leitura · ver log" (itens com
+      etapa_erro "Leitura do PDF" ou "Envio do PDF" e resolvido=false; link para juridico:erros); (b) ESTEIRA — título
+      "N processos extraídos" (= com_pendencias + conferir + cadastrados, sem excluídos) e "P% já cadastrados no Espaider";
+      barra em escala com um segmento por etapa na ordem Com pendências → Conferir → Cadastrado (largura proporcional);
+      três ETAPAS clicáveis (button, aria-pressed) com número, nome e legenda ("falta campo obrigatório", "7 de 7 campos,
+      revisão humana", "lançado no Espaider"): clicar filtra a lista (?status=), clicar de novo limpa. Topo: título, "Atualizado
+      às HH:MM", botões "Audiências (n)" (filtro ?audiencia=1, aria-pressed; a lista TEL-34 continua no Menu), "Menu" e
+      "+ Enviar PDFs" (primário). Clientes: botão por carteira com "cadastrados/total" e minibarra de progresso (verde),
+      "Todos" no topo e "Outros" (sem carteira) no fim. Lista: número com o sequencial em destaque (IBM Plex Mono), chip do
+      status com a quantidade de obrigatórios faltando ("Com pendências · 2"), adverso, "carteira · comarca · valor" (valor
+      ausente → "sem valor da causa" em --pend); linha selecionada aria-current; vazio: "Nenhum processo com esses filtros.
+      Limpe a busca ou escolha outro cliente." Larguras: < 1240 px clientes viram grade acima; < 900 px uma coluna e a
+      lateral vira barra no topo.
+  - id: CAD-25
+    texto: >
+      FICHA (coluna da direita do painel, processo selecionado): (a) linha "carteira · tribunal · fase <fase>"; (b) NÚMERO CNJ
+      DECOMPOSTO NNNNNNN-DD.AAAA.J.TR.OOOO, cada parte com legenda (sequencial, dígito, ano, justiça — estadual/federal/
+      trabalho/eleitoral/militar…, sigla do tribunal, origem), a parte TR na cor --destaque; número inválido → mostra o texto
+      como veio, sem decompor; sigla pelo mapa COMPLETO (todos os TJ, TRF, TRT, TRE; o de-para já existe em apps/juridico/cnj.py);
+      (c) chip do status + 7 MARCADORES dos obrigatórios (preenchido = encontrado; contorno --pend = faltando) + "N de 7
+      campos obrigatórios"; (d) AÇÃO PRINCIPAL pelo status: CONFERIR → "✓ Marcar cadastrado no Espaider" (POST existente) +
+      "Editar"; COM_PENDENCIAS → "Completar campos" (abre juridico:processo) + "Abrir PDF" (juridico:pdf do último item com
+      arquivo; sem PDF → botão ausente); CADASTRADO → texto "✓ Cadastrado no Espaider em DD/MM/AAAA" + "Editar"; (e) grupos
+      "Partes" (Empresa, Adverso · CPF/CNPJ mascarado [obrigatório], Condição) e "Processo" (Comarca, Juízo, Distribuído em,
+      Valor da causa — todos obrigatórios, marcados com "obrigatório" pequeno); campo vazio → "não encontrado no PDF" com
+      sublinhado tracejado --pend; (f) AUDIÊNCIA (se proxima_audiencia futura): folha de calendário (mês abreviado + ano no
+      topo dourado, dia em mono), tipo ("Audiência de conciliação" etc., do texto; sem tipo → "Audiência"), "HH:MM · comarca ·
+      juízo" e o aviso "Agenda manual: crie a agenda da audiência no Espaider."; (g) faixa "Confere com o CNJ" (verde) com
+      tribunal/distribuição/comarca quando cnj_validacao=confere; divergente → faixa --pend com as divergências; não
+      consultado/falhou/não encontrado → texto neutro com a mensagem.
+  - id: CAD-26
+    texto: >
+      Tipo da audiência: extraído junto com a data (CAD-20) do mesmo trecho — "audiência de <tipo>" (conciliação, instrução,
+      instrução e julgamento, una, mediação…) — e guardado em Processo.proxima_audiencia_tipo (texto, max 80, vazio permitido;
+      migração NOVA, não aplicar no Supabase). Editável na conferência junto com a data.
+  - id: CAD-27
+    texto: >
+      Contexto do painel v2 (acrescenta à CAD-19, nada removido): `fluxo` {em_leitura, erros_leitura, url_erros,
+      com_pendencias, conferir, cadastrados, total, pct_cadastrados}, `clientes` [{pk|None, nome, total, cadastrados, pct,
+      url, ativo}], `filtro_audiencia` (bool), `atualizado_em`, `selecionado` (= ficha: processo, cnj {valido, partes
+      [{valor, legenda}], sigla}, obrigatorios [{campo, rotulo, ok}], obrig_ok, acao (conferir|pendencias|cadastrado),
+      url_editar, url_pdf|None, url_marcar, audiencia {dia, mes_ano, hora, tipo, local}|None, cnj_situacao). Queries
+      constantes (contagens agregadas no banco). Datas DD/MM/AAAA, dinheiro R$ 1.234,56.
+
 contrato:
   app: "app label juridico; modelos Carteira, ConfigCadastro, Processo, Envio, ItemEnvio em apps.juridico.models; ConfigCadastro.obter() devolve a linha única (cria se faltar). Testes podem preparar estado pelo ORM (config, carteiras, usuários, processos); a verificação é pelas telas/rotas e pelos modelos acima."
   worker: "call_command('processar_cadastros', '--uma-vez') processa toda a fila atual e sai."

@@ -1,66 +1,92 @@
-/* Design base: tokens da identidade Egger e Mesquita (D-036). Toda decisão visual mora aqui.
-   Os NOMES dos tokens são estáveis (as telas dependem deles); mude só os valores. */
+/* Design base: tokens da identidade Egger e Mesquita v2 (D-038, guia IMPLEMENTACAO-PAINEL.md, 22/10/2026).
+   Toda decisão visual mora aqui. Os NOMES dos tokens são estáveis (as telas dependem deles); mude só os valores.
+   Equivalência com o guia: --fundo=--bg, --superficie=--surface, --borda=--hairline, --primaria=--accent,
+   --primaria-texto=--on-accent, --primaria-suave=--fill-accent, --rotulo=--destaque, --ok=--success, --erro=--danger. */
 :root {
   color-scheme: light;
-  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
-  --font-titulo: "Montserrat", "Inter", "Segoe UI", system-ui, sans-serif;   /* a letra do logo */
-  --font-mono: ui-monospace, "Cascadia Code", "SF Mono", Consolas, monospace;
-  --text-title: 1.625rem; --text-h2: 1.25rem; --text-body: 0.9375rem; --text-sm: 0.8125rem;
-  --text-kpi: 2.125rem;      /* números de destaque (cartões de resumo) */
-  --text-rotulo: 0.6875rem;  /* rótulos de seção em caixa alta (Montserrat, espaçado) */
+  --font: "IBM Plex Sans", "Helvetica Neue", Arial, "Segoe UI", system-ui, sans-serif;
+  --font-titulo: "Montserrat", "Helvetica Neue", Arial, sans-serif;           /* a letra do logo */
+  --font-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;  /* CNJ, contagens, dia */
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Code", Consolas, monospace;          /* código e JSON */
+  --text-title: 1.625rem; --text-h2: 1.25rem; --text-body: 0.875rem; --text-sm: 0.8125rem;   /* base 14px; título 26px */
+  --text-kpi: 1.375rem;      /* número das etapas do fluxo */
+  --text-cnj: 1.3125rem;     /* número CNJ da ficha (21px) */
+  --text-rotulo: 0.8125rem;  /* títulos de painel e de grupo (Montserrat 600, caixa normal) */
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-6: 24px; --sp-8: 32px; --sp-12: 48px;
   --content-max: 1440px;
+  --lateral-largura: 236px;
 
   /* marca (iguais nos dois temas) */
   --marca-roxo: #4F1F5C;     /* letras do logo */
   --marca-ameixa: #3E2745;   /* fundo da versão negativa */
   --marca-ouro: #F8B334;     /* o "e" do logo */
+  --ouro: var(--marca-ouro); /* emblema, item ativo da lateral, foco, folha da audiência */
 
-  /* claro: mesma base, cartões brancos sobre cinza-lilás */
-  --bg: #F5F4F7;
+  /* claro */
+  --bg: #F6F4F8;
   --surface: #FFFFFF;
-  --surface-2: #F3F1F5;
-  --sidebar: #FFFFFF;
-  --text: #1C1422; --text-2: #5C5266; --text-3: #766D80;
-  --hairline: #E6E2EA; --borda-forte: #D6D0DC;
-  --fill: rgba(79,31,92,.06); --fill-2: rgba(79,31,92,.10);
+  --surface-2: #F1EDF4;
+  --hairline: #E6E0EB; --borda-forte: #D2CAD9;
+  --text: #1F1625; --text-2: #5D5367; --text-3: #72667C;   /* guia: #85798F, escurecido p/ AA */
+  --fill: rgba(79,31,92,.05); --fill-2: rgba(79,31,92,.09);
 
-  --accent: var(--marca-roxo); --on-accent: #FFFFFF; --fill-accent: rgba(79,31,92,.08);
-  --destaque: #9A6200;       /* rótulos de seção e detalhes em ouro (escurecido p/ contraste AA no claro) */
-  --success: #0B7A5F; --warning: #9A6200; --danger: #D03548; --orange: #C2660A; --purple: #7A3D8C;
-  --fill-success: rgba(15,157,122,.10); --fill-warning: rgba(248,179,52,.18); --fill-danger: rgba(208,53,72,.09);
-  --ring: 0 0 0 3px rgba(79,31,92,.25);
+  --accent: var(--marca-roxo); --on-accent: #FFFFFF; --fill-accent: rgba(79,31,92,.07);
+  --destaque: #7A3F8C;       /* títulos de grupo da ficha, código do tribunal */
+  --ouro-texto: #8A5B00;     /* texto dourado legível sobre fundo claro */
 
-  --r-s: 6px; --r-m: 10px; --r-l: 14px; --r-xl: 20px; --r-pill: 999px;
-  --shadow-1: 0 1px 2px rgba(28,20,34,.05), 0 6px 18px rgba(28,20,34,.05);
-  --shadow-2: 0 4px 12px rgba(28,20,34,.08), 0 16px 40px rgba(28,20,34,.12);
-  --brilho-status: 0 0 8px currentColor;   /* ponto de status "aceso" */
+  /* lateral: SEMPRE ameixa (presença da marca), nos dois temas */
+  --sidebar: var(--marca-ameixa);
+  --lat-texto: #EDE3F1; --lat-texto-2: #B7A2C1;
+  --lat-ativo-fundo: rgba(248,179,52,.15); --lat-borda: rgba(255,255,255,.09);
+
+  /* status: o dourado é da marca e das ações, NUNCA de status */
+  --success: #12805F; --fill-success: rgba(18,128,95,.10);     /* Cadastrado */
+  --conf: #2F5FC4;    --fill-conf: rgba(47,95,196,.09);        /* Conferir */
+  --pend: #C2412D;    --fill-pend: rgba(194,65,45,.09);        /* Com pendências, campo faltando */
+  --danger: #C42B3C;  --fill-danger: rgba(196,43,60,.09);      /* erro de leitura/execução */
+  --warning: var(--pend); --fill-warning: var(--fill-pend);    /* compatibilidade com telas antigas */
+  --orange: #C2660A; --purple: #7A3F8C;
+  --ring: 0 0 0 2px var(--ouro);                               /* foco: contorno dourado de 2px */
+
+  --r-s: 6px; --r-m: 8px; --r-l: 12px; --r-xl: 18px; --r-pill: 999px;
+  --shadow-1: 0 1px 2px rgba(31,22,37,.05), 0 8px 24px rgba(31,22,37,.05);
+  --shadow-2: 0 4px 12px rgba(31,22,37,.08), 0 16px 40px rgba(31,22,37,.12);
+  --brilho-status: 0 0 0 0 transparent;
   --ease: cubic-bezier(.2,.8,.2,1); --dur: 180ms;
 }
 
-/* escuro: azul-marinho quase preto (referência: painel de monitoramento da TI) */
+/* escuro: ameixa profundo (derivado da versão negativa do logo) */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #060A12;
-  --surface: #0F1726;
-  --surface-2: #141E31;
-  --sidebar: #0A101C;
-  --text: #E8ECF4; --text-2: #9AA6BC; --text-3: #7D8AA3;
-  --hairline: #1D2940; --borda-forte: #2A3956;
-  --fill: rgba(154,166,188,.08); --fill-2: rgba(154,166,188,.14);
+  --bg: #17101C;
+  --surface: #211827;
+  --surface-2: #2A1F31;
+  --hairline: #35283D; --borda-forte: #4A3A54;
+  --text: #F2EBF4; --text-2: #C0B2C8; --text-3: #918299;
+  --fill: rgba(242,235,244,.05); --fill-2: rgba(242,235,244,.09);
 
-  --accent: var(--marca-ouro); --on-accent: #1A1206; --fill-accent: rgba(248,179,52,.12);
-  --destaque: #B48CC8;       /* roxo da marca clareado p/ contraste no escuro */
-  --success: #34E0B4; --warning: #F8B334; --danger: #FF6B7A; --orange: #FF9F43; --purple: #B48CC8;
-  --fill-success: rgba(52,224,180,.12); --fill-warning: rgba(248,179,52,.12); --fill-danger: rgba(255,107,122,.12);
-  --ring: 0 0 0 3px rgba(248,179,52,.35);
-  --shadow-1: 0 1px 0 rgba(255,255,255,.03) inset, 0 8px 24px rgba(0,0,0,.35);
-  --shadow-2: 0 12px 40px rgba(0,0,0,.55);
+  --accent: var(--marca-ouro); --on-accent: #2B1B05; --fill-accent: rgba(248,179,52,.12);
+  --destaque: #CFA8DC;
+  --ouro-texto: #F8B334;
+
+  --sidebar: #0F0912;
+  --lat-texto: #EDE3F1; --lat-texto-2: #9E8AA8;
+  --lat-ativo-fundo: rgba(248,179,52,.13); --lat-borda: rgba(255,255,255,.07);
+
+  --success: #4FD1A5; --fill-success: rgba(79,209,165,.12);
+  --conf: #93B5FF;    --fill-conf: rgba(147,181,255,.12);
+  --pend: #FF8B7B;    --fill-pend: rgba(255,139,123,.12);
+  --danger: #FF6B78;  --fill-danger: rgba(255,107,120,.12);
+  --orange: #FF9F43; --purple: #CFA8DC;
+
+  --shadow-1: 0 1px 0 rgba(255,255,255,.03) inset, 0 10px 30px rgba(0,0,0,.35);
+  --shadow-2: 0 12px 40px rgba(0,0,0,.5);
 }
 
 html, body { background: var(--bg); color: var(--text); font: 400 var(--text-body)/1.5 var(--font); }
 body { margin: 0; min-height: 100vh; -webkit-font-smoothing: antialiased; }
-h1, h2, h3 { font-family: var(--font-titulo); }
+h1, h2, h3 { font-family: var(--font-titulo); font-weight: 600; }
+:focus-visible { outline: 2px solid var(--ouro); outline-offset: 2px; }
 
 /* Opcional, DESLIGADO: vidro. Não usar sem decisão de design. */
 .vidro {
