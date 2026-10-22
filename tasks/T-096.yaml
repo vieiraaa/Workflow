@@ -1,0 +1,11 @@
+id: T-096
+titulo: Revisão visual do painel v2 · pendências na ficha, botão Audiências e separadores do CNJ
+dono: Vitral (front)
+depende_de: [T-095]
+regras: [CAD-24, CAD-25, design-base v2]
+aceite:
+  - "ALTA — ficha: com status Com pendências, listar as pendências do processo logo abaixo do chip/marcadores (ex.: 'Carteira não identificada.', 'Divergência com o CNJ: …'), em --pend, quando houver; com 7 de 7 ok e ainda assim pendência, o texto explica o motivo. Se o contexto `selecionado` não trouxer as pendências, peça à Forja (campo `pendencias`, lista de textos)."
+  - "MÉDIA — botão 'Audiências' neutro como no guia (secundário), contagem em --font-num e --ouro-texto; filtro ativo com aria-pressed e borda --accent; a urgência continua no chip de data da lista."
+  - "MÉDIA — CNJ decomposto: separadores (- e .) com espaçamento uniforme e alinhados à linha dos números; legendas centralizadas sob cada parte sem empurrar os separadores."
+  - "Capturas TEL-27/28 regeneradas; aceite juridico + frontend + e2e verdes."
+arquivos: [templates/, static/, tests/unit/frontend/, tests/e2e/]
