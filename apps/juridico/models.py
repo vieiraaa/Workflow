@@ -171,6 +171,9 @@ class Processo(models.Model):
         related_name="+",
     )
     proxima_audiencia = models.DateTimeField("próxima audiência", null=True, blank=True)
+    proxima_audiencia_tipo = models.CharField(
+        "tipo da audiência", max_length=80, blank=True
+    )  # só o complemento: 'conciliação', 'instrução e julgamento', 'una'...
     criado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,

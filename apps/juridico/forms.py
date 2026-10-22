@@ -15,7 +15,7 @@ from .models import CAMPOS_MANUAIS, CAMPOS_TEXTO, Carteira, ConfigCadastro, Proc
 
 CAMPOS_PROCESSO = (
     "numero", "carteira", *CAMPOS_TEXTO, "fase_atual", "distribuido_em", "data_citacao",
-    "valor_causa", "pedidos", "observacoes", "proxima_audiencia",
+    "valor_causa", "pedidos", "observacoes", "proxima_audiencia", "proxima_audiencia_tipo",
 )  # fmt: skip
 GRUPOS = (
     ("Identificação", ("numero", "carteira", "operacoes_vinculadas", "desdobramento")),
@@ -39,7 +39,16 @@ GRUPOS = (
             "fase_atual",
         ),
     ),  # fmt: skip
-    ("Datas e valores", ("distribuido_em", "data_citacao", "valor_causa", "proxima_audiencia")),
+    (
+        "Datas e valores",
+        (
+            "distribuido_em",
+            "data_citacao",
+            "valor_causa",
+            "proxima_audiencia",
+            "proxima_audiencia_tipo",
+        ),
+    ),  # fmt: skip
     ("Pedidos", ("pedidos",)),
     ("Andamentos", ()),
     ("Controle", ("observacoes", *CAMPOS_MANUAIS)),
@@ -80,6 +89,12 @@ class ProcessoForm(forms.ModelForm):
     distribuido_em = forms.DateField(label="Distribuído em", required=False)
     data_citacao = forms.DateField(label="Data de citação", required=False)
     proxima_audiencia = forms.DateTimeField(label="Próxima audiência", required=False)
+    proxima_audiencia_tipo = forms.CharField(
+        label="Tipo da audiência",
+        required=False,
+        max_length=80,
+        error_messages={"max_length": "Máximo de 80 caracteres."},
+    )
     carteira = forms.ModelChoiceField(
         label="Carteira", queryset=Carteira.objects.all(), required=False
     )
@@ -136,6 +151,10 @@ class ProcessoForm(forms.ModelForm):
         if valor is None or valor < 0:
             raise forms.ValidationError("Informe um valor válido, como 1.234,56.")
         return valor
+
+    def clean_proxima_audiencia_tipo(self):
+        """Só o complemento, em minúsculas e sem espaços sobrando ('conciliação')."""
+        return " ".join((self.cleaned_data.get("proxima_audiencia_tipo") or "").lower().split())
 
     def clean_fase_atual(self):
         return self.cleaned_data.get("fase_atual") or None

@@ -68,6 +68,61 @@ def alias_datajud(numero):
     return None
 
 
+JUSTICAS = {
+    "1": "STF",
+    "2": "CNJ",
+    "3": "STJ",
+    "4": "federal",
+    "5": "trabalho",
+    "6": "eleitoral",
+    "7": "militar da União",
+    "8": "estadual",
+    "9": "militar estadual",
+}
+SEM_SIGLA = "—"
+
+
+def sigla_exibicao(numero):
+    """Sigla para a ficha (TJSP, TJDFT, TRF3, TRT2, TRE-SP); outro segmento ou TR fora do mapa
+    → '—' (CAD-23 §9)."""
+    digitos = so_digitos(numero)
+    if len(digitos) != 20:
+        return SEM_SIGLA
+    segmento, tr = digitos[13], int(digitos[14:16])
+    if segmento == "8" and 1 <= tr <= len(UFS):
+        return "TJ" + UFS[tr - 1].upper()
+    if segmento == "4" and 1 <= tr <= 6:
+        return f"TRF{tr}"
+    if segmento == "5" and 1 <= tr <= 24:
+        return f"TRT{tr}"
+    if segmento == "6" and 1 <= tr <= len(UFS):
+        uf = UFS[tr - 1].upper()
+        return "TRE-" + ("DF" if uf == "DFT" else uf)
+    return SEM_SIGLA
+
+
+def decompor(numero):
+    """CNJ decomposto para a ficha: {valido, partes [{valor, legenda}], sigla}. Inválido (dígito
+    verificador ou formato) → {valido: False, partes: [], sigla: ''}."""
+    digitos = so_digitos(numero)
+    if not valido(numero) or len(digitos) != 20:
+        return {"valido": False, "partes": [], "sigla": ""}
+    sigla = sigla_exibicao(digitos)
+    partes = [
+        (digitos[:7], "sequencial"),
+        (digitos[7:9], "dígito"),
+        (digitos[9:13], "ano"),
+        (digitos[13], JUSTICAS.get(digitos[13], SEM_SIGLA)),
+        (digitos[14:16], sigla),
+        (digitos[16:], "origem"),
+    ]
+    return {
+        "valido": True,
+        "partes": [{"valor": valor, "legenda": legenda} for valor, legenda in partes],
+        "sigla": sigla,
+    }
+
+
 def sem_acento(texto):
     base = unicodedata.normalize("NFKD", texto or "").encode("ascii", "ignore").decode()
     return " ".join(base.lower().split())

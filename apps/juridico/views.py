@@ -45,6 +45,108 @@ def _so_digitos_sql(campo):
     return expressao
 
 
+def _pct(parte, total):
+    """Percentual inteiro com arredondamento half up (CAD-23 §9); total 0 → 0."""
+    return (parte * 200 + total) // (2 * total) if total else 0
+
+
+MESES = ("jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez")
+CAMPOS_OBRIGATORIOS = (
+    ("numero", "Número"),
+    ("tribunal", "Tribunal"),
+    ("comarca", "Comarca"),
+    ("juizo", "Juízo"),
+    ("adverso_nome", "Adverso"),
+    ("valor_causa", "Valor da causa"),
+    ("distribuido_em", "Distribuído em"),
+)
+ACOES = {
+    Processo.CONFERIR: "conferir",
+    Processo.COM_PENDENCIAS: "pendencias",
+    Processo.CADASTRADO: "cadastrado",
+}
+
+
+def _audiencia_da_ficha(p, agora):
+    if not p.proxima_audiencia or p.proxima_audiencia < agora:
+        return None
+    quando = timezone.localtime(p.proxima_audiencia)
+    return {
+        "dia": f"{quando:%d}",
+        "mes_ano": f"{MESES[quando.month - 1]} {quando.year}",
+        "hora": f"{quando:%H:%M}",
+        "tipo": f"Audiência de {p.proxima_audiencia_tipo}"
+        if p.proxima_audiencia_tipo
+        else "Audiência",
+        "local": " · ".join(x for x in (p.comarca, p.juizo) if x),
+    }
+
+
+def _obrigatorios(p):
+    """Os 7 campos obrigatórios com `ok` (numero ok = número válido; demais = preenchido)."""
+    lista = []
+    for campo, rotulo in CAMPOS_OBRIGATORIOS:
+        valor = getattr(p, campo)
+        ok = p.numero_valido if campo == "numero" else valor not in (None, "", [])
+        lista.append({"campo": campo, "rotulo": rotulo, "ok": bool(ok)})
+    return lista
+
+
+def _ficha(p, agora, pode_editar):
+    """`selecionado` do painel v2 (CAD-25/27, CAD-23 §9): tudo calculado no servidor."""
+    obrigatorios = _obrigatorios(p)
+    item_pdf = (
+        p.itens.filter(arquivo__isnull=False).exclude(arquivo="").order_by("-pk").only("pk").first()
+    )
+    processo = Item(
+        {
+            "pk": p.pk,
+            "numero": p.numero,
+            "status": p.status,
+            "status_rotulo": p.status_rotulo,
+            "carteira": p.carteira.nome if p.carteira_id else "",
+            "tribunal": p.tribunal,
+            "fase": p.get_fase_atual_display() if p.fase_atual else "",
+            "empresa": p.empresa,
+            "condicao": p.condicao,
+            "adverso_nome": p.adverso_nome,
+            "cpf_cnpj_mascarado": apresentacao.mascarar_documento(p.adverso_cpf_cnpj),
+            "comarca": p.comarca,
+            "juizo": p.juizo,
+            "distribuido_em": apresentacao.data(p.distribuido_em),
+            "valor_texto": apresentacao.valor_texto(p.valor_causa),
+            "cadastrado_em": apresentacao.data(
+                timezone.localtime(p.cadastrado_espaider_em) if p.cadastrado_espaider_em else None
+            ),
+            "pendencias": p.pendencias,
+        }
+    )
+    chave = {"pk": p.pk}
+    return Item(
+        {
+            "processo": processo,
+            "cnj": cnj.decompor(p.numero),
+            "obrigatorios": obrigatorios,
+            "obrig_ok": sum(o["ok"] for o in obrigatorios),
+            "acao": ACOES[p.status],
+            "url_editar": reverse("juridico:processo", kwargs=chave),
+            "url_pdf": reverse("juridico:pdf", kwargs={"pk": item_pdf.pk}) if item_pdf else None,
+            "url_marcar": reverse("juridico:marcar_cadastrado", kwargs=chave),
+            "audiencia": _audiencia_da_ficha(p, agora),
+            "cnj_situacao": p.cnj_validacao,
+            "cnj_info": {
+                "situacao": p.cnj_validacao,
+                "rotulo": p.get_cnj_validacao_display(),
+                "divergencias": p.cnj_divergencias,
+                "mensagem": p.cnj_mensagem,
+                "consultado_em": apresentacao.data_hora(p.cnj_consultado_em),
+            },
+            "pode_editar": pode_editar,
+            "pode_marcar": pode_editar and p.status == Processo.CONFERIR,
+        }
+    )
+
+
 class Item(dict):
     """Dict que também responde por atributo (`item.pk`): o template usa as chaves e os testes e
     a docstring (contrato) usam `item.pk`."""
@@ -179,6 +281,14 @@ class PainelView(CadastroMixin, TemplateView):
       grupos[{titulo, campos[{rotulo, valor}]}] (CPF/CNPJ completo), andamentos[{data, evento,
       fonte}], url_detalhe, url_marcar, pode_marcar, pode_editar} ou None
     - `ultimos_envios` [{pk, quando, origem, casos, erros, duracao_texto, motivo, url}]
+    - PAINEL v2 (CAD-24..27, acrescenta; nada removido): `fluxo` {em_leitura, erros_leitura,
+      url_erros, com_pendencias, conferir, cadastrados, total, pct_cadastrados}; `clientes`
+      [{pk (None=Todos, 'outros'=Outros), nome, total, cadastrados, pct, url, ativo}];
+      `filtro_audiencia` (?audiencia=1); `atualizado_em` ('HH:MM'); `selecionado` (ficha: processo,
+      cnj {valido, partes[{valor, legenda}], sigla}, obrigatorios[{campo, rotulo, ok}], obrig_ok,
+      acao conferir|pendencias|cadastrado, url_editar, url_pdf|None, url_marcar, audiencia {dia,
+      mes_ano, hora, tipo, local}|None, cnj_situacao, cnj_info); cada item de `processos` ganha
+      `faltando`, `numero_sequencial`, `numero_resto`
     - `aviso_datajud` ('' ou texto, só Adm), `atualizar_auto` (bool), `url_status`
     - `audiencias_n`, `audiencias_urgente`; flags `pode_enviar`, `pode_editar`, `pode_configurar`;
       `url_enviar_pdfs`, `url_enviar_cnj`, `url_processo_novo`, `url_erros`, `url_envios`,
@@ -195,6 +305,8 @@ class PainelView(CadastroMixin, TemplateView):
             qs = qs.filter(carteira__isnull=True)
         elif carteira.isascii() and carteira.isdigit():
             qs = qs.filter(carteira_id=int(carteira))
+        if filtros["audiencia"]:
+            qs = qs.filter(proxima_audiencia__gte=timezone.now())
         if filtros["tribunal"]:
             qs = qs.filter(tribunal__iexact=filtros["tribunal"])
         if filtros["cnj"] in dict(Processo.CNJ):
@@ -228,17 +340,24 @@ class PainelView(CadastroMixin, TemplateView):
             "cnj": limpar_texto(pede.get("cnj", ""), 20),
             "q": limpar_texto(pede.get("q", "")),
             "ordem": pede.get("ordem", "") if pede.get("ordem", "") in ORDENS else "",
+            "audiencia": "1" if pede.get("audiencia") == "1" else "",
         }
         resumo, atualizar = _resumo(usuario)
 
         def url(**trocas):
             return "?" + listagem.consulta({**filtros, "p": ""}, {}, **trocas)
 
-        por_carteira = dict(
-            Processo.objects.filter(carteira__isnull=False)
+        cadastrado = Q(status=Processo.CADASTRADO)
+        por_carteira_cad = {
+            c: (n, cad)
+            for c, n, cad in Processo.objects.filter(carteira__isnull=False)
             .values_list("carteira_id")
-            .annotate(n=Count("pk"))
-            .values_list("carteira_id", "n")
+            .annotate(n=Count("pk"), cad=Count("pk", filter=cadastrado))
+            .values_list("carteira_id", "n", "cad")
+        }
+        por_carteira = {c: n for c, (n, _) in por_carteira_cad.items()}
+        sem_carteira_agregado = Processo.objects.filter(carteira__isnull=True).aggregate(
+            n=Count("pk"), cad=Count("pk", filter=cadastrado)
         )
         carteiras = [
             {"chave": "todos", "nome": "Todos", "total": resumo["total"], "ativa": True,
@@ -251,7 +370,7 @@ class PainelView(CadastroMixin, TemplateView):
                 {"chave": c.pk, "nome": c.nome, "total": por_carteira.get(c.pk, 0), "ativa": True,
                  "ativo": filtros["carteira"] == str(c.pk), "url": url(carteira=c.pk)}
             )  # fmt: skip
-        sem_carteira = Processo.objects.filter(carteira__isnull=True).count()
+        sem_carteira = sem_carteira_agregado["n"]
         carteiras.append(
             {"chave": "outros", "nome": "Outros", "total": sem_carteira, "ativa": True,
              "ativo": filtros["carteira"] == "outros", "url": url(carteira="outros")}
@@ -280,6 +399,9 @@ class PainelView(CadastroMixin, TemplateView):
                     {
                         "pk": o.pk,
                         "numero": o.numero,
+                        "numero_sequencial": o.numero[:7] if o.numero_valido else "",
+                        "numero_resto": o.numero[7:] if o.numero_valido else o.numero,
+                        "faltando": sum(not x["ok"] for x in _obrigatorios(o)),
                         "adverso": o.adverso_nome,
                         "cpf_cnpj_mascarado": apresentacao.mascarar_documento(o.adverso_cpf_cnpj),
                         "carteira": o.carteira.nome if o.carteira_id else "",
@@ -310,7 +432,49 @@ class PainelView(CadastroMixin, TemplateView):
             _envios_anotados(_envios_visiveis(request)).order_by("-criado_em")[:5]
         )
         config = ConfigCadastro.obter()
+
+        def url_cliente(carteira):
+            base = {"status": filtros["status"], "audiencia": filtros["audiencia"]}
+            return "?" + listagem.consulta({**base, "carteira": carteira}, {})
+
+        clientes = [
+            {"pk": None, "nome": "Todos", "total": resumo["total"],
+             "cadastrados": resumo["cadastrados"],
+             "pct": _pct(resumo["cadastrados"], resumo["total"]),
+             "url": url_cliente(""), "ativo": not filtros["carteira"]}
+        ]  # fmt: skip
+        for c in Carteira.objects.filter(ativa=True).order_by("nome"):
+            total_c, cad_c = por_carteira_cad.get(c.pk, (0, 0))
+            clientes.append(
+                {"pk": c.pk, "nome": c.nome, "total": total_c, "cadastrados": cad_c,
+                 "pct": _pct(cad_c, total_c), "url": url_cliente(c.pk),
+                 "ativo": filtros["carteira"] == str(c.pk)}
+            )  # fmt: skip
+        clientes.append(
+            {"pk": "outros", "nome": "Outros", "total": sem_carteira_agregado["n"],
+             "cadastrados": sem_carteira_agregado["cad"],
+             "pct": _pct(sem_carteira_agregado["cad"], sem_carteira_agregado["n"]),
+             "url": url_cliente("outros"), "ativo": filtros["carteira"] == "outros"}
+        )  # fmt: skip
+        erros_leitura = ItemEnvio.objects.filter(
+            etapa_erro__in=("Leitura do PDF", "Envio do PDF"), resolvido=False
+        ).count()
+        fluxo = {
+            "em_leitura": resumo["na_fila"],
+            "erros_leitura": erros_leitura,
+            "url_erros": reverse("juridico:erros"),
+            "com_pendencias": resumo["com_pendencias"],
+            "conferir": resumo["conferir"],
+            "cadastrados": resumo["cadastrados"],
+            "total": resumo["total"],
+            "pct_cadastrados": _pct(resumo["cadastrados"], resumo["total"]),
+        }
         contexto.update(
+            fluxo=fluxo,
+            clientes=clientes,
+            filtro_audiencia=bool(filtros["audiencia"]),
+            atualizado_em=timezone.localtime(agora).strftime("%H:%M"),
+            selecionado=_ficha(escolhido, agora, pode_editar) if escolhido else None,
             resumo=resumo,
             carteiras=carteiras,
             filtros=filtros,
