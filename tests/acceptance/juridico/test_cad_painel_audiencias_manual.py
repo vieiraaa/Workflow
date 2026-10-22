@@ -31,16 +31,20 @@ def test_painel_vazio_mostra_a_mensagem(cad, ver):
 
 
 def test_painel_estrutura_barra_superior_e_contadores(cad, ver):
-    """CAD-16: título 'Painel de Processos', Menu, 'Audiências (N)', contadores 'N processos · N com pendências · N cadastrados', Atualizar."""
+    """CAD-16 (barra superior continua) + CAD-24 (contadores agora na esteira): título 'Painel de Processos', Menu, 'Audiências (N)', Atualizar;
+    contagens em 'N processos extraídos', '33% já cadastrados no Espaider' e nas três etapas (antes: 'N processos · N com pendências · N cadastrados')."""
     criar_processo(cad, numero=_num(1))
     criar_processo(cad, numero=_num(2), status="COM_PENDENCIAS", pendencias=["Verificar: Juízo"])
     criar_processo(cad, numero=_num(3), status="CADASTRADO")
-    t = ver.texto(_painel(cad.ana))
+    r = _painel(cad.ana)
+    t = ver.texto(r)
     for trecho in ("Painel de Processos", "Menu", "Audiências (0)", "Atualizar"):
         assert trecho in t, trecho
-    # contadores 'N processos · N com pendências · N cadastrados' (aceita também o formato de cartões 'Processos N')
-    for n, rotulo in ((3, "processos"), (1, "com pendências"), (1, "cadastrados")):
-        assert re.search(rf"\b{n} {rotulo}\b", t, re.I) or re.search(rf"\b{rotulo} {n}\b", t, re.I), (n, rotulo)
+    f = r.context["fluxo"]
+    assert (f["com_pendencias"], f["conferir"], f["cadastrados"], f["total"]) == (1, 1, 1, 3)
+    assert re.search(r"\b3 processos extraídos\b", t) and "33% já cadastrados no Espaider" in t
+    for numero, nome in ((1, "Com pendências"), (1, "Conferir"), (1, "Cadastrado")):
+        assert re.search(rf"\b{numero}\b\s*{nome}", t), nome
 
 
 def test_menu_do_painel_tem_as_entradas_da_spec_e_config_so_para_adm(cad, ver):
@@ -69,7 +73,8 @@ def test_contexto_do_painel_segue_cad_19(cad):
 
 
 def test_tres_colunas_clientes_com_contagem_e_filtro(cad, ver):
-    """CAD-16: CLIENTES = 'Todos', cada carteira ativa e 'Outros' (sem carteira), com contagem; filtra a lista."""
+    """CAD-16 (clientes filtram a lista, título 'Processos · <carteira> (N)') + CAD-24 (formato dos clientes): 'Todos', cada carteira ativa e 'Outros' com
+    'cadastrados/total' (antes: 'Todos (5)', 'Ativos (3)'…)."""
     for i in range(3):
         criar_processo(cad, numero=_num(i), carteira=cad.carteiras["Ativos"])
     criar_processo(cad, numero=_num(10), carteira=cad.carteiras["Ailos"])
@@ -78,7 +83,9 @@ def test_tres_colunas_clientes_com_contagem_e_filtro(cad, ver):
     t = ver.texto(r)
     for rotulo in ("CLIENTES", "Todos", "Ativos", "Ailos", "Outros", "Processos"):
         assert rotulo.lower() in t.lower(), rotulo
-    assert re.search(r"Todos\s*\(?5\)?", t) and re.search(r"Ativos\s*\(?3\)?", t) and re.search(r"Ailos\s*\(?1\)?", t) and re.search(r"Outros\s*\(?1\)?", t)
+    assert re.search(r"Todos\s*0\s*/\s*5", t) and re.search(r"Ativos\s*0\s*/\s*3", t) and re.search(r"Ailos\s*0\s*/\s*1", t) and re.search(r"Outros\s*0\s*/\s*1", t)
+    por = {c["nome"]: c for c in r.context["clientes"]}
+    assert (por["Todos"]["total"], por["Ativos"]["total"], por["Ailos"]["total"], por["Outros"]["total"]) == (5, 3, 1, 1)
     assert len(_painel(cad.ana, carteira=cad.carteiras["Ativos"].pk).context["processos"]) == 3
     assert "Processos · Ativos (3)" in ver.texto(_painel(cad.ana, carteira=cad.carteiras["Ativos"].pk))
 
@@ -117,27 +124,35 @@ def test_documento_completo_so_no_detalhe(cad, ver):
 
 
 def test_datas_sempre_dd_mm_aaaa_nunca_iso(cad, ver):
-    """CAD-16: datas DD/MM/AAAA (HH:MM), nunca ISO nem número serial do Excel — no painel e no detalhe."""
-    p = criar_processo(cad, distribuido_em="2022-03-15", data_citacao="2022-04-20")
+    """CAD-16 (datas DD/MM/AAAA continua; nunca ISO nem serial do Excel) — agora verificada onde a data aparece no v2: ficha (Distribuído em), chip de
+    audiência da lista, folha da audiência, 'Cadastrado no Espaider em' e faixa do CNJ (antes: data de citação no bloco de detalhes)."""
+    quando = timezone.now() + timedelta(days=4)
+    p = criar_processo(cad, distribuido_em="2022-03-15", data_citacao="2022-04-20", proxima_audiencia=quando, cnj_validacao="confere", cnj_consultado_em=timezone.now())
     t = ver.texto(_painel(cad.ana, p=p.pk))
-    assert "15/03/2022" in t and "20/04/2022" in t and "2022-03-15" not in t and "2022-04-20" not in t
-    assert "44635" not in t  # serial do Excel de 15/03/2022
-    assert "15/03/2022" in ver.texto(cad.ana.get(reverse("juridico:processo", kwargs={"pk": p.pk})))  # (o campo <input type=date> usa ISO por exigência do HTML)
+    assert "15/03/2022" in t and "2022-03-15" not in t and "2022-04-20" not in t and "44635" not in t
+    assert f"{timezone.localtime(quando):%d/%m/%Y %H:%M}" in t                     # chip de audiência na lista
+    c = criar_processo(cad, numero=cnj(8888), status="CADASTRADO", cadastrado_espaider_em=timezone.now(), cadastrado_espaider_por=cad.ana_u)
+    assert f"Cadastrado no Espaider em {timezone.localtime(c.cadastrado_espaider_em):%d/%m/%Y}" in ver.texto(_painel(cad.ana, p=c.pk))
+    assert "15/03/2022" in ver.texto(cad.ana.get(reverse("juridico:processo", kwargs={"pk": p.pk})))
 
 
 def test_painel_painel_de_detalhes_do_selecionado(cad, ver):
-    """CAD-16: coluna 3 mostra o processo ?p=<pk> (padrão o 1º da lista) com os grupos PARTES, PROCESSO, OPERAÇÕES VINCULADAS,
-    CLASSIFICAÇÃO, PEDIDOS, VALIDAÇÃO NO CNJ, CONTROLE e os botões Marcar cadastrado / Editar."""
-    p1 = criar_processo(cad, numero=_num(1), adverso_nome="Primeiro", operacoes_vinculadas="OP-777", pedidos="Pedido Alfa")
-    p2 = criar_processo(cad, numero=_num(2), adverso_nome="Segundo", pedidos="Pedido Beta")
-    t = ver.texto(_painel(cad.ana, p=p2.pk))
-    for g in ("PARTES", "PROCESSO", "OPERAÇÕES VINCULADAS", "CLASSIFICAÇÃO", "PEDIDOS", "VALIDAÇÃO NO CNJ", "CONTROLE"):
-        assert g.lower() in t.lower(), g
+    """CAD-16 (selecionado = ?p=<pk>, padrão o 1º da lista; 'Marcar cadastrado no Espaider' e 'Editar') + CAD-25 (a coluna 3 agora é a ficha: grupos
+    'Partes' e 'Processo'; antes: PARTES, PROCESSO, OPERAÇÕES VINCULADAS, CLASSIFICAÇÃO, PEDIDOS, VALIDAÇÃO NO CNJ, CONTROLE — os demais grupos seguem na conferência TEL-28)."""
+    p1 = criar_processo(cad, numero=_num(1), adverso_nome="Primeiro", operacoes_vinculadas="OP-777", pedidos="Pedido Alfa", natureza="Cível Alfa")
+    p2 = criar_processo(cad, numero=_num(2), adverso_nome="Segundo", pedidos="Pedido Beta", natureza="Cível Beta")
+    r = _painel(cad.ana, p=p2.pk)
+    t = ver.texto(r)
+    for g in ("Partes", "Processo"):
+        assert g in t, g
     assert "Marcar cadastrado no Espaider" in t and "Editar" in t
-    assert "Pedido Beta" in t
-    padrao = ver.texto(_painel(cad.ana))
-    assert "Pedido Beta" in padrao and "Pedido Alfa" not in padrao  # padrão = 1º da lista (atualizado mais recente)
-    assert reverse("juridico:processo", kwargs={"pk": p2.pk}) in ver.html(_painel(cad.ana, p=p2.pk)) and p1.pk != p2.pk
+    assert r.context["selecionado"]["processo"].pk == p2.pk and "Pedido Alfa" not in t
+    assert _painel(cad.ana).context["selecionado"]["processo"].pk == p2.pk  # padrão = 1º da lista (atualizado mais recente)
+    assert reverse("juridico:processo", kwargs={"pk": p2.pk}) in ver.html(r) and p1.pk != p2.pk
+    conf = ver.texto(cad.ana.get(reverse("juridico:processo", kwargs={"pk": p1.pk})))   # o que saiu da ficha continua na conferência
+    for rotulo in ("Operações vinculadas", "Pedidos", "Controle"):
+        assert rotulo.lower() in conf.lower(), rotulo
+    assert "OP-777" in conf and "Pedido Alfa" in conf
 
 
 def test_busca_por_numero_adverso_documento_comarca_e_empresa(cad, ver):
@@ -301,17 +316,21 @@ def test_botao_audiencias_conta_de_hoje_em_diante(cad, ver):
 
 
 def test_botao_de_audiencias_fica_vermelho_nos_proximos_7_dias(cad, ver):
-    """CAD-20: vermelho se alguma nos próximos 7 dias — marcado por classe/atributo de alerta distinto do caso sem urgência."""
+    """CAD-16 (botão 'Audiências (N)' vermelho) → CAD-24: agora é o filtro ?audiencia=1 (aria-pressed) e a lista TEL-34 fica no Menu. Antes: classe de alerta
+    no botão com audiência em ≤ 7 dias; depois: href ?audiencia=1, aria-pressed false/true, contagem N e link 'Lista de audiências' no Menu."""
     criar_processo(cad, numero=_num(1), proxima_audiencia=timezone.now() + timedelta(days=30))
-    sem = ver.html(_painel(cad.ana))
     criar_processo(cad, numero=_num(2), proxima_audiencia=timezone.now() + timedelta(days=2))
-    com = ver.html(_painel(cad.ana))
+    criar_processo(cad, numero=_num(3), proxima_audiencia=timezone.now() - timedelta(days=2))
+
     def botao(h):
-        m = re.search(r'<a [^>]*href="' + re.escape(reverse("juridico:audiencias")) + r'"[^>]*>', h)
+        m = re.search(r'<a\b[^>]*href="\?audiencia=1"[^>]*>', h)
         return m.group(0) if m else ""
-    assert botao(sem) and botao(com)
-    alerta = r"(danger|destrut|perigo|erro|vermelh|alerta|urgent)"
-    assert not re.search(alerta, botao(sem), re.I) and re.search(alerta, botao(com), re.I)
+    sem = ver.html(_painel(cad.ana))
+    com_r = _painel(cad.ana, audiencia=1)
+    assert botao(sem) and 'aria-pressed="false"' in botao(sem) and "Audiências (2)" in ver.texto(_painel(cad.ana))
+    assert len(com_r.context["processos"]) == 2 and com_r.context["filtro_audiencia"] is True
+    assert re.search(r'<(?:a|button)\b[^>]*aria-pressed="true"[^>]*>(?:(?!</(?:a|button)>).)*Audiências \(2\)', ver.html(com_r), re.S)
+    assert reverse("juridico:audiencias") in sem and "Lista de audiências" in ver.texto(_painel(cad.ana))
 
 
 def test_tela_de_audiencias_lista_ordenada_por_data_com_link(cad, ver):

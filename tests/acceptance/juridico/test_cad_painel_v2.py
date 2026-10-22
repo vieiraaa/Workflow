@@ -308,13 +308,15 @@ def test_lista_valor_ausente_mostra_sem_valor_da_causa(cad, ver):
 
 
 def test_linha_selecionada_tem_aria_current(cad, ver):
-    """CAD-24: a linha selecionada leva aria-current (uma só)."""
+    """CAD-24: a linha selecionada leva aria-current (uma só) DENTRO da lista de processos — o aria-current='page' do menu lateral é outro (acessibilidade)
+    e não conta (antes: o primeiro aria-current da página)."""
     a = criar_processo(cad, numero=_n(1))
     b = criar_processo(cad, numero=_n(2))
     h = ver.html(_painel(cad.ana, p=a.pk))
-    assert len(re.findall(r"aria-current=", h)) >= 1
-    trecho = re.search(r"<[^>]*aria-current=[^>]*>.*?</(?:a|li|tr|div)>", h, re.S).group(0)
-    assert a.numero in trecho and b.numero not in trecho
+    itens = re.findall(r'<a\b[^>]*aria-current="(?!page")[^"]*"[^>]*>.*?</a>', h, re.S)
+    assert len(itens) == 1
+    assert a.numero in re.sub(r"\s+", "", re.sub(r"<[^>]+>", "", itens[0])).replace(" ", "") or a.numero.replace("-", "") in re.sub(r"\D", "", itens[0]) or a.numero_digitos in re.sub(r"\D", "", itens[0])
+    assert b.numero_digitos not in re.sub(r"\D", "", itens[0])
 
 
 def test_lista_mostra_o_sequencial_do_numero(cad, ver):
