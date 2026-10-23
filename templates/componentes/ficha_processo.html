@@ -12,6 +12,9 @@
       <span class="chip-status chip-status--{% if f.acao == 'cadastrado' %}ok{% elif f.acao == 'conferir' %}conf{% else %}pend{% endif %}">{{ p.status_rotulo }}</span>
       <span class="obrig"><span class="ticks" aria-hidden="true">{% for o in f.obrigatorios %}<i class="marcador{% if not o.ok %} nao{% endif %}" title="{{ o.rotulo }}: {% if o.ok %}preenchido{% else %}faltando{% endif %}"></i>{% endfor %}</span>{{ f.obrig_ok }} de 7 campos obrigatórios</span>
     </div>
+    {% if p.pendencias %}
+    <ul class="ficha-pendencias" aria-label="Pendências do processo" data-estado="pendencias">{% for pend in p.pendencias %}<li>{% include "componentes/icone.html" with nome="triangle-alert" tamanho=16 %}<span>{{ pend }}</span></li>{% endfor %}</ul>
+    {% endif %}
     <div class="ficha-acoes">
       {% if f.acao == "conferir" %}
         {% if f.pode_marcar %}<form method="post" action="{{ f.url_marcar }}">{% csrf_token %}{% include "componentes/botao.html" with rotulo="✓ Marcar cadastrado no Espaider" variante="primario" tipo="submit" carregando="Marcando…" %}</form>{% endif %}

@@ -7,7 +7,7 @@
 {% block scripts %}<script src="{% static 'js/juridico.js' %}" defer></script>{% endblock %}
 {% block conteudo_classe %}conteudo--largo{% endblock %}
 {% block acoes %}
-<a class="botao botao--secundario{% if audiencias_urgente %} botao--destrutivo botao--alerta{% endif %}" role="button" aria-pressed="{% if filtro_audiencia %}true{% else %}false{% endif %}" href="?{% if not filtro_audiencia %}audiencia=1{% endif %}{% include 'componentes/qs_filtros.html' with sem_audiencia=1 %}">Audiências ({{ audiencias_n|default:0 }})</a>
+<a class="botao botao--secundario" role="button" aria-pressed="{% if filtro_audiencia %}true{% else %}false{% endif %}" href="?{% if not filtro_audiencia %}audiencia=1{% endif %}{% include 'componentes/qs_filtros.html' with sem_audiencia=1 %}"><span class="sr-only">Audiências ({{ audiencias_n|default:0 }})</span><span aria-hidden="true">Audiências <b class="qtd">({{ audiencias_n|default:0 }})</b></span></a>
 <details class="menu" data-menu>
   <summary class="botao botao--secundario menu__gatilho" aria-label="Menu do cadastro">{% include "componentes/icone.html" with nome="menu" tamanho=16 %}<span>Menu</span></summary>
   <div class="menu__lista" role="menu">

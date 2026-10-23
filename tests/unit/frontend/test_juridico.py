@@ -88,13 +88,16 @@ def test_painel_fluxo_clientes_lista_e_ficha(pedido):
     assert HOSTIL not in html and "&lt;script&gt;" in html
     for trecho in ("Painel de Processos", "Atualizado às 16:42 · 3 processos", "Entrada de PDFs", "em leitura", "com erro de leitura", "ver log",
                    "processos extraídos", "% já cadastrados no Espaider", "falta campo obrigatório", "7 de 7 campos, revisão humana", "lançado no Espaider",
-                   "Clientes", "cadastrados / total", "1/3", "Processos · Todos (2)", "Audiências", "botao--destrutivo botao--alerta", "+ Enviar PDFs",
+                   "Clientes", "cadastrados / total", "1/3", "Processos · Todos (2)", "Audiências", "+ Enviar PDFs",
                    "Com pendências · 2", "sem valor da causa", "<b>0001655</b>", "18/09/2026 10:00", 'aria-current="true"',
                    "Detalhes do processo", "sequencial", "estadual", "TJPR", "6 de 7 campos obrigatórios", "✓ Marcar cadastrado no Espaider", "Editar",
                    "não encontrado no PDF", "obg", "Agenda manual: crie a agenda da audiência no Espaider.", "out 2026", "Audiência de conciliação",
                    "Confere com o CNJ", "Ele some do painel; o histórico fica guardado.", "Confirmar exclusão", "***.111.222-**"):
         assert trecho in html, trecho
     assert 'aria-pressed="false"' in html and "data-status-url" not in html
+    # Audiências é neutro (secundário), com a contagem em fonte numérica; a urgência fica no chip de data da lista
+    assert 'class="botao botao--secundario" role="button"' in html and '<b class="qtd">(5)</b>' in html and "botao--alerta" not in html
+    assert "proc__aud--urgente" in html
     assert 'data-href-desktop="/juridico/?p=2"' in html and 'href="/juridico/processos/2/"' in html
 
 
@@ -308,4 +311,17 @@ def test_menu_mostra_cabecalho_do_grupo_uma_vez(pedido):
              {"rotulo": "Cadastro de processos", "url": "/juridico/", "icone": "scale", "ativo": True, "grupo": "Jurídico"},
              {"rotulo": "Outro", "url": "/x/", "icone": "scale", "ativo": False, "grupo": "Jurídico"}]
     html = render_to_string("base.html", {"menu": itens}, request=pedido)
+    assert html.count('aria-current="page"') == 1 and 'href="/juridico/" aria-current="page"' in html  # só o item ativo da lateral
     assert html.count('class="sidebar__grupo"') == 1 and "Jurídico" in html and "scale" in html
+
+
+def test_ficha_lista_as_pendencias_mesmo_com_sete_de_sete(pedido):
+    f = ficha("pendencias")
+    f["processo"]["pendencias"] = ["Carteira não identificada.", "Divergência com o CNJ: comarca (PDF: x · CNJ: y)"]
+    f["obrig_ok"] = 7
+    f["obrigatorios"] = [dict(o, ok=True) for o in OBRIG]
+    html = tela(pedido, "juridico/painel.html", **contexto_painel(selecionado=f))
+    assert "7 de 7 campos obrigatórios" in html and 'class="ficha-pendencias"' in html
+    assert "Carteira não identificada." in html and "Divergência com o CNJ: comarca (PDF: x · CNJ: y)" in html
+    # sem pendências, a lista não aparece
+    assert 'class="ficha-pendencias"' not in tela(pedido, "juridico/painel.html", **contexto_painel())
