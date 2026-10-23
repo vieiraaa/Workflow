@@ -33,3 +33,30 @@ implementação. Decisões: D-036 (identidade) e D-037 (Montserrat vendorizada).
 ## Pendente do usuário
 Versão **negativa do logo em PNG transparente**, com o "e" dourado. Até ela chegar, o modo escuro usa o logo oficial
 com filtro branco.
+
+## Atualização 23/10 · identidade v2 e painel v2 do Cadastro (D-038)
+O guia `docs/design/IMPLEMENTACAO-PAINEL.md` e a prévia `docs/design/painel-v2.html` substituem a paleta da D-036.
+- **Cores:**
+  - lateral ameixa nos dois temas;
+  - escuro ameixa profundo;
+  - dourado só para marca e ações;
+  - Conferir em azul;
+  - `--text-3` do claro ajustado para AA.
+- **Tipografia:** IBM Plex Sans/Mono e Montserrat; rótulos em caixa normal.
+- **Painel do Cadastro** (CAD-24..27):
+  - fluxo do cadastro: entrada de PDFs, esteira em escala e etapas que filtram;
+  - clientes com cadastrados/total;
+  - ficha com CNJ decomposto, 7 marcadores, pendências, ação por status, audiência em folha de calendário e faixa do CNJ.
+- **Dados:** ligados ao banco do sistema, e não à planilha. O tipo da audiência é gravado na migração `juridico 0003`,
+  **não aplicada no Supabase**.
+- **Tarefas:**
+  - T-090: tokens, fontes e shell;
+  - T-091: contexto;
+  - T-092: telas;
+  - T-093: aceite;
+  - T-094: aceite antigo reconciliado (a CAD-16 tem nota do que foi substituído);
+  - T-095: `aria-current` de volta ao menu;
+  - T-096: revisão visual — pendências na ficha, Audiências neutro, separadores do CNJ.
+- **Desvio aceito:** abaixo de 800px o menu continua sendo a gaveta (agora ameixa), e não a barra no topo do guia,
+  porque os testes adversariais do menu móvel exigem a gaveta.
+- **Verificação:** check completo VERDE e 336 capturas regeneradas (m0..m8).

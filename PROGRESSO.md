@@ -18,3 +18,4 @@ Servidores: :8000 = demo local · Métricas: python3 docs/metricas/metricas.py
 
 ## 20/10/2026
 - Identidade visual Egger e Mesquita (branch feat/identidade-eem, sobre feat/m8-cadastro): design-base nova, todas as telas, papel do Vitral reescrito; T-086..089; check completo VERDE; 336 capturas; PR em docs/prs/identidade-eem.md. Merge/push só a pedido. Pendente do usuário: logo negativo PNG transparente.
+- 23/10: identidade v2 + painel v2 do Cadastro (T-090..096) · check completo VERDE · 336 capturas · push em andamento já feito (74ff5be); segundo push com o fechamento.
