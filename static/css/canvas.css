@@ -1,12 +1,12 @@
 /* Editor de canvas (TEL-05). Só tokens. Sobrescreve o CSS padrão do Drawflow. */
 .conteudo--cheio { max-width: none; padding: 0; gap: 0; }
-:root { --paleta-w: 200px; --inspector-w: 340px; --no-w: 220px; --porta-passo: 36px; --porta: 18px; --cor-gatilho: var(--orange); --cor-http: var(--accent); --cor-saida: var(--success); --cor-dados: var(--purple); --cor-fluxo: var(--warning); --cor-canvas: var(--text-2); }
+:root { --paleta-w: 200px; --inspector-w: 340px; --no-w: 220px; --porta-passo: 36px; --porta: 18px; --cor-gatilho: var(--marca-ouro); --cor-http: var(--purple); --cor-saida: var(--success); --cor-dados: var(--text-2); --cor-fluxo: var(--orange); --cor-canvas: var(--text-3); }
 
 .editor { position: relative; display: grid; grid-template-columns: var(--paleta-w) minmax(0, 1fr) var(--inspector-w); height: calc(100dvh - var(--topbar-h)); min-height: 480px; background: var(--bg); overflow: hidden; }
 .editor__paleta, .editor__inspector { background: var(--surface); overflow-y: auto; padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-3); }
 .editor__paleta { border-right: 1px solid var(--hairline); }
 .editor__inspector { border-left: 1px solid var(--hairline); }
-.editor__titulo-painel { font-size: var(--text-sm); font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .04em; }
+.editor__titulo-painel { font: 600 var(--text-sm)/1.4 var(--font-titulo); color: var(--text-2); }
 .editor__fechar { display: none; }
 .editor__area { position: relative; min-width: 0; min-height: 0; container-type: inline-size; }
 @container (max-width: 760px) { .toolbar .botao__rotulo-desktop { display: none; } }
@@ -97,6 +97,7 @@
 }
 
 .topbar__titulo { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 800px) { .topbar { flex-wrap: nowrap; } .topbar__texto { order: 0; flex: 1 1 0; } .topbar__titulo { display: block; } }
 
 /* O enquadramento (ajustar) calcula a translação a partir do canto superior esquerdo. */
 .canvas .drawflow { transform-origin: 0 0; }
@@ -124,9 +125,9 @@
 .drawflow .drawflow-node.no-nota.selected { box-shadow: none; }
 
 /* Notas (sticky) */
-.nota { --nota: var(--warning); position: relative; min-width: 160px; min-height: 80px; padding: var(--sp-3); border-radius: var(--r-m); background: color-mix(in srgb, var(--nota) 22%, var(--surface)); border: 1px solid color-mix(in srgb, var(--nota) 45%, transparent); box-shadow: var(--shadow-1); color: var(--text); overflow: hidden; }
-.nota--amarela { --nota: var(--warning); }
-.nota--azul { --nota: var(--accent); }
+.nota { --nota: var(--marca-ouro); position: relative; min-width: 160px; min-height: 80px; padding: var(--sp-3); border-radius: var(--r-m); background: color-mix(in srgb, var(--nota) 22%, var(--surface)); border: 1px solid color-mix(in srgb, var(--nota) 45%, transparent); box-shadow: var(--shadow-1); color: var(--text); overflow: hidden; }
+.nota--amarela { --nota: var(--marca-ouro); }
+.nota--azul { --nota: var(--purple); }
 .nota--verde { --nota: var(--success); }
 .nota--cinza { --nota: var(--text-3); }
 .nota__texto { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--text-sm); height: 100%; overflow: hidden; }
@@ -134,7 +135,7 @@
 .drawflow .drawflow-node.no-nota.selected .nota { box-shadow: var(--ring); }
 .notas__cores { display: flex; gap: var(--sp-2); }
 .notas__cor { width: var(--sp-6); height: var(--sp-6); border-radius: var(--r-pill); border: 2px solid transparent; cursor: pointer; background: color-mix(in srgb, var(--c) 45%, var(--surface)); padding: 0; }
-.notas__cor--amarela { --c: var(--warning); } .notas__cor--azul { --c: var(--accent); } .notas__cor--verde { --c: var(--success); } .notas__cor--cinza { --c: var(--text-3); }
+.notas__cor--amarela { --c: var(--marca-ouro); } .notas__cor--azul { --c: var(--accent); } .notas__cor--verde { --c: var(--success); } .notas__cor--cinza { --c: var(--text-3); }
 .notas__cor[aria-checked="true"] { border-color: var(--text); }
 
 /* Rótulo de contagem de itens nas arestas */

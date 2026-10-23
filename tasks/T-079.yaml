@@ -1,0 +1,17 @@
+id: T-079
+titulo: M8 · Cadastro de processos · telas (painel estilo Power Apps)
+dono: Vitral (front)
+regras: [CAD-01, CAD-03, CAD-05, CAD-13..17, CAD-19, TEL-27..33]
+spec: docs/spec/juridico-cadastro.yaml
+depende_de: [T-078 (contexto das views)]
+aceite:
+  - "Identidade visual = a NOSSA (design-base), NÃO a do Power Apps: dos prints só a estrutura. Skills design-base + frontend. Templates juridico/<view>.html para TEL-27..33 com estados vazio/carregando/erro/sucesso."
+  - "Menu: grupo Jurídico > Cadastro de processos (Lucide scale), só com a flag do motor."
+  - "Painel: cartões de resumo clicáveis (filtro), Últimos envios, lista com chips de status e ícone do CNJ, filtros,
+     busca, paginação; 390 px sem rolagem horizontal (lista vira cartões)."
+  - "Detalhe/conferência em grupos com etiqueta de origem (PDF/CNJ/manual), caixa Validação no CNJ, pendências no topo,
+     ações conforme flags; Enviar PDFs com múltiplos arquivos (arrastar e soltar + escolher), contagem e validação de
+     tamanho no cliente (o servidor valida de novo)."
+  - "Auto-atualização a cada 10 s via url_status (JSON) só enquanto houver itens em andamento; para quando acabar."
+  - "tests/e2e/ e tests/unit/frontend/ verdes; capturas TEL-27..33 em docs/telas/m8/ via scripts/telas.py."
+arquivos: [templates/, static/, tests/unit/frontend/, tests/e2e/]

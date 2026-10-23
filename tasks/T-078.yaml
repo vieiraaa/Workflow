@@ -1,0 +1,22 @@
+id: T-078
+titulo: M8 · Cadastro de processos · back (app juridico, worker, Dify, DataJud, mesclagem)
+dono: Forja (back)
+regras: [CAD-01..19]
+spec: docs/spec/juridico-cadastro.yaml
+depende_de: [T-077]
+aceite:
+  - "apps/juridico/: modelos Carteira, ConfigCadastro, Processo, Envio, ItemEnvio + migração (nova; não aplicar no
+     Supabase) + semente de carteiras; permissões cadastro.* na matriz (docs/spec/permissoes.yaml, escopo
+     setor_com_acesso); rotas/nomes da CAD-01; views com docstring = contrato CAD-19."
+  - "Worker manage.py processar_cadastros (loop + --uma-vez), um item por vez, recuperação de travados (CAD-13)."
+  - "Clientes Dify e DataJud REUSANDO apps/motor/http.requisitar (SSRF/pin); estenda-o para corpo binário/multipart se
+     preciso, sem abrir caminho de rede novo; prazos 300 s/30 s e limite 2 MB só para estes chamadores."
+  - "Roda no Windows (notebook da empresa é onde o usuário testa): pathlib, worker sem fork/sinais POSIX, truststore (CAD-07a).
+  - "Extração de texto de PDF com biblioteca pura Python (ex.: pypdf) em requirements, pip-audit verde."
+  - "Credenciais pelo cofre; chave nunca em log, resposta_ia, mensagem ou teste (CAD-18). PDFs em MEDIA_ROOT privado (CAD-04)."
+  - "semear_demo ganha ConfigCadastro apontando para um Dify/DataJud falsos locais? NÃO: no demo deixe as credenciais
+     vazias e 3 processos fictícios (um CONFERIR, um COM_PENDENCIAS, um CADASTRADO) + 1 envio com erro."
+  - "scripts/demo.py lê sozinho a chave LOCAL de demo (~/.construtor-workflows/demo_credenciais_chave; cria se não existir) quando CREDENCIAIS_CHAVE não vier no ambiente — nunca a do .env; hoje um reinício sem ela quebrou as Credenciais no demo."
+  - "scripts/demo.py sobe também o worker. tests/unit/ verdes; aceite tests/acceptance/juridico/ verde sem alteração;
+     nada do m1..m7a/n8n quebra."
+arquivos: [apps/, config/, scripts/, requirements*, tests/unit/ (menos frontend/), tests/conftest.py]

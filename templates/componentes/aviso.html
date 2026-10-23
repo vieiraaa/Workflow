@@ -1,0 +1,7 @@
+{# Aviso de uma frase. texto, tipo: aviso|erro|sucesso|info (padrão aviso), icone (padrão triangle-alert), estado (data-estado, opcional), link_url + link_rotulo (opcional). #}
+{% if texto %}
+<div class="alerta alerta--{{ tipo|default:'aviso' }}" role="{% if tipo == 'erro' %}alert{% else %}status{% endif %}"{% if estado %} data-estado="{{ estado }}"{% endif %}>
+  {% include "componentes/icone.html" with nome=icone|default:"triangle-alert" tamanho=16 %}
+  <span>{{ texto }}{% if link_url %} <a href="{{ link_url }}">{{ link_rotulo|default:"Ver" }}</a>{% endif %}</span>
+</div>
+{% endif %}

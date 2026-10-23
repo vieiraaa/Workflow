@@ -9,6 +9,7 @@ as mesmas definições. "Alças" são as saídas/entradas numeradas de um nó (a
 TIPOS_DE_NO = (
     "gatilho",
     "http",
+    "chamar_n8n",
     "codigo",
     "editar_campos",
     "filtrar",
@@ -42,6 +43,15 @@ ESQUEMA_CONFIG = {
         "resposta": "texto",
         "resposta_completa": "bool",
         "paginacao": "obj?",
+    },
+    "chamar_n8n": {
+        "url": "texto",
+        "metodo": "texto",
+        "credencial": "texto?",
+        "enviar": "texto",
+        "corpo": "texto",
+        "aguardar_resposta": "bool",
+        "tempo_limite_s": "int",
     },
     "codigo": {"modo": "texto", "codigo": "texto"},
     "editar_campos": {
@@ -86,6 +96,8 @@ ESQUEMA_CONFIG = {
 
 ENUMS_CONFIG = {
     ("http", "resposta"): ("json", "texto", "automatica"),
+    ("chamar_n8n", "metodo"): ("POST", "GET"),
+    ("chamar_n8n", "enviar"): ("item", "todos", "personalizado"),
     ("codigo", "modo"): ("uma_vez_para_todos", "uma_vez_por_item"),
     ("editar_campos", "modo"): ("manual", "json"),
     ("filtrar", "combinar"): ("e", "ou"),
@@ -106,6 +118,19 @@ ENUMS_CONFIG = {
         "operacao",
     ): ("agora", "formatar", "somar", "subtrair", "diferenca", "inicio_de"),
 }
+
+# N8N-01/02: padrões do nó Chamar n8n (o config salvo pode omitir) e limites.
+PADROES_N8N = {
+    "metodo": "POST",
+    "enviar": "item",
+    "aguardar_resposta": True,
+    "tempo_limite_s": 30,
+}
+TEMPO_N8N = (1, 55)
+AVISO_N8N_TESTE = (
+    "URL de TESTE do n8n: só funciona enquanto o n8n estiver em 'Listen for test event'. "
+    "Para uso real, ative o fluxo no n8n e use /webhook/."
+)
 
 OPERADORES = (
     "igual", "diferente", "maior", "maior_igual", "menor", "menor_igual", "contem", "nao_contem",
@@ -147,6 +172,7 @@ SEM_ALCA_DE_ERRO = ("gatilho", "saida")
 ROTULOS = {
     "gatilho": "Manual",
     "http": "Requisição HTTP",
+    "chamar_n8n": "Chamar n8n",
     "codigo": "Código",
     "editar_campos": "Editar campos",
     "filtrar": "Filtrar",

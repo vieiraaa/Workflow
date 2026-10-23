@@ -1,0 +1,375 @@
+# M8 · Jurídico · Cadastro de processos (substitui o fluxo n8n "ATIVOS-DADOS", o Excel e o Power Apps).
+# Decisão do usuário em 19/10/2026 (D-033): o LLM continua sendo o MESMO app do Dify que o n8n chama hoje; os PDFs
+# entram pelo nosso site; os dados ficam no banco do sistema; o número é validado no CNJ (DataJud); painel com
+# resumos como o do Power Apps. Fonte funcional: docs/briefs/agentes-juridicos/HANDOFF_TECHLEAD.md §3.
+# FORA deste módulo: Agente de Prazos, ingestão por OneDrive/e-mail, API do Espaider, importar a planilha atual.
+
+modelo:
+  Carteira:
+    nome:    {tipo: texto, max: 60, unico: true (sem diferenciar maiúsculas)}
+    empresa: {tipo: texto, max: 200, regra: "nome da empresa cliente usado quando o cadastro vem só do CNJ"}
+    ativa:   {tipo: booleano, padrao: true}
+    semente: "Ativos (ATIVOS S.A. SECURITIZADORA DE CRÉDITOS FINANCEIROS), Ailos (COOPERATIVA DE CRÉDITO (SISTEMA AILOS)), Volvo, Toyota, BTB, John Deere"
+  ConfigCadastro:   # uma linha só; editada pelo Adm (CAD-14)
+    dify_url:         {tipo: url, padrao: "https://eemdevjurdyapi.eem-adv.org/service/api/v1"}
+    dify_credencial:  {tipo: texto, regra: "NOME de uma Credencial (bearer) sem setor; o valor nunca é exibido"}
+    dify_usuario:     {tipo: texto, padrao: "construtor-espaider"}
+    dify_ca_pem:      {tipo: texto, opcional: true, regra: "certificado da CA (PEM) em que confiar SÓ para o host do dify_url (CAD-07a); vazio = cadeia pública padrão"}
+    datajud_url:      {tipo: url, padrao: "https://api-publica.datajud.cnj.jus.br"}
+    datajud_credencial: {tipo: texto, regra: "NOME de uma Credencial tipo header (header_nome Authorization, valor 'APIKey <chave>')"}
+    setores_com_acesso: {tipo: M2M Setor, regra: CAD-02}
+  Processo:         # uma linha da antiga aba PROCESSOS
+    numero:            {tipo: texto, max: 25, regra: "formatado NNNNNNN-DD.AAAA.J.TR.OOOO quando válido"}
+    numero_digitos:    {tipo: texto, max: 20, indice: true, unico_quando_valido: true, regra: CAD-06}
+    numero_valido:     {tipo: booleano, regra: "dígito verificador CNJ (módulo 97) confere"}
+    status:            {tipo: escolha, valores: [COM_PENDENCIAS, CONFERIR, CADASTRADO], rotulos: ["Com pendências", "Conferir", "Cadastrado no Espaider"]}
+    pendencias:        {tipo: lista de texto}
+    carteira:          {tipo: FK Carteira, nulo: true}
+    empresa / condicao / advogado_empresa: {tipo: texto}
+    adverso_nome / adverso_cpf_cnpj / advogado_adverso_nome / advogado_adverso_oab: {tipo: texto}
+    tipo_acao / rito / natureza / meio_tramitacao / instancia / desdobramento: {tipo: texto}
+    tribunal / comarca / juizo / estado: {tipo: texto}
+    fase_atual:        {tipo: escolha, valores: [POSTULATORIA, INSTRUTORIA, DECISORIA, RECURSAL, EXECUCAO_CUMPRIMENTO, ARQUIVADO], nulo: true, regra: CAD-09}
+    distribuido_em / data_citacao: {tipo: data, nulo: true}
+    valor_causa:       {tipo: "decimal(14,2)", nulo: true}
+    pedidos:           {tipo: texto longo}
+    assuntos_cnj:      {tipo: texto longo, regra: "assuntos do DataJud (NÃO vão para Pedidos, ponto #10 do handoff)"}
+    operacoes_vinculadas: {tipo: texto}
+    andamentos:        {tipo: "json lista [{data, evento, fonte: pdf|cnj}]"}
+    observacoes:       {tipo: texto longo}
+    manuais:           {tipo: texto, regra: "Gerência, Categoria, Escritório, Peticionamento, Na fase desde, Responsável: colunas da planilha que a IA não preenche; campos de texto opcionais, só edição manual"}
+    cnj_validacao:     {tipo: escolha, valores: [nao_consultado, confere, divergente, nao_encontrado, falhou], padrao: nao_consultado}
+    cnj_divergencias:  {tipo: lista de texto}
+    cnj_consultado_em: {tipo: datahora, nulo: true}
+    origem_campos:     {tipo: "json objeto campo -> pdf|manual|cnj", regra: CAD-11}
+    cadastrado_espaider_em / cadastrado_espaider_por: {nulo: true}
+    proxima_audiencia: {tipo: datahora, nulo: true, regra: CAD-20}
+    criado_por:        {tipo: FK Usuario, nulo: true, regra: "quem enviou o PDF/número que CRIOU o processo (CAD-06)"}
+    criado_via:        {tipo: escolha, valores: [pdf, cnj, manual]}
+    excluido_em / excluido_por: {nulo: true, regra: "exclusão lógica (CAD-21); excluído some de todas as listas e contagens"}
+    criado_em / atualizado_em / atualizado_por: {auto: true}
+  Envio:            # um clique em "Enviar" (= uma linha da antiga aba N8N EXEC)
+    origem:        {tipo: escolha, valores: [pdf, cnj]}
+    enviado_por:   {tipo: FK Usuario}
+    carteira:      {tipo: FK Carteira, nulo: true}
+    criado_em / iniciado_em / terminado_em: {}
+    contagens:     {regra: "casos, sucessos, com_pendencias, erros: calculadas dos itens"}
+  ItemEnvio:        # um PDF ou um número CNJ
+    envio:         {tipo: FK Envio, on_delete: CASCADE}
+    arquivo:       {tipo: arquivo privado, nulo: true, regra: CAD-04}
+    nome_arquivo:  {tipo: texto, max: 255}
+    sha256:        {tipo: texto, max: 64, indice: true}
+    numero_informado: {tipo: texto, max: 40, regra: "só na origem cnj"}
+    status:        {tipo: escolha, valores: [na_fila, processando, concluido, erro, ignorado]}
+    tentativas:    {tipo: inteiro, padrao: 0}
+    etapa_erro:    {tipo: escolha, valores: ["Leitura do PDF", "Envio do PDF", "IA (Dify)", "CNJ (DataJud)", "Dados incompletos", "Gravação"], nulo: true, regra: CAD-23 (5)}
+    motivo:        {tipo: texto, max: 500}
+    resolvido:     {tipo: booleano, padrao: false, regra: "marcado no Log de erros (CAD-13)"}
+    processo:      {tipo: FK Processo, nulo: true, on_delete: SET_NULL}
+    acao:          {tipo: escolha, valores: [novo, atualizado], nulo: true}
+    duplicado_de:  {tipo: FK ItemEnvio, nulo: true, regra: "item anterior com o mesmo arquivo (CAD-06 a)"}
+    resposta_ia:   {tipo: texto, max: 200 KB, regra: "resposta bruta do Dify, mascarada; só o Adm vê (CAD-12)"}
+    duracao_ms:    {tipo: inteiro, nulo: true}
+
+permissoes:   # acrescentar em docs/spec/permissoes.yaml
+  cadastro.ver:        {adm: todos, coordenador: setor_com_acesso, base: setor_com_acesso}
+  cadastro.enviar:     {adm: todos, coordenador: setor_com_acesso, base: setor_com_acesso}
+  cadastro.editar:     {adm: todos, coordenador: setor_com_acesso, base: setor_com_acesso}
+  cadastro.configurar: {adm: todos, coordenador: nenhum, base: nenhum}
+  escopo_setor_com_acesso: >
+    O usuário tem acesso se o setor dele está em ConfigCadastro.setores_com_acesso. Com acesso, vê TODOS os processos
+    (o cadastro é do escritório, como a planilha), mas o detalhe de um Envio/Item só para quem enviou e o Adm.
+
+regras:
+  - id: CAD-01
+    texto: >
+      Menu lateral ganha o grupo "Jurídico" com "Cadastro de processos" (ícone Lucide `scale`), para quem tem
+      cadastro.ver. Rotas em /juridico/: `juridico:painel` (TEL-27), `juridico:processo` (/juridico/processos/<pk>/,
+      TEL-28), `juridico:enviar_pdfs` (TEL-29), `juridico:enviar_cnj` (TEL-30), `juridico:envios` (TEL-31),
+      `juridico:envio` (/juridico/envios/<pk>/), `juridico:erros` (TEL-32), `juridico:config` (TEL-33, Adm), `juridico:audiencias` (TEL-34),
+      `juridico:processo_novo` (TEL-35), `juridico:pdf`, `juridico:status` (JSON do auto-refresh).
+  - id: CAD-02
+    texto: >
+      Sem acesso (setor fora da lista, ou sem setor e não Adm) → 403 em todas as rotas do Jurídico e o menu não aparece.
+      Lista vazia de setores = só o Adm usa.
+  - id: CAD-03
+    texto: >
+      Enviar PDFs (TEL-29, POST multipart): campo `arquivos` (múltiplo, até 10 por envio, cada um até 30 MB) e
+      `carteira` (opcional). Só aceita arquivo que começa com "%PDF-" (o nome/extensão não basta). Erros (200, nada
+      criado): sem arquivo → "Escolha ao menos um PDF."; mais de 10 → "Envie no máximo 10 PDFs por vez."; maior que
+      30 MB → "<nome>: maior que 30 MB."; não é PDF → "<nome>: não é um PDF.". Ok → cria Envio + Itens na_fila e
+      redireciona para `juridico:envio` com "N PDF(s) na fila. Os dados aparecem no painel em alguns minutos."
+  - id: CAD-04
+    texto: >
+      PDF guardado em disco do servidor (MEDIA_ROOT privado, `juridico/AAAA/MM/<uuid>.pdf`), NUNCA servido por URL
+      estática nem gravado no banco; baixar só pela view `juridico:pdf` com cadastro.ver (Content-Disposition attachment,
+      nome original saneado). O banco (Supabase) guarda só os dados extraídos.
+  - id: CAD-05
+    texto: >
+      Cadastrar pelo CNJ (TEL-30): `numeros` (textarea; separadores quebra de linha, vírgula ou ponto e vírgula; até 50)
+      e `carteira` (obrigatória, lista de Carteira ativas + "Outra / não sei"). Cada número com 20 dígitos vira um item na
+      fila; outros → item com erro "Número inválido (o padrão CNJ tem 20 dígitos): <texto>". Vazio → "Informe ao menos um número."
+  - id: CAD-06
+    texto: >
+      Duplicidade (pedido do usuário 19/10: "avise, mostre que já temos, quem fez, com o usuário da pessoa que subiu").
+      (a) MESMO ARQUIVO (sha256 igual a item já concluído, de qualquer usuário): detectado NA HORA do envio, antes da
+      fila; o item fica `ignorado`, sem chamar o Dify, e a tela do envio mostra em destaque: "Já temos este arquivo:
+      processo <número> · enviado por <nome> (<e-mail>) em DD/MM/AAAA HH:MM." com link para o processo. (b) MESMO
+      NÚMERO (PDF diferente ou número colado no formulário CNJ de processo que já existe): o processo é atualizado pelas
+      regras da CAD-11 e o item mostra "Este processo já existia: cadastrado por <nome> (<e-mail>) em DD/MM/AAAA via
+      <PDF|CNJ|manual>. Atualizado: <campos> (ou 'nenhum dado novo')."; no formulário CNJ o aviso aparece já na tela de
+      confirmação, por número, antes de enfileirar. O detalhe do processo mostra "Cadastrado por <nome> em <data> via
+      <origem>" e o histórico de envios com o usuário de cada um. (c) Número com dígito verificador inválido NUNCA é
+      considerado o mesmo de outro: cria Processo novo com a pendência "Número CNJ com dígito verificador inválido:
+      confira no PDF.". (d) Processo excluído (CAD-21) com o mesmo número: é restaurado e atualizado, com o aviso
+      "Este processo tinha sido excluído por <nome> em <data> e foi restaurado.".
+  - id: CAD-07
+    texto: >
+      Processamento (worker `manage.py processar_cadastros`: laço contínuo; `--uma-vez` processa a fila atual e sai; um item por vez, na ordem de chegada, como o n8n):
+      PDF → extrai o texto no servidor (biblioteca pura Python); texto com 200+ caracteres → POST {dify_url}/chat-messages
+      com {inputs: {}, query: <texto normalizado>, response_mode: "blocking", user: dify_usuario}; texto acima de 40.000
+      caracteres → envia os primeiros 25.000 + "\n[... trecho do meio omitido ...]\n" + os últimos 15.000 (o fim do PDF
+      tem citação e decisões recentes; ponto #1). Texto curto ou erro de leitura → POST {dify_url}/files/upload
+      (multipart: file, user) e chat-messages com a mesma query do n8n para "PDF ANEXADO" e files [{type: document,
+      transfer_method: local_file, upload_file_id}]. Credencial Dify como `Authorization: Bearer`. Prazo 300 s por
+      chamada ao Dify; resposta até 2 MB. Mesma proteção SSRF/pin do motor (SEG-01..07), sem caminho de rede novo.
+  - id: CAD-07a
+    texto: >
+      TLS do Dify (achado 19/10: eemdevjurdyapi.eem-adv.org apresenta o certificado padrão de um FortiGate, emitido pela
+      CA "FG100FTK23030732", que nenhuma cadeia pública reconhece). A verificação TLS NUNCA é desligada. Se dify_ca_pem
+      estiver preenchido, o cliente do Dify confia nessa CA ALÉM da cadeia padrão e só para o host do dify_url (outros
+      hosts e o motor de fluxos não mudam). Além disso, o cliente do Dify e do DataJud confia no repositório de certificados do
+      SISTEMA OPERACIONAL (biblioteca truststore), para funcionar no notebook Windows da empresa, onde a TI já instala a
+      CA do FortiGate; isso vale só para esses dois clientes. PEM inválido → "Certificado inválido: cole o PEM completo (BEGIN/END
+      CERTIFICATE)." na Configuração. Falha de TLS → erro "Não foi possível validar o certificado do Dify. Peça à TI um
+      certificado válido ou cadastre a CA em Configuração." O ideal é a TI instalar um certificado público no servidor.
+  - id: CAD-08
+    texto: >
+      Leitura da resposta do Dify igual ao nó "Montar linha da planilha": campo `answer`; tira cercas ```; JSON do 1º "{"
+      ao último "}"; aceita nomes alternativos de chave; "Não localizado/encontrado/informado/consta" = vazio; datas
+      DD/MM/AAAA → data; valor "R$ 1.234,56" → decimal (inválido → vazio + pendência "Valor da causa ilegível: <texto>");
+      menos de 3 campos preenchidos → erro "A IA não encontrou dados de processo neste PDF (talvez não seja um processo).";
+      JSON inválido → erro "A IA não devolveu os dados no formato esperado." (etapa IA (Dify)). Carteira: a do envio;
+      se vazia, deduzida pela empresa (contém o nome da carteira, sem acento/maiúsculas); senão fica vazia + pendência
+      "Carteira não identificada.".
+  - id: CAD-09
+    texto: >
+      Fase única (ponto #2): valores do Dify; o caminho CNJ usa as mesmas fases (EXECUÇÃO → EXECUCAO_CUMPRIMENTO;
+      SENTENÇA → DECISORIA, provisório até a Controladoria confirmar a lista — D-034).
+  - id: CAD-10
+    texto: >
+      Validação no CNJ (DataJud), depois da extração e no caminho CNJ: só com numero_valido; alias pelo número como no
+      nó "Preparar consulta CNJ" (J=8 tj<uf>, 4 trfN, 5 trtN, 6 tre-<uf>; sem alias → cnj_validacao=falhou com
+      "Tribunal não suportado no DataJud."). POST {datajud_url}/api_publica_<alias>/_search {query:{match:{numeroProcesso}},size:1},
+      prazo 30 s, no máximo 1 consulta a cada 1,5 s. Achou → compara tribunal, distribuído em e comarca (sem acento/caixa;
+      comarca: contida no nome do órgão julgador): tudo igual → `confere`; diferente → `divergente` + pendência
+      "Divergência com o CNJ: <campo> (PDF: x · CNJ: y)". Não achou → `nao_encontrado` (alerta "Não encontrado no DataJud:
+      segredo de justiça ou ainda não indexado.", sem pendência). 401/403 → `falhou` + erro no Log "Chave do DataJud
+      recusada: atualize a credencial em Configuração." e aviso no painel para o Adm. Outras falhas → `falhou`, o
+      processo é gravado mesmo assim.
+  - id: CAD-11
+    texto: >
+      Mesclagem (regras do n8n): PDF > manual > CNJ. Processo novo → cria. Existente: o PDF substitui todo campo que
+      trouxer preenchido e diferente; o CNJ SÓ preenche campo vazio e nunca sobrescreve PDF nem edição manual
+      (origem_campos); nunca mexem em status CADASTRADO, observações manuais, campos "manuais" (CAD modelo) nem
+      cadastrado_espaider_*. Observações ganha a linha "Atualizado pelo PDF em DD/MM/AAAA HH:MM: <campos>." Andamentos:
+      do PDF (até 5) + do CNJ (15 mais recentes), sem repetir (mesma data e texto), ordem decrescente.
+  - id: CAD-12
+    texto: >
+      Status e pendências: obrigatórios Número, Tribunal, Comarca, Juízo, Adverso, Valor da causa, Distribuído em;
+      faltando → pendência "Verificar: <campos>"; com qualquer pendência → COM_PENDENCIAS, senão CONFERIR; CADASTRADO
+      só pelo botão (CAD-15) e nunca volta sozinho. Recalculado a cada gravação, exceto quando CADASTRADO.
+  - id: CAD-13
+    texto: >
+      Falhas viram item com status erro + etapa + motivo (o "LOG DE ERRO"): leitura do PDF ("Não foi possível abrir o
+      PDF nem lê-lo como imagem (corrompido ou com senha)."), Dify fora/timeout ("A IA não respondeu: <motivo curto>."),
+      Dify 401/403 ("O Dify recusou a chave: confira a credencial em Configuração."). Dados incompletos também entram no
+      Log (etapa "Dados incompletos", motivo "Processo <número> gravado, mas faltou: <campos>"). Item travado em
+      processando por mais de 15 min volta para a fila uma vez; na 2ª vez → erro "Processamento interrompido.".
+      Botão "Tentar de novo" (POST) num item com erro → volta para a fila (quem enviou ou Adm).
+  - id: CAD-14
+    texto: >
+      Configuração (TEL-33, só Adm): URLs, nomes das credenciais (lista das credenciais sem setor do tipo certo),
+      usuário do Dify, setores com acesso, e as carteiras (adicionar, renomear, ativar/desativar). Botão "Testar conexão"
+      (POST) chama o Dify com query "ping" e o DataJud com um número de exemplo e mostra "Dify: ok/falhou (<motivo>) ·
+      DataJud: ok/falhou" sem expor valores.
+  - id: CAD-15
+    texto: >
+      Detalhe / conferência (TEL-28): cabeçalho com número, chip de status, carteira, "Baixar PDF"; caixa "Validação no
+      CNJ" (confere/divergente/não encontrado/falhou com as divergências); lista de pendências; formulário com todos os
+      campos em grupos (Identificação, Cliente, Adverso, Jurisdição, Datas e valores, Pedidos, Andamentos, Controle);
+      etiqueta da origem de cada campo (PDF/CNJ/manual); "Salvar" (edição vira origem manual, recalcula CAD-12, mensagem
+      "Processo salvo."); "Marcar como cadastrado no Espaider" (POST; exige status CONFERIR → senão "Resolva as pendências
+      antes de marcar como cadastrado."; grava quem/quando); "Desfazer cadastrado" (Adm); "Consultar CNJ de novo" (POST);
+      histórico dos envios que tocaram o processo. Mutação só POST + CSRF → redirect + messages.
+  - id: CAD-16
+    texto: >
+      [SUBSTITUÍDA EM PARTE pela CAD-24/25 em 22/10 (D-038): os 6 cartões de resumo, os contadores "N processos · N com
+      pendências · N cadastrados", o formato "Todos (N)" dos clientes, o botão Audiências vermelho e os grupos da coluna de
+      detalhes (agora a ficha da CAD-25) seguem a CAD-24/25. CONTINUAM valendo da CAD-16: o Menu e seus itens, busca e
+      filtros, paginação 25, queries constantes, datas DD/MM/AAAA, auto-refresh e o estado vazio quando NÃO há processos.]
+      Painel (TEL-27) no formato do Power Apps (prints LOCAIS, fora do git por terem dados reais: docs/briefs/agentes-juridicos/powerapps/; só a ESTRUTURA vale; a identidade visual é a NOSSA (skill design-base: tokens, light/dark, Inter, Lucide), nunca o roxo/escuro do Power Apps; os dados dos prints nunca): barra superior com
+      título "Painel de Processos", botão "Menu" (Enviar PDFs para leitura, Cadastrar pelo nº (CNJ), Cadastro manual de
+      processo, Log de erros e desempenho, Envios, Configuração (Adm)), botão de alerta "Audiências (N)" (CAD-20) e
+      contadores "N processos · N com pendências · N cadastrados" + "Atualizar". TRÊS colunas no desktop: (1) CLIENTES —
+      "Todos" e cada Carteira ativa + "Outros" (sem carteira), com contagem, filtra a lista; (2) PROCESSOS — título
+      "Processos · <carteira> (N)", busca ?q= (número só dígitos, adverso, CPF/CNPJ, comarca, empresa), cartões com
+      número, adverso + CPF/CNPJ, linha "carteira · comarca · valor", chip de status (CONFERIR / PENDÊNCIAS / CADASTRADO),
+      chip de audiência (data e hora) quando houver, ícone do CNJ (confere/divergente) e "Excluir"; paginação 25;
+      (3) DETALHES DO PROCESSO — o processo selecionado (?p=<pk>; padrão o 1º da lista) com os botões "Marcar cadastrado
+      no Espaider" e "Editar" (abre TEL-28), carteira · tribunal, número, chip, faixa de pendências ("Verificar: …"),
+      grupos PARTES (empresa, adverso, condição, advogado empresa, advogado adverso), PROCESSO (tribunal, comarca, juízo,
+      instância, rito, distribuído em, data de citação, valor da causa), OPERAÇÕES VINCULADAS, CLASSIFICAÇÃO (natureza,
+      categoria, tipo de ação, fase atual, meio de tramitação, gerência, escritório), PEDIDOS, VALIDAÇÃO NO CNJ, CONTROLE
+      (processado em, cadastrado por/via, andamentos em lista, responsável, observações). Filtros extras: ?status=,
+      ?cnj=, ?ordem= (atualizado padrão, numero, distribuido). Datas sempre DD/MM/AAAA (HH:MM), nunca ISO nem número
+      serial do Excel. 390 px: uma coluna (carteiras viram chips roláveis; detalhe abre em página). Queries constantes.
+      Vazio: "Nenhum processo cadastrado ainda. Envie os PDFs ou cadastre pelo número." Itens do usuário na fila: a
+      página se atualiza sozinha a cada 10 s enquanto houver (sem recarregar tudo).
+  - id: CAD-17
+    texto: >
+      Log de erros e desempenho (TEL-32, como no Power Apps; últimos 30 dias): cartões Última execução (data/hora, origem,
+      casos, erros), Execuções (N envios · N casos), Casos com erro (N e % dos casos), Tempo médio por execução (e por
+      caso), Erros pendentes (não resolvidos); gráfico "Casos por dia" (barras empilhadas verde ok / vermelho erro, com o
+      tempo médio do dia acima da barra); "Erros pendentes por etapa" (barras horizontais: CNJ (DataJud), Dados
+      incompletos, Leitura do PDF, Envio do PDF, IA (Dify)); lista "Envios" (mais recentes primeiro: data/hora, origem,
+      casos, erros, duração, motivo resumido; borda vermelha se teve erro; clique abre `juridico:envio`); lista "Erros
+      pendentes" (data/hora · arquivo ou CNJ, etiqueta da etapa, motivo, botão "Resolvido" (POST)) e alternância
+      "Mostrar resolvidos". Envios (TEL-31): a mesma lista completa paginada; detalhe do envio com cada item (status que
+      atualiza sozinho, processo gerado ou o aviso de duplicidade CAD-06, motivo do erro e "Tentar de novo").
+  - id: CAD-18
+    texto: >
+      Segurança: chave do Dify e do DataJud só via Credencial (cofre); nunca em log, resposta_ia, tela, mensagem de erro
+      ou teste. resposta_ia e motivos passam pelo mascaramento do motor. Texto vindo do PDF/IA é DADO: escapado em tela,
+      nunca avaliado. CPF/CNPJ aparece completo só no detalhe (lista mostra mascarado ***.456.789-**). Testes usam
+      Dify e DataJud FALSOS em servidor local (SEG-08); nada toca a internet.
+  - id: CAD-19
+    texto: >
+      Contexto das views (contrato Back↔Front, docstring): painel → `resumo` {total, com_pendencias, conferir,
+      cadastrados, na_fila, erros}, `ultimos_envios`, `processos` (página), `filtros` {status, carteira, tribunal, cnj, q,
+      ordem}, `carteiras`, `aviso_datajud` (só Adm), `atualizar_auto` (bool), `url_status` (JSON das contagens para o
+      auto-refresh); processo → `processo`, `form`, `origem_campos`, `pendencias`, `cnj` {situacao, divergencias,
+      consultado_em}, `envios`, flags `pode_editar`, `pode_marcar`, `pode_desfazer`; envio → `envio`, `itens`,
+      `url_status`; erros → `itens` (página), `filtro_resolvido`; config → form + `carteiras` + `credenciais_bearer`,
+      `credenciais_header`, `setores`.
+
+  - id: CAD-20
+    texto: >
+      Audiências: proxima_audiencia é extraída no servidor (sem IA) das observações e andamentos vindos do PDF/CNJ:
+      padrão "audiência ... (designada|marcada|redesignada) para DD/MM/AAAA[,] (às HH:MM | HHhMM)"; vale a data FUTURA
+      mais próxima; editável na conferência (vira manual). Botão "Audiências (N)" = processos com audiência de hoje em
+      diante (vermelho se alguma nos próximos 7 dias); abre a lista ordenada por data (número, adverso, comarca,
+      data/hora, link). Chip de data no cartão do processo.
+  - id: CAD-21
+    texto: >
+      Excluir (POST com confirmação "Excluir o processo <número>? Ele some do painel; o histórico fica guardado.") =
+      exclusão lógica, para quem tem cadastro.editar; mensagem "Processo excluído." Adm vê os excluídos em
+      Configuração > "Excluídos" e pode restaurar. Cadastro manual (`juridico:processo_novo`): mesmo formulário da
+      conferência, número obrigatório e válido (dígito verificador) → senão "Número CNJ inválido."; número que já existe →
+      não cria e mostra o aviso da CAD-06 (b) com link; criado_via=manual; consulta o CNJ ao salvar.
+  - id: CAD-22
+    texto: >
+      FORA do M8 (aparecem no menu do Power Apps): "Assistente IA", "Robô Espaider (relatórios)" e "Mais ferramentas
+      (duplicados, status)" — a deduplicação da CAD-06 substitui a ferramenta de duplicados.
+
+  - id: CAD-23
+    texto: >
+      CONTRATO (fecha as dúvidas da T-077, 19/10). Ver o bloco `contrato` abaixo; ele vale como regra.
+
+  - id: CAD-24
+    texto: >
+      PAINEL v2 (pedido do usuário 22/10; referência visual: ~/Downloads/Agente de IA para Prazos e Cadastro/previa-identidade/
+      painel-v2.html e IMPLEMENTACAO-PAINEL.md; identidade D-038). Substitui os 6 cartões de resumo da CAD-16 pelo bloco
+      "Fluxo do cadastro": (a) ENTRADA DE PDFS — "N em leitura" (itens ItemEnvio na_fila + processando, de todos os usuários
+      com acesso; ponto dourado pulsando, parado com prefers-reduced-motion) e "N com erro de leitura · ver log" (itens com
+      etapa_erro "Leitura do PDF" ou "Envio do PDF" e resolvido=false; link para juridico:erros); (b) ESTEIRA — título
+      "N processos extraídos" (= com_pendencias + conferir + cadastrados, sem excluídos) e "P% já cadastrados no Espaider";
+      barra em escala com um segmento por etapa na ordem Com pendências → Conferir → Cadastrado (largura proporcional);
+      três ETAPAS clicáveis (button, aria-pressed) com número, nome e legenda ("falta campo obrigatório", "7 de 7 campos,
+      revisão humana", "lançado no Espaider"): clicar filtra a lista (?status=), clicar de novo limpa. Topo: título, "Atualizado
+      às HH:MM", botões "Audiências (n)" (filtro ?audiencia=1, aria-pressed; a lista TEL-34 continua no Menu), "Menu" e
+      "+ Enviar PDFs" (primário). Clientes: botão por carteira com "cadastrados/total" e minibarra de progresso (verde),
+      "Todos" no topo e "Outros" (sem carteira) no fim. Lista: número com o sequencial em destaque (IBM Plex Mono), chip do
+      status com a quantidade de obrigatórios faltando ("Com pendências · 2"), adverso, "carteira · comarca · valor" (valor
+      ausente → "sem valor da causa" em --pend); linha selecionada aria-current; vazio: "Nenhum processo com esses filtros.
+      Limpe a busca ou escolha outro cliente." Larguras: < 1240 px clientes viram grade acima; < 900 px uma coluna e a
+      lateral vira barra no topo.
+  - id: CAD-25
+    texto: >
+      FICHA (coluna da direita do painel, processo selecionado): (a) linha "carteira · tribunal · fase <fase>"; (b) NÚMERO CNJ
+      DECOMPOSTO NNNNNNN-DD.AAAA.J.TR.OOOO, cada parte com legenda (sequencial, dígito, ano, justiça — estadual/federal/
+      trabalho/eleitoral/militar…, sigla do tribunal, origem), a parte TR na cor --destaque; número inválido → mostra o texto
+      como veio, sem decompor; sigla pelo mapa COMPLETO (todos os TJ, TRF, TRT, TRE; o de-para já existe em apps/juridico/cnj.py);
+      (c) chip do status + 7 MARCADORES dos obrigatórios (preenchido = encontrado; contorno --pend = faltando) + "N de 7
+      campos obrigatórios"; (d) AÇÃO PRINCIPAL pelo status: CONFERIR → "✓ Marcar cadastrado no Espaider" (POST existente) +
+      "Editar"; COM_PENDENCIAS → "Completar campos" (abre juridico:processo) + "Abrir PDF" (juridico:pdf do último item com
+      arquivo; sem PDF → botão ausente); CADASTRADO → texto "✓ Cadastrado no Espaider em DD/MM/AAAA" + "Editar"; (e) grupos
+      "Partes" (Empresa, Adverso · CPF/CNPJ mascarado [obrigatório], Condição) e "Processo" (Comarca, Juízo, Distribuído em,
+      Valor da causa — todos obrigatórios, marcados com "obrigatório" pequeno); campo vazio → "não encontrado no PDF" com
+      sublinhado tracejado --pend; (f) AUDIÊNCIA (se proxima_audiencia futura): folha de calendário (mês abreviado + ano no
+      topo dourado, dia em mono), tipo ("Audiência de conciliação" etc., do texto; sem tipo → "Audiência"), "HH:MM · comarca ·
+      juízo" e o aviso "Agenda manual: crie a agenda da audiência no Espaider."; (g) faixa "Confere com o CNJ" (verde) com
+      tribunal/distribuição/comarca quando cnj_validacao=confere; divergente → faixa --pend com as divergências; não
+      consultado/falhou/não encontrado → texto neutro com a mensagem.
+  - id: CAD-26
+    texto: >
+      Tipo da audiência: extraído junto com a data (CAD-20) do mesmo trecho — "audiência de <tipo>" (conciliação, instrução,
+      instrução e julgamento, una, mediação…) — e guardado em Processo.proxima_audiencia_tipo (texto, max 80, vazio permitido;
+      migração NOVA, não aplicar no Supabase). Editável na conferência junto com a data.
+  - id: CAD-27
+    texto: >
+      Contexto do painel v2 (acrescenta à CAD-19, nada removido): `fluxo` {em_leitura, erros_leitura, url_erros,
+      com_pendencias, conferir, cadastrados, total, pct_cadastrados}, `clientes` [{pk|None, nome, total, cadastrados, pct,
+      url, ativo}], `filtro_audiencia` (bool), `atualizado_em`, `selecionado` (= ficha: processo, cnj {valido, partes
+      [{valor, legenda}], sigla}, obrigatorios [{campo, rotulo, ok}], obrig_ok, acao (conferir|pendencias|cadastrado),
+      url_editar, url_pdf|None, url_marcar, audiencia {dia, mes_ano, hora, tipo, local}|None, cnj_situacao). Queries
+      constantes (contagens agregadas no banco). Datas DD/MM/AAAA, dinheiro R$ 1.234,56.
+
+contrato:
+  app: "app label juridico; modelos Carteira, ConfigCadastro, Processo, Envio, ItemEnvio em apps.juridico.models; ConfigCadastro.obter() devolve a linha única (cria se faltar). Testes podem preparar estado pelo ORM (config, carteiras, usuários, processos); a verificação é pelas telas/rotas e pelos modelos acima."
+  worker: "call_command('processar_cadastros', '--uma-vez') processa toda a fila atual e sai."
+  "1_dify":
+    chat_resposta: '{"answer": "<texto>"} (pode vir com cercas ```json); upload_resposta: {"id": "<id>"}'
+    chaves_canonicas: "as do prompt do Dify (Anexo A do handoff): numero_cnj, numero_contrato_operacao, empresa, condicao, advogado_empresa, adverso_nome, adverso_cpf_cnpj, advogado_adverso_nome, advogado_adverso_oab, tipo_acao, rito, natureza, meio_tramitacao, instancia, distribuido_em (DD/MM/AAAA), tribunal (sigla), juizo, comarca, estado, desdobramento, fase_atual (rótulos do Dify: POSTULATÓRIA, INSTRUTÓRIA, DECISÓRIA, RECURSAL, EXECUÇÃO/CUMPRIMENTO, ARQUIVADO), data_citacao (DD/MM/AAAA), valor_causa ('R$ 1.234,56'), pedidos_completos, ultimas_movimentacoes [{data, evento}], observacoes"
+    alternativas: "numero_processo|numero → numero_cnj; adverso|parte_adversa → adverso_nome; cpf_cnpj_adverso|adverso_cpf|adverso_cnpj → adverso_cpf_cnpj; advogado_adverso → advogado_adverso_nome; oab_advogado_adverso → advogado_adverso_oab; classe|classe_acao → tipo_acao; valor_da_causa → valor_causa; vara|orgao_julgador → juizo; pedidos → pedidos_completos; andamentos|movimentacoes → ultimas_movimentacoes; operacoes_vinculadas|numero_contrato|contrato → numero_contrato_operacao; parte_empresa → empresa; polo_empresa → condicao; data_distribuicao → distribuido_em. Comparação de chave sem acento, caixa e não alfanuméricos."
+    para_o_modelo: "numero_cnj→numero; numero_contrato_operacao→operacoes_vinculadas; pedidos_completos→pedidos; ultimas_movimentacoes→andamentos (fonte pdf); demais = mesmo nome. O Dify não devolve carteira (CAD-08)."
+    query_texto: "normalização igual ao n8n: sequências de espaço/tab → 1 espaço; quebras com espaços em volta → 1 quebra; trim; depois o corte da CAD-07 (settings abaixo)."
+    query_pdf_anexado: "literal: O processo está no PDF ANEXADO (pode ser escaneado ou protegido contra cópia). Leia o arquivo inteiro, página por página, e extraia os dados seguindo exatamente as instruções e o formato JSON."
+  "2_rotas":
+    GET: "juridico:painel · juridico:processo {pk} · juridico:processo_novo · juridico:enviar_pdfs · juridico:enviar_cnj · juridico:envios · juridico:envio {pk} · juridico:erros (?resolvido=1 mostra resolvidos) · juridico:audiencias · juridico:config · juridico:excluidos (Adm) · juridico:pdf {pk = ItemEnvio} · juridico:status (JSON)"
+    POST_processo: "juridico:processo {pk} (salvar) · juridico:processo_novo (criar) — campos = nomes do modelo: numero, carteira (pk ou vazio), empresa, condicao, advogado_empresa, adverso_nome, adverso_cpf_cnpj, advogado_adverso_nome, advogado_adverso_oab, tipo_acao, rito, natureza, meio_tramitacao, instancia, desdobramento, tribunal, comarca, juizo, estado, fase_atual (token do enum), distribuido_em e data_citacao (AAAA-MM-DD), valor_causa ('1234,56', '1.234,56' ou '1234.56'), pedidos, operacoes_vinculadas, observacoes, gerencia, categoria, escritorio, peticionamento, na_fase_desde, responsavel, proxima_audiencia (AAAA-MM-DDTHH:MM). Campo ausente no POST = não muda."
+    POST_acoes: "juridico:marcar_cadastrado {pk} · juridico:desfazer_cadastrado {pk} (Adm) · juridico:consultar_cnj {pk} · juridico:excluir {pk} · juridico:restaurar {pk} (Adm) · juridico:tentar_de_novo {pk = ItemEnvio} · juridico:resolver {pk = ItemEnvio} (marca resolvido=true) · juridico:testar_conexao (Adm) — todas sem campos, redirect + messages."
+    POST_config: "juridico:config — dify_url, dify_credencial, dify_usuario, dify_ca_pem, datajud_url, datajud_credencial, setores_com_acesso (ids, múltiplo). juridico:carteira_nova — nome, empresa · juridico:carteira_editar {pk} — nome, empresa, ativa (on/vazio)."
+    POST_envio: "juridico:enviar_pdfs — arquivos (múltiplo), carteira (pk ou vazio) · juridico:enviar_cnj — numeros, carteira, confirmar."
+  "3_cnj_dois_passos": "1º POST numeros+carteira: se TODOS forem novos e válidos → enfileira direto (redirect juridico:envio). Se algum já existir → 200 com a tela de confirmação listando cada número (novo / 'Este processo já existia: cadastrado por …' / inválido) e o botão Confirmar; 2º POST com os mesmos numeros+carteira + confirmar=1 → enfileira e redireciona. Inválidos (≠ 20 dígitos) viram item com erro em qualquer caso."
+  "4_carteira": "sempre por pk; 'Outra / não sei' = valor vazio."
+  "5_log_e_status_do_item": "status=erro só quando NENHUM processo foi gravado. Processo gravado com problema → status concluido + etapa_erro + motivo (ex.: 'Dados incompletos' com 'Processo <n> gravado, mas faltou: …'; 'CNJ (DataJud)' com o 401 da CAD-10). Log de erros (TEL-32) = itens com etapa_erro preenchida (erro ou concluido). 'Envio do PDF' = falha no files/upload do Dify."
+  "6_comparacao_cnj": "Só compara campo que o PDF trouxe (vazio → o CNJ preenche, sem divergência). tribunal: igual depois de maiúsculas e sem espaço, hífen e ponto ('TJ-SP' = 'TJSP'); DataJud campo tribunal. distribuido_em: data do PDF = parte de data (AAAA-MM-DD) de dataAjuizamento, sem conversão de fuso. comarca: comarca do PDF normalizada (sem acento, minúsculas, só letras e espaços) contida no orgaoJulgador.nome normalizado."
+  "7_mascara_documento": "CPF (11 dígitos) → ***.456.789-** ; CNPJ (14) → **.345.678/0001-** ; outro tamanho → •••. Vários documentos separados por '; ' mascarados um a um."
+  "8_settings": "JURIDICO_DIFY_TIMEOUT_S=300, JURIDICO_DATAJUD_TIMEOUT_S=30, JURIDICO_DATAJUD_INTERVALO_S=1.5, JURIDICO_TRAVADO_MIN=15, JURIDICO_TEXTO_MAX=40000, JURIDICO_TEXTO_INICIO=25000, JURIDICO_TEXTO_FIM=15000, JURIDICO_PDF_MAX_MB=30, JURIDICO_PDF_MAX_ARQUIVOS=10, JURIDICO_RESPOSTA_MAX_BYTES=2097152 (os testes podem sobrescrever com o fixture settings)."
+  "8b_status_json": "juridico:status → {total, com_pendencias, conferir, cadastrados, na_fila, erros, em_andamento (bool: itens do usuário na fila/processando)}; com ?envio=<pk> (só quem enviou ou Adm) também itens: [{pk, status, processo_url|null, aviso|null, motivo|null}]."
+  "9_painel_v2":   # CAD-24..27, respostas à T-093 (22/10)
+    cnj: "selecionado.cnj = {valido, partes, sigla}. Válido → 6 partes, nesta ordem: {valor: NNNNNNN, legenda: 'sequencial'}, {DD, 'dígito'}, {AAAA, 'ano'}, {J, legenda da justiça}, {TR, legenda = sigla}, {OOOO, 'origem'}. Legenda da justiça (minúsculas): 1 'STF', 2 'CNJ', 3 'STJ', 4 'federal', 5 'trabalho', 6 'eleitoral', 7 'militar da União', 8 'estadual', 9 'militar estadual'. sigla: TJ 'TJSP' (DF 'TJDFT'), TRF 'TRF3', TRT 'TRT2', TRE 'TRE-SP' (com hífen, só na exibição), demais segmentos ou TR fora do mapa → '—'. Inválido (dígito verificador ou formato) → {valido: false, partes: [], sigla: ''} e a tela mostra o número como veio."
+    obrigatorios: "Lista de 7, nesta ordem, {campo, rotulo, ok}: numero 'Número' (ok = numero_valido), tribunal 'Tribunal', comarca 'Comarca', juizo 'Juízo', adverso_nome 'Adverso', valor_causa 'Valor da causa', distribuido_em 'Distribuído em' (ok = preenchido, não vazio). obrig_ok = quantos ok (int)."
+    audiencia: "selecionado.audiencia só se proxima_audiencia >= agora; senão None. dia = '05' (2 dígitos), mes_ano = 'out 2026' (mês abreviado em minúsculas pt-BR: jan fev mar abr mai jun jul ago set out nov dez + espaço + ano), hora = 'HH:MM' (America/Sao_Paulo), tipo = texto de exibição 'Audiência de conciliação' (ou 'Audiência' se sem tipo), local = 'comarca · juízo' (partes vazias omitidas, sem ' · ' sobrando)."
+    tipo_gravado: "Processo.proxima_audiencia_tipo guarda SÓ o complemento, em minúsculas e sem espaços sobrando: 'conciliação', 'instrução e julgamento', 'una', 'mediação' (max 80; vazio permitido). Exibição = 'Audiência de ' + tipo. POST na conferência: campo proxima_audiencia_tipo (texto, max 80; > 80 → erro 'Máximo de 80 caracteres.'); editar vira origem manual junto com a data."
+    clientes: "clientes = ['Todos'] + carteiras ativas (ordem por nome) + ['Outros'], cada {pk, nome, total, cadastrados, pct, url, ativo}. Todos: pk None, url sem ?carteira, ativo quando não há filtro de carteira. Outros: pk 'outros' (string), url ?carteira=outros (processos sem carteira), nome 'Outros'. Carteira: url ?carteira=<pk>. ativo = é o filtro corrente. As urls preservam ?status e ?audiencia e removem ?p e ?page."
+    fluxo: "pct_cadastrados = int(round_half_up(cadastrados * 100 / total)); total 0 → 0. atualizado_em = string 'HH:MM' (hora local da renderização)."
+    filtros: "?audiencia=1 → só processos com proxima_audiencia >= agora; ?status, ?carteira, ?audiencia, ?q, ?cnj combinam em AND. Excluídos nunca entram."
+    acao_e_pdf: "selecionado.acao ∈ conferir|pendencias|cadastrado (do status). url_pdf = reverse('juridico:pdf', kwargs={'pk': item.pk}) do ItemEnvio mais recente (maior pk) ligado ao processo QUE TEM arquivo; itens de origem CNJ (sem arquivo) não contam; nenhum → None."
+
+telas:
+  - {id: TEL-27, rota: juridico:painel, titulo: "Cadastro de processos", estados: [vazio, com_dados, filtrado, com_fila]}
+  - {id: TEL-28, rota: juridico:processo, titulo: "Processo <número>", estados: [conferir, com_pendencias, divergente_cnj, cadastrado]}
+  - {id: TEL-29, rota: juridico:enviar_pdfs, titulo: "Enviar PDFs", estados: [padrao, erro_campo]}
+  - {id: TEL-30, rota: juridico:enviar_cnj, titulo: "Cadastrar pelo CNJ", estados: [padrao, erro_campo]}
+  - {id: TEL-31, rota: "juridico:envios / juridico:envio", titulo: "Envios", estados: [vazio, com_dados, em_andamento]}
+  - {id: TEL-32, rota: juridico:erros, titulo: "Log de erros", estados: [vazio, com_dados]}
+  - {id: TEL-34, rota: "juridico:audiencias", titulo: "Audiências", estados: [vazio, com_dados]}
+  - {id: TEL-35, rota: "juridico:processo_novo", titulo: "Cadastro manual de processo", estados: [padrao, erro_campo, duplicado]}
+  - {id: TEL-33, rota: juridico:config, titulo: "Configuração do cadastro", estados: [padrao, teste_ok, teste_falhou]}
+
+pendente_do_usuario:
+  - "Cadastrar no sistema (Credenciais, sem setor) a chave do app do Dify (bearer) e a chave pública do DataJud (header Authorization, valor 'APIKey ...'), digitadas por você."
+  - "OK para aplicar a migração do M8 no Supabase (junto com as do M5/M7a)."
+  - "Controladoria confirmar a lista de fases (CAD-09) e de carteiras."

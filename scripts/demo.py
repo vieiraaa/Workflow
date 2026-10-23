@@ -6,11 +6,16 @@
   python scripts/demo.py --resetar    # apaga e recria o banco de demo
 
 Usa config.settings.demo: Postgres local (construtor_demo), nunca o .env nem o Supabase.
+Sobe também o worker do cadastro de processos (manage.py processar_cadastros). Sem
+CREDENCIAIS_CHAVE no ambiente, usa a chave LOCAL de demo (~/.construtor-workflows/
+demo_credenciais_chave, criada se faltar; nunca a do .env).
 """
 
 import argparse
+import atexit
 import io
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -20,12 +25,45 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 os.environ["DJANGO_SETTINGS_MODULE"] = "config.settings.demo"  # forçado: nunca dev/.env
 
 SENHA_DEMO = "Demo-Senha-Local-2026"
+ARQUIVO_CHAVE = Path.home() / ".construtor-workflows" / "demo_credenciais_chave"
 CREDENCIAIS = [
     ("Administrador", "adm@exemplo.test"),
     ("Coordenador", "coord@exemplo.test"),
     ("Usuário base", "base@exemplo.test"),
     ("Sem papel (tela 403)", "sem@exemplo.test"),
 ]
+
+
+def _chave_local_de_demo():
+    """Chave Fernet LOCAL da demo (nunca a do .env): lida de ~/.construtor-workflows/…, criada se
+    faltar. Só entra no ambiente se CREDENCIAIS_CHAVE não vier de fora (um reinício sem ela
+    quebraria as Credenciais do banco de demo)."""
+    if os.environ.get("CREDENCIAIS_CHAVE"):
+        return
+    try:
+        if not ARQUIVO_CHAVE.exists():
+            from cryptography.fernet import Fernet
+
+            ARQUIVO_CHAVE.parent.mkdir(parents=True, exist_ok=True)
+            ARQUIVO_CHAVE.write_text(Fernet.generate_key().decode(), encoding="utf-8")
+            try:
+                ARQUIVO_CHAVE.chmod(0o600)
+            except OSError:  # Windows: permissões POSIX não se aplicam
+                pass
+        os.environ["CREDENCIAIS_CHAVE"] = ARQUIVO_CHAVE.read_text(encoding="utf-8").strip()
+    except OSError:
+        print("AVISO: não consegui ler/criar a chave local de demo das Credenciais.")
+
+
+def _subir_worker():
+    """Worker do cadastro (processar_cadastros) junto da demo; encerra com o servidor."""
+    worker = subprocess.Popen(
+        [sys.executable, str(RAIZ / "manage.py"), "processar_cadastros"],
+        env={**os.environ, "DJANGO_SETTINGS_MODULE": "config.settings.demo"},
+        cwd=str(RAIZ),
+    )
+    atexit.register(lambda: worker.poll() is None and worker.terminate())
+    return worker
 
 
 def _migrar_se_pendente(call_command):
@@ -48,6 +86,7 @@ def main():
     parser.add_argument("--resetar", action="store_true", help="apaga e recria o banco de demo")
     args = parser.parse_args()
     sys.stdout.reconfigure(line_buffering=True)
+    _chave_local_de_demo()
 
     import django
     from django.conf import settings
@@ -81,6 +120,7 @@ def main():
         print("\nCredenciais FICTÍCIAS de demo (só valem neste banco local):")
         for rotulo, email in CREDENCIAIS:
             print(f"  {rotulo:<22} {email}   senha: {SENHA_DEMO}")
+        _subir_worker()
         print(f"\nSubindo em http://127.0.0.1:{args.porta}/  (Ctrl+C para parar)")
         print("O código recarrega sozinho ao salvar; migration nova é aplicada no reload.\n")
     call_command("runserver", f"127.0.0.1:{args.porta}", use_reloader=True, insecure_serving=True)

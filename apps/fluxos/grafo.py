@@ -15,7 +15,7 @@ from urllib.parse import urlsplit
 
 from . import catalogo
 from .migracao import para_v2
-from .pendencias_nos import pendencias_do_no
+from .pendencias_nos import avisos_do_no, pendencias_do_no
 
 VERSAO = 2
 MAX_NOS = 200
@@ -720,3 +720,15 @@ def validar(grafo):
     if erros:
         return erros, []
     return [], _pendencias(normalizar(grafo))
+
+
+def avisos(grafo):
+    """Avisos que não bloqueiam (N8N-02/07): [{no, campo, mensagem}]. Só chame após `validar`
+    sem erros de formato; grafo com erro de formato não tem avisos."""
+    if validar(grafo)[0]:
+        return []
+    return [
+        _pendencia(no["id"], campo, mensagem)
+        for no in normalizar(grafo)["nos"]
+        for campo, mensagem in avisos_do_no(no)
+    ]

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load static %}
+{% block estilos %}<link rel="stylesheet" href="{% static 'css/juridico.css' %}">{% endblock %}
+{% block scripts %}<script src="{% static 'js/juridico.js' %}" defer></script>{% endblock %}
+{% block titulo %}Enviar PDFs · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}Enviar PDFs{% endblock %}
+{% block acoes %}{% url "juridico:painel" as url_painel_ %}{% include "componentes/botao.html" with rotulo="Painel" icone="chevron-left" href=url_painel_ %}{% endblock %}
+{% block conteudo %}{% url "juridico:painel" as url_painel_ %}{% url "juridico:enviar_pdfs" as url_enviar_pdfs_ %}
+<form class="formulario card card--formulario card--larga" method="post" enctype="multipart/form-data" novalidate data-form-pdfs data-max-arquivos="10" data-max-mb="30">
+  {% csrf_token %}
+  <h2 class="card__titulo">Processos em PDF</h2>
+  <p class="texto-2">A IA lê cada PDF e preenche os dados. Até 10 arquivos por envio, de até 30 MB cada.</p>
+  {% include "componentes/alerta.html" with erros=form.non_field_errors estado="erro_validacao" %}
+  {% include "componentes/alerta.html" with erros=erros_arquivos estado="erro_arquivos" %}
+  <div class="dropzone" data-dropzone tabindex="-1">
+    <div class="vazio__icone">{% include "componentes/icone.html" with nome="file-up" tamanho=24 %}</div>
+    <p><strong>Arraste os PDFs aqui</strong></p>
+    <p class="texto-2 texto-sm">ou</p>
+    <label class="botao botao--secundario dropzone__escolher" for="arquivos">{% include "componentes/icone.html" with nome="upload" tamanho=16 %}<span>Escolher arquivos</span></label>
+    <input class="sr-only" id="arquivos" type="file" name="arquivos" multiple accept="application/pdf,.pdf" data-dropzone-input>
+  </div>
+  <p class="texto-2 texto-sm" data-dropzone-contagem role="status" aria-live="polite">Nenhum arquivo escolhido.</p>
+  <ul class="arquivos" data-dropzone-lista></ul>
+  <p class="campo__erro" role="alert" data-dropzone-erro hidden></p>
+  {% include "componentes/campo.html" with campo=form.carteira ajuda="Opcional. Se vazio, a carteira é deduzida pelo nome da empresa." %}
+  <div class="formulario__acoes">
+    {% include "componentes/botao.html" with rotulo="Cancelar" href=url_painel_ %}
+    {% include "componentes/botao.html" with rotulo="Enviar" icone="upload" variante="primario" tipo="submit" carregando="Enviando…" atributos="" %}
+  </div>
+</form>
+{% endblock %}

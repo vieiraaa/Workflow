@@ -1,0 +1,12 @@
+id: T-092
+titulo: Identidade v2 · 2) fluxo do cadastro no topo e 3) ficha — painel do Cadastro
+dono: Vitral (front)
+depende_de: [T-090, T-091]
+regras: [CAD-24, CAD-25, CAD-27, design-base v2]
+referencias: ["docs/design/painel-v2.html (alvo visual e de comportamento)", "docs/design/IMPLEMENTACAO-PAINEL.md §3–§6"]
+aceite:
+  - "Ordem de trabalho: primeiro o FLUXO no topo (entrada de PDFs + esteira + etapas clicáveis, substituindo os 6 cartões), depois clientes/lista, depois a FICHA (CNJ decomposto, 7 marcadores, ação principal por status, grupos, audiência em folha de calendário, faixa do CNJ)."
+  - "Comportamento sem JS pesado: etapas/clientes/Audiências são links/botões que aplicam os filtros do servidor (?status=, ?carteira=, ?audiencia=1, ?p=); aria-pressed no filtro ativo, aria-current no processo selecionado; o auto-refresh atual continua."
+  - "Responsivo como o guia (< 1240px clientes em grade acima; < 900px uma coluna); pulso respeita prefers-reduced-motion; vazio com a frase da CAD-24."
+  - "TEL-27 capturas (vazio, com_dados, filtrado, com_fila) e a ficha nos 3 status; frontend + e2e verdes; revise você mesmo contra o painel-v2.html."
+arquivos: [templates/, static/, tests/unit/frontend/, tests/e2e/]

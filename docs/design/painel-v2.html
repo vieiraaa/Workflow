@@ -1,0 +1,560 @@
+<title>Painel de Processos EeM</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: faixa lateral ameixa (a marca, nos dois temas) + mesa de controladoria:
+   fluxo do cadastro em escala no topo, lista e ficha processual lado a lado. */
+:root {
+  --fundo: #F6F4F8;
+  --superficie: #FFFFFF;
+  --superficie-2: #F1EDF4;
+  --borda: #E6E0EB;
+  --borda-forte: #D2CAD9;
+  --texto: #1F1625;
+  --texto-2: #5D5367;
+  --texto-3: #85798F;
+  --primaria: #4F1F5C;          /* roxo das letras do logo */
+  --primaria-texto: #FFFFFF;
+  --primaria-suave: rgba(79,31,92,.07);
+  --rotulo: #7A3F8C;
+  --ouro: #F8B334;              /* o "e" do logo */
+  --ouro-texto: #8A5B00;
+  --lat-fundo: #3E2745;         /* fundo da versão negativa da marca */
+  --lat-texto: #EDE3F1;
+  --lat-texto-2: #B7A2C1;
+  --lat-ativo-fundo: rgba(248,179,52,.15);
+  --lat-borda: rgba(255,255,255,.09);
+  --ok: #12805F;   --ok-suave: rgba(18,128,95,.10);
+  --conf: #2F5FC4; --conf-suave: rgba(47,95,196,.09);
+  --pend: #C2412D; --pend-suave: rgba(194,65,45,.09);
+  --erro: #C42B3C;
+  --sombra: 0 1px 2px rgba(31,22,37,.05), 0 8px 24px rgba(31,22,37,.05);
+
+  --f-marca: "Montserrat", "Helvetica Neue", Arial, sans-serif;
+  --f-texto: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --f-num:   "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --raio: 12px;
+  --raio-sm: 8px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --fundo: #17101C; --superficie: #211827; --superficie-2: #2A1F31;
+    --borda: #35283D; --borda-forte: #4A3A54;
+    --texto: #F2EBF4; --texto-2: #C0B2C8; --texto-3: #918299;
+    --primaria: #F8B334; --primaria-texto: #2B1B05; --primaria-suave: rgba(248,179,52,.12);
+    --rotulo: #CFA8DC; --ouro-texto: #F8B334;
+    --lat-fundo: #0F0912; --lat-texto: #EDE3F1; --lat-texto-2: #9E8AA8;
+    --lat-ativo-fundo: rgba(248,179,52,.13); --lat-borda: rgba(255,255,255,.07);
+    --ok: #4FD1A5;   --ok-suave: rgba(79,209,165,.12);
+    --conf: #93B5FF; --conf-suave: rgba(147,181,255,.12);
+    --pend: #FF8B7B; --pend-suave: rgba(255,139,123,.12);
+    --erro: #FF6B78;
+    --sombra: 0 1px 0 rgba(255,255,255,.03) inset, 0 10px 30px rgba(0,0,0,.35);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --fundo: #17101C; --superficie: #211827; --superficie-2: #2A1F31;
+  --borda: #35283D; --borda-forte: #4A3A54;
+  --texto: #F2EBF4; --texto-2: #C0B2C8; --texto-3: #918299;
+  --primaria: #F8B334; --primaria-texto: #2B1B05; --primaria-suave: rgba(248,179,52,.12);
+  --rotulo: #CFA8DC; --ouro-texto: #F8B334;
+  --lat-fundo: #0F0912; --lat-texto: #EDE3F1; --lat-texto-2: #9E8AA8;
+  --lat-ativo-fundo: rgba(248,179,52,.13); --lat-borda: rgba(255,255,255,.07);
+  --ok: #4FD1A5;   --ok-suave: rgba(79,209,165,.12);
+  --conf: #93B5FF; --conf-suave: rgba(147,181,255,.12);
+  --pend: #FF8B7B; --pend-suave: rgba(255,139,123,.12);
+  --erro: #FF6B78;
+  --sombra: 0 1px 0 rgba(255,255,255,.03) inset, 0 10px 30px rgba(0,0,0,.35);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--fundo);
+  color: var(--texto);
+  font: 14px/1.5 var(--f-texto);
+  display: grid;
+  grid-template-columns: 236px minmax(0, 1fr);
+  -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: inherit; }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--ouro); outline-offset: 2px; border-radius: 4px; }
+
+/* ---------- faixa lateral ---------- */
+.lateral {
+  background: var(--lat-fundo);
+  color: var(--lat-texto);
+  position: sticky; top: 0; align-self: start;
+  height: 100vh;
+  display: flex; flex-direction: column; gap: 2px;
+  padding-block: 22px 18px;
+  padding-left: max(14px, env(safe-area-inset-left, 0px));
+  padding-right: 14px;
+}
+.marca { display: flex; align-items: center; gap: 11px; padding: 0 8px 22px; }
+.emblema { width: 38px; height: 38px; border-radius: 50%; flex: none; background: var(--ouro) center / 177% no-repeat; background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAjcAAAI3CAYAAABnKHquAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAABAlpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuNS1jMDIxIDc5LjE1NTc3MiwgMjAxNC8wMS8xMy0xOTo0NDowMCAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wTU09Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9tbS8iIHhtbG5zOnN0UmVmPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvc1R5cGUvUmVzb3VyY2VSZWYjIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtbG5zOmRjPSJodHRwOi8vcHVybC5vcmcvZGMvZWxlbWVudHMvMS4xLyIgeG1wTU06T3JpZ2luYWxEb2N1bWVudElEPSJ1dWlkOjVEMjA4OTI0OTNCRkRCMTE5MTRBODU5MEQzMTUwOEM4IiB4bXBNTTpEb2N1bWVudElEPSJ4bXAuZGlkOkMxQ0NDN0QzNUE5QjExRTg5RUUxOTA2QTg2NTk5QkExIiB4bXBNTTpJbnN0YW5jZUlEPSJ4bXAuaWlkOkMxQ0NDN0QyNUE5QjExRTg5RUUxOTA2QTg2NTk5QkExIiB4bXA6Q3JlYXRvclRvb2w9IkFkb2JlIElsbHVzdHJhdG9yIENDIDIwMTUgKE1hY2ludG9zaCkiPiA8eG1wTU06RGVyaXZlZEZyb20gc3RSZWY6aW5zdGFuY2VJRD0ieG1wLmlpZDo5OTIxOTc0Yi1jZjM0LTQ2MDAtODBhNi1jNjExOThkMmVlOTAiIHN0UmVmOmRvY3VtZW50SUQ9InhtcC5k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); }
+.marca b { display: block; font: 600 14px/1.1 var(--f-marca); letter-spacing: .01em; }
+.marca small { display: block; font-size: 12px; color: var(--lat-texto-2); margin-top: 2px; }
+.secao { font: 600 11.5px var(--f-marca); color: var(--lat-texto-2); padding: 16px 10px 6px; }
+.item { display: flex; align-items: center; gap: 11px; padding: 8px 10px; border-radius: var(--raio-sm); color: var(--lat-texto-2); font-weight: 500; text-decoration: none; }
+.item svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.item:hover { color: var(--lat-texto); }
+.item.ativo { background: var(--lat-ativo-fundo); color: var(--ouro); }
+.rodape { margin-top: auto; border-top: 1px solid var(--lat-borda); padding: 14px 10px 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.rodape b { display: block; font: 600 13.5px var(--f-marca); }
+.rodape span { font-size: 12px; color: var(--lat-texto-2); }
+.tema { font-size: 12px; font-weight: 500; color: var(--lat-texto-2); border: 1px solid var(--lat-borda); border-radius: 20px; padding: 4px 10px; white-space: nowrap; }
+.tema:hover { color: var(--lat-texto); }
+
+/* ---------- área principal ---------- */
+main {
+  min-width: 0;
+  display: flex; flex-direction: column; gap: 18px;
+  padding-block: 26px 40px;
+  padding-left: 30px;
+  padding-right: max(30px, env(safe-area-inset-right, 0px));
+}
+.topo { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px 24px; flex-wrap: wrap; }
+h1 { font: 600 26px/1.15 var(--f-marca); letter-spacing: -.01em; margin: 0; text-wrap: balance; }
+.sub { color: var(--texto-3); font-size: 13px; margin-top: 4px; }
+.acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { font-weight: 600; font-size: 13px; border-radius: var(--raio-sm); padding: 8px 14px; border: 1px solid var(--borda-forte); background: var(--superficie); color: var(--texto); display: inline-flex; gap: 8px; align-items: center; white-space: nowrap; }
+.btn:hover { border-color: var(--texto-3); }
+.btn.primario { background: var(--primaria); color: var(--primaria-texto); border-color: transparent; }
+.btn.primario:hover { filter: brightness(1.08); }
+.btn[aria-pressed="true"] { border-color: var(--primaria); box-shadow: 0 0 0 1px var(--primaria) inset; }
+.btn .qtd { font-family: var(--f-num); font-size: 12px; color: var(--ouro-texto); }
+
+/* ---------- fluxo do cadastro ---------- */
+.fluxo {
+  background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio); box-shadow: var(--sombra);
+  display: grid; grid-template-columns: 220px minmax(0, 1fr);
+}
+.fluxo h2 { font: 600 13px var(--f-marca); margin: 0 0 10px; color: var(--texto); }
+.entrada { padding: 16px 18px; border-right: 1px solid var(--borda); display: flex; flex-direction: column; gap: 6px; }
+.entrada p { margin: 0; color: var(--texto-2); font-size: 13px; }
+.entrada b { font-family: var(--f-num); font-weight: 600; color: var(--texto); font-size: 15px; margin-right: 4px; }
+.pulso { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ouro); margin-right: 8px; vertical-align: 1px; animation: pulso 1.6s ease-in-out infinite; }
+@keyframes pulso { 0%, 100% { box-shadow: 0 0 0 0 rgba(248,179,52,.55); } 60% { box-shadow: 0 0 0 6px rgba(248,179,52,0); } }
+.falha b { color: var(--erro); }
+.falha a { color: var(--erro); font-weight: 500; }
+.esteira { padding: 16px 18px; min-width: 0; }
+.esteira-topo { display: flex; justify-content: space-between; align-items: baseline; gap: 8px 16px; flex-wrap: wrap; }
+.esteira-topo span { font-size: 12.5px; color: var(--texto-3); }
+.barra { display: flex; height: 12px; border-radius: 6px; overflow: hidden; gap: 2px; margin: 2px 0 14px; background: var(--superficie-2); }
+.barra i { display: block; transition: opacity .2s; }
+.barra .pendencias { background: var(--pend); }
+.barra .conferir { background: var(--conf); }
+.barra .cadastrado { background: var(--ok); }
+.barra.filtrando i { opacity: .25; }
+.barra.filtrando i.on { opacity: 1; }
+.etapas { display: flex; align-items: stretch; gap: 6px; flex-wrap: wrap; }
+.etapa { flex: 1 1 150px; min-width: 0; display: grid; grid-template-columns: auto 1fr; column-gap: 10px; align-items: baseline; padding: 8px 10px; border-radius: var(--raio-sm); border: 1px solid transparent; }
+.etapa:hover { background: var(--superficie-2); }
+.etapa[aria-pressed="true"] { border-color: var(--borda-forte); background: var(--superficie-2); }
+.etapa b { font: 600 22px/1 var(--f-num); grid-row: span 2; font-variant-numeric: tabular-nums; }
+.etapa span { font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 7px; }
+.etapa span::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: currentColor; flex: none; }
+.etapa small { font-size: 12px; color: var(--texto-3); }
+.etapa.pendencias span { color: var(--pend); }
+.etapa.conferir span { color: var(--conf); }
+.etapa.cadastrado span { color: var(--ok); }
+.seta { align-self: center; color: var(--texto-3); font-size: 15px; flex: none; }
+
+/* ---------- grade de três colunas ---------- */
+.grade { display: grid; grid-template-columns: 210px minmax(0, 1fr) minmax(0, 1.15fr); gap: 14px; align-items: start; }
+.painel { background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio); box-shadow: var(--sombra); overflow: hidden; min-width: 0; }
+.painel > h2 { font: 600 13px var(--f-marca); margin: 0; padding: 14px 16px 10px; display: flex; justify-content: space-between; gap: 8px; }
+.painel > h2 span { font: 500 12px var(--f-texto); color: var(--texto-3); }
+
+/* clientes */
+.clientes { display: flex; flex-direction: column; padding-bottom: 8px; }
+.cliente { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; padding: 8px 16px; color: var(--texto-2); }
+.cliente:hover { background: var(--superficie-2); }
+.cliente.ativo { background: var(--primaria-suave); color: var(--texto); font-weight: 600; }
+.cliente .cont { font: 12px var(--f-num); color: var(--texto-3); font-variant-numeric: tabular-nums; }
+.mini { grid-column: 1 / -1; height: 3px; border-radius: 2px; background: var(--superficie-2); overflow: hidden; }
+.mini i { display: block; height: 100%; background: var(--ok); }
+
+/* lista de processos */
+.busca { display: block; width: calc(100% - 28px); margin: 0 14px 10px; background: var(--superficie-2); border: 1px solid var(--borda); border-radius: var(--raio-sm); padding: 8px 12px; color: var(--texto); font: inherit; }
+.busca::placeholder { color: var(--texto-3); }
+.lista { display: flex; flex-direction: column; }
+.proc { display: block; width: 100%; padding: 12px 16px; border-top: 1px solid var(--borda); }
+.proc:hover { background: var(--superficie-2); }
+.proc.sel { background: var(--primaria-suave); }
+.proc .l1 { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.proc .num { font: 400 13px var(--f-num); color: var(--texto-3); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.proc .num b { font-weight: 600; color: var(--texto); }
+.proc .adv { margin-top: 3px; font-weight: 500; }
+.proc .meta { color: var(--texto-3); font-size: 12.5px; margin-top: 1px; }
+.proc .meta .falta { color: var(--pend); }
+.vazio { padding: 22px 16px; border-top: 1px solid var(--borda); color: var(--texto-3); }
+.lista-pe { padding: 10px 16px; border-top: 1px solid var(--borda); font-size: 12px; color: var(--texto-3); }
+
+.chip { font-size: 11.5px; font-weight: 600; border-radius: 20px; padding: 2px 9px; white-space: nowrap; flex: none; }
+.chip.pendencias { background: var(--pend-suave); color: var(--pend); }
+.chip.conferir { background: var(--conf-suave); color: var(--conf); }
+.chip.cadastrado { background: var(--ok-suave); color: var(--ok); }
+
+/* ficha processual */
+.ficha-topo { padding: 16px 18px 14px; border-bottom: 1px solid var(--borda); display: flex; flex-direction: column; gap: 12px; }
+.ficha-topo .k { font-size: 12.5px; color: var(--texto-3); }
+.cnj { display: flex; flex-wrap: wrap; align-items: flex-start; font-family: var(--f-num); row-gap: 6px; }
+.cnj div { display: flex; flex-direction: column; }
+.cnj div b { font-weight: 600; font-size: 21px; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.cnj div span { font: 500 10.5px var(--f-texto); color: var(--texto-3); margin-top: 3px; white-space: nowrap; }
+.cnj i { font-style: normal; font-size: 21px; line-height: 1.15; color: var(--texto-3); padding: 0 1px; }
+.cnj .tr b { color: var(--rotulo); }
+.situacao { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.obrig { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--texto-2); }
+.ticks { display: inline-flex; gap: 3px; }
+.ticks i { width: 9px; height: 9px; border-radius: 2px; background: var(--ok); }
+.ticks i.nao { background: transparent; box-shadow: 0 0 0 1.5px var(--pend) inset; }
+.ficha-acoes { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.feito { font-size: 13px; color: var(--ok); font-weight: 500; }
+
+.campos { padding: 4px 18px 8px; }
+.grupo { font: 600 12px var(--f-marca); color: var(--rotulo); margin: 14px 0 4px; }
+.lin { display: flex; justify-content: space-between; gap: 16px; padding: 7px 0; border-bottom: 1px solid var(--borda); }
+.lin:last-child { border-bottom: 0; }
+.lin span:first-child { color: var(--texto-2); flex: none; }
+.lin span:last-child { text-align: right; font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
+.lin .obg::after { content: "obrigatório"; font-size: 10.5px; color: var(--texto-3); margin-left: 6px; font-weight: 400; }
+.lin .falta { color: var(--pend); font-weight: 500; border-bottom: 1px dashed currentColor; }
+.lin .val { font-variant-numeric: tabular-nums; }
+
+.audiencia { margin: 6px 18px 0; display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center; padding: 12px 14px; border: 1px solid var(--borda-forte); border-radius: var(--raio-sm); }
+.folha { width: 54px; text-align: center; border-radius: 6px; overflow: hidden; border: 1px solid var(--borda-forte); background: var(--superficie); }
+.folha small { display: block; background: var(--ouro); color: #2B1B05; font: 600 10.5px/1.7 var(--f-marca); text-transform: lowercase; }
+.folha b { display: block; font: 600 22px/1.25 var(--f-num); }
+.audiencia p { margin: 0; }
+.audiencia .tipo { font-weight: 600; }
+.audiencia .quando { color: var(--texto-2); font-size: 13px; }
+.audiencia .aviso { color: var(--ouro-texto); font-size: 12.5px; margin-top: 3px; }
+
+.confere { margin: 14px 18px 18px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 10px 12px; border-radius: var(--raio-sm); background: var(--ok-suave); font-size: 13px; }
+.confere b { color: var(--ok); font-weight: 600; }
+.confere span { color: var(--texto-2); }
+.confere span::before { content: "✓ "; color: var(--ok); font-weight: 600; }
+
+.nota { font-size: 12px; color: var(--texto-3); margin: 0; }
+
+.toast { position: fixed; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 20px); opacity: 0; background: var(--texto); color: var(--fundo); padding: 10px 16px; border-radius: var(--raio-sm); font-weight: 500; font-size: 13px; transition: opacity .2s, transform .2s; pointer-events: none; max-width: calc(100% - 32px); }
+.toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* ---------- larguras menores ---------- */
+@media (max-width: 1240px) {
+  .grade { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); }
+  .grade > .painel:first-child { grid-column: 1 / -1; }
+  .clientes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); padding: 0 8px 10px; gap: 2px; }
+  .cliente { border-radius: var(--raio-sm); }
+}
+@media (max-width: 900px) {
+  body { display: block; }
+  .lateral { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px; padding-block: 12px; padding-right: max(14px, env(safe-area-inset-right, 0px)); }
+  .marca { padding: 0 8px 0 0; }
+  .secao, .rodape span, .rodape b { display: none; }
+  .rodape { margin: 0 0 0 auto; border: 0; padding: 0; }
+  .item { padding: 6px 8px; }
+  .item span { display: none; }
+  .item.ativo span { display: inline; }
+  main { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 32px; }
+  .fluxo { grid-template-columns: 1fr; }
+  .entrada { border-right: 0; border-bottom: 1px solid var(--borda); flex-direction: row; flex-wrap: wrap; gap: 6px 18px; align-items: baseline; }
+  .entrada h2 { width: 100%; margin-bottom: 0; }
+  .grade { grid-template-columns: minmax(0, 1fr); }
+  .seta { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pulso { animation: none; }
+  .toast, .barra i { transition: none; }
+}
+</style>
+
+<aside class="lateral">
+  <div class="marca">
+    <span class="emblema" role="img" aria-label="Emblema Egger e Mesquita"></span>
+    <div><b>Workflows</b><small>Egger e Mesquita</small></div>
+  </div>
+  <a class="item" href="#"><svg viewBox="0 0 20 20"><path d="M3 9 10 3.5 17 9v8H3z"/><path d="M8 17v-5h4v5"/></svg><span>Início</span></a>
+  <a class="item" href="#"><svg viewBox="0 0 20 20"><path d="M7.5 3.5C5.5 3.5 5.5 5 5.5 7v1.2c0 1-.6 1.8-1.5 1.8.9 0 1.5.8 1.5 1.8V13c0 2 0 3.5 2 3.5M12.5 3.5c2 0 2 1.5 2 3.5v1.2c0 1 .6 1.8 1.5 1.8-.9 0-1.5.8-1.5 1.8V13c0 2 0 3.5-2 3.5"/></svg><span>Funções</span></a>
+  <a class="item" href="#"><svg viewBox="0 0 20 20"><circle cx="5" cy="5" r="2"/><circle cx="15" cy="5" r="2"/><circle cx="15" cy="15" r="2"/><path d="M7 5h6M5 7v3.5A3.5 3.5 0 0 0 8.5 14H13"/></svg><span>Fluxos</span></a>
+  <a class="item" href="#"><svg viewBox="0 0 20 20"><path d="M6.5 4.5v11l9-5.5z"/></svg><span>Execuções</span></a>
+  <div class="secao">Jurídico</div>
+  <a class="item ativo" href="#" aria-current="page"><svg viewBox="0 0 20 20"><path d="M5 2.5h7l3.5 3.5v11.5H5z"/><path d="M12 2.5V6h3.5M8 10.5h5M8 13.5h5"/></svg><span>Cadastro de processos</span></a>
+  <div class="secao">Administração</div>
+  <a class="item" href="#"><svg viewBox="0 0 20 20"><circle cx="10" cy="7" r="3"/><path d="M4 17c1-3 3.4-4.2 6-4.2s5 1.2 6 4.2"/></svg><span>Usuários</span></a>
+  <a class="item" href="#"><svg viewBox="0 0 20 20"><circle cx="6.5" cy="10" r="3"/><path d="M9.5 10H17M14 10v3M16.5 10v2"/></svg><span>Credenciais</span></a>
+  <div class="rodape">
+    <div><b>Ana Admin</b><span>Administrador</span></div>
+    <button class="tema" id="tema" type="button">Tema escuro</button>
+  </div>
+</aside>
+
+<main>
+  <div class="topo">
+    <div>
+      <h1>Painel de Processos</h1>
+      <div class="sub">Atualizado às 16:42 · lido da planilha de processos do Espaider</div>
+    </div>
+    <div class="acoes">
+      <button class="btn" id="f-aud" type="button" aria-pressed="false">Audiências <span class="qtd">3</span></button>
+      <button class="btn" type="button">Menu</button>
+      <button class="btn primario" type="button">+ Enviar PDFs</button>
+    </div>
+  </div>
+
+  <section class="fluxo" aria-label="Fluxo do cadastro">
+    <div class="entrada">
+      <h2>Entrada de PDFs</h2>
+      <p><span class="pulso" aria-hidden="true"></span><b>2</b>em leitura</p>
+      <p class="falha"><b>3</b>com erro de leitura · <a href="#" id="ver-log">ver log</a></p>
+    </div>
+    <div class="esteira">
+      <div class="esteira-topo">
+        <h2 id="total-titulo">128 processos extraídos</h2>
+        <span id="total-pct">60% já cadastrados no Espaider</span>
+      </div>
+      <div class="barra" id="barra" aria-hidden="true">
+        <i class="pendencias"></i><i class="conferir"></i><i class="cadastrado"></i>
+      </div>
+      <div class="etapas" id="etapas">
+        <button class="etapa pendencias" data-status="pendencias" type="button" aria-pressed="false"><b>14</b><span>Com pendências</span><small>falta campo obrigatório</small></button>
+        <span class="seta" aria-hidden="true">→</span>
+        <button class="etapa conferir" data-status="conferir" type="button" aria-pressed="false"><b>37</b><span>Conferir</span><small>7 de 7 campos, revisão humana</small></button>
+        <span class="seta" aria-hidden="true">→</span>
+        <button class="etapa cadastrado" data-status="cadastrado" type="button" aria-pressed="false"><b>77</b><span>Cadastrado</span><small>lançado no Espaider</small></button>
+      </div>
+    </div>
+  </section>
+
+  <div class="grade">
+    <section class="painel">
+      <h2>Clientes <span>cadastrados / total</span></h2>
+      <div class="clientes" id="clientes"></div>
+    </section>
+
+    <section class="painel">
+      <h2 id="lista-titulo">Processos</h2>
+      <input class="busca" id="busca" type="search" placeholder="Buscar nº, parte ou comarca" aria-label="Buscar processos">
+      <div class="lista" id="lista"></div>
+      <div class="lista-pe">Prévia com 8 processos fictícios de exemplo</div>
+    </section>
+
+    <section class="painel" id="ficha" aria-live="polite"></section>
+  </div>
+</main>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function () {
+  var TRIBUNAL = { "8.16": "TJPR", "8.19": "TJRJ", "8.24": "TJSC", "8.21": "TJRS", "8.26": "TJSP", "8.13": "TJMG" };
+  var EMPRESA = {
+    "Ativos": "ATIVOS S.A. SECURITIZADORA DE CRÉDITOS FINANCEIROS",
+    "Ailos": "COOPERATIVA DE CRÉDITO AILOS",
+    "Toyota": "BANCO TOYOTA DO BRASIL S.A.",
+    "Volvo": "BANCO VOLVO (BRASIL) S.A.",
+    "BTB": "BTB",
+    "John Deere": "BANCO JOHN DEERE S.A."
+  };
+  var STATUS = { pendencias: "Com pendências", conferir: "Conferir", cadastrado: "Cadastrado" };
+  // os 7 campos obrigatórios da extração (o número e o tribunal vêm do próprio CNJ)
+  var OBRIG = ["numero", "tribunal", "comarca", "juizo", "adverso", "valor", "distribuido"];
+
+  var clientes = [
+    { nome: "Ativos", total: 96, cad: 56 }, { nome: "Ailos", total: 12, cad: 9 },
+    { nome: "Toyota", total: 9, cad: 5 }, { nome: "Volvo", total: 6, cad: 4 },
+    { nome: "BTB", total: 3, cad: 2 }, { nome: "John Deere", total: 2, cad: 1 },
+    { nome: "Outros", total: 0, cad: 0 }
+  ];
+  var totais = { pendencias: 14, conferir: 37, cadastrado: 77 };
+
+  var procs = [
+    { n: "0001234-56.2026.8.16.0001", adverso: "Maria Exemplo da Silva", doc: "***.111.222-**", cliente: "Ativos", condicao: "Réu", comarca: "Curitiba", juizo: "1º Juizado Especial Cível", valor: "R$ 12.594,40", distribuido: "21/06/2026", fase: "Postulatória", status: "conferir", aud: { dia: "04", mes: "mar 2027", hora: "15:00", tipo: "Audiência de conciliação" } },
+    { n: "0009876-11.2026.8.19.0004", adverso: "João Fictício Pereira", doc: "***.333.444-**", cliente: "Ativos", condicao: "Réu", comarca: "São Gonçalo", juizo: "2ª Vara Cível", valor: null, distribuido: "02/09/2026", fase: "Postulatória", status: "pendencias" },
+    { n: "0005555-22.2025.8.24.0006", adverso: "Comercial Exemplo Ltda", doc: "**.222.333/0001-**", cliente: "Ailos", condicao: "Autor", comarca: "Pomerode", juizo: "Vara Única", valor: "R$ 21.885,20", distribuido: "14/11/2025", fase: "Execução/Cumprimento", status: "cadastrado", em: "17/10/2026" },
+    { n: "0007777-90.2026.8.21.0008", adverso: "Ana Teste Souza", doc: "***.555.666-**", cliente: "Toyota", condicao: "Autor", comarca: "Canoas", juizo: "3ª Vara Cível", valor: "R$ 30.000,00", distribuido: "08/08/2026", fase: "Postulatória", status: "conferir" },
+    { n: "0003141-59.2026.8.26.0100", adverso: "Pedro Modelo Alves", doc: "***.777.888-**", cliente: "Volvo", condicao: "Autor", comarca: "São Paulo", juizo: "12ª Vara Cível", valor: "R$ 184.320,00", distribuido: "19/05/2026", fase: "Instrutória", status: "conferir", aud: { dia: "18", mes: "nov 2026", hora: "14:30", tipo: "Audiência de instrução" } },
+    { n: "0002718-28.2026.8.13.0024", adverso: "Transportes Exemplo Ltda", doc: "**.444.555/0001-**", cliente: "BTB", condicao: "Réu", comarca: "Belo Horizonte", juizo: null, valor: "R$ 67.150,00", distribuido: null, fase: "Postulatória", status: "pendencias" },
+    { n: "0006021-14.2025.8.16.0014", adverso: "Carla Ficção Rocha", doc: "***.999.000-**", cliente: "Ativos", condicao: "Réu", comarca: "Londrina", juizo: "2º Juizado Especial Cível", valor: "R$ 8.410,75", distribuido: "03/12/2025", fase: "Decisória", status: "cadastrado", em: "15/10/2026" },
+    { n: "0004404-04.2026.8.24.0023", adverso: "Agro Demonstração S.A.", doc: "**.666.777/0001-**", cliente: "John Deere", condicao: "Autor", comarca: "Florianópolis", juizo: "4ª Vara Cível", valor: "R$ 412.900,00", distribuido: "27/07/2026", fase: "Postulatória", status: "conferir", aud: { dia: "27", mes: "jan 2027", hora: "10:00", tipo: "Audiência de conciliação" } }
+  ];
+
+  var estado = { cliente: null, status: null, aud: false, q: "", sel: procs[0].n };
+  var $ = function (id) { return document.getElementById(id); };
+
+  function partes(n) {
+    var m = n.match(/^(\d{7})-(\d{2})\.(\d{4})\.(\d)\.(\d{2})\.(\d{4})$/);
+    return { seq: m[1], dv: m[2], ano: m[3], j: m[4], tr: m[5], origem: m[6], trib: TRIBUNAL[m[4] + "." + m[5]] || "—" };
+  }
+  function campos(p) {
+    return { numero: p.n, tribunal: partes(p.n).trib, comarca: p.comarca, juizo: p.juizo, adverso: p.adverso, valor: p.valor, distribuido: p.distribuido };
+  }
+  function faltando(p) {
+    var c = campos(p);
+    return OBRIG.filter(function (k) { return !c[k]; });
+  }
+  function filtrados() {
+    var q = estado.q.trim().toLowerCase();
+    return procs.filter(function (p) {
+      if (estado.cliente && p.cliente !== estado.cliente) return false;
+      if (estado.status && p.status !== estado.status) return false;
+      if (estado.aud && !p.aud) return false;
+      if (q && (p.n + " " + p.adverso + " " + p.comarca).toLowerCase().indexOf(q) < 0) return false;
+      return true;
+    });
+  }
+
+  function renderFluxo() {
+    var total = totais.pendencias + totais.conferir + totais.cadastrado;
+    $("total-titulo").textContent = total + " processos extraídos";
+    $("total-pct").textContent = Math.round(totais.cadastrado / total * 100) + "% já cadastrados no Espaider";
+    var barra = $("barra");
+    barra.classList.toggle("filtrando", !!estado.status);
+    Array.prototype.forEach.call(barra.children, function (i) {
+      var k = i.className.split(" ")[0];
+      i.style.flex = totais[k] + " 1 0";
+      i.classList.toggle("on", estado.status === k);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll(".etapa"), function (b) {
+      var k = b.dataset.status;
+      b.querySelector("b").textContent = totais[k];
+      b.setAttribute("aria-pressed", estado.status === k ? "true" : "false");
+    });
+    $("f-aud").setAttribute("aria-pressed", estado.aud ? "true" : "false");
+  }
+
+  function renderClientes() {
+    var todos = { nome: null, total: clientes.reduce(function (s, c) { return s + c.total; }, 0), cad: totais.cadastrado };
+    $("clientes").innerHTML = [todos].concat(clientes).map(function (c) {
+      var pct = c.total ? Math.round(c.cad / c.total * 100) : 0;
+      return '<button type="button" class="cliente' + (estado.cliente === c.nome ? " ativo" : "") + '" data-cliente="' + (c.nome || "") + '">' +
+        "<span>" + (c.nome || "Todos") + '</span><span class="cont">' + c.cad + "/" + c.total + "</span>" +
+        '<span class="mini"><i style="width:' + pct + '%"></i></span></button>';
+    }).join("");
+  }
+
+  function numLista(n) {
+    var p = partes(n);
+    return "<b>" + p.seq + "</b>-" + p.dv + "." + p.ano + "." + p.j + "." + p.tr + "." + p.origem;
+  }
+
+  function renderLista() {
+    var lista = filtrados();
+    var rotulo = estado.status ? STATUS[estado.status] : estado.aud ? "Com audiência" : "Todos";
+    $("lista-titulo").innerHTML = "Processos <span>" + (estado.cliente ? estado.cliente + " · " : "") + rotulo + "</span>";
+    if (!lista.length) {
+      $("lista").innerHTML = '<div class="vazio">Nenhum processo com esses filtros. Limpe a busca ou escolha outro cliente.</div>';
+      return;
+    }
+    if (!lista.some(function (p) { return p.n === estado.sel; })) estado.sel = lista[0].n;
+    $("lista").innerHTML = lista.map(function (p) {
+      var falta = faltando(p).length;
+      var valor = p.valor || '<span class="falta">sem valor da causa</span>';
+      return '<button type="button" class="proc' + (p.n === estado.sel ? " sel" : "") + '" data-n="' + p.n + '"' + (p.n === estado.sel ? ' aria-current="true"' : "") + ">" +
+        '<div class="l1"><span class="num">' + numLista(p.n) + '</span><span class="chip ' + p.status + '">' + STATUS[p.status] + (falta ? " · " + falta : "") + "</span></div>" +
+        '<div class="adv">' + p.adverso + "</div>" +
+        '<div class="meta">' + p.cliente + " · " + p.comarca + " · " + valor + "</div></button>";
+    }).join("");
+  }
+
+  function lin(rotulo, valor, obrig) {
+    var v = valor ? '<span class="val">' + valor + "</span>" : '<span><span class="falta">não encontrado no PDF</span></span>';
+    return '<div class="lin"><span' + (obrig ? ' class="obg"' : "") + ">" + rotulo + "</span>" + v + "</div>";
+  }
+
+  function renderFicha() {
+    var p = procs.filter(function (x) { return x.n === estado.sel; })[0];
+    var el = $("ficha");
+    if (!p || !filtrados().length) { el.innerHTML = '<div class="ficha-topo"><p class="nota">Selecione um processo na lista para ver a ficha.</p></div>'; return; }
+    var c = partes(p.n);
+    var falta = faltando(p);
+    var ticks = OBRIG.map(function (k) { return "<i" + (falta.indexOf(k) >= 0 ? ' class="nao"' : "") + "></i>"; }).join("");
+
+    var acoes;
+    if (p.status === "conferir") acoes = '<button class="btn primario" id="marcar" type="button">✓ Marcar cadastrado no Espaider</button><button class="btn" type="button">Editar</button>';
+    else if (p.status === "pendencias") acoes = '<button class="btn primario" type="button">Completar campos</button><button class="btn" type="button">Abrir PDF</button>';
+    else acoes = '<span class="feito">✓ Cadastrado no Espaider em ' + p.em + '</span><button class="btn" type="button">Editar</button>';
+
+    var aud = p.aud ? '<div class="audiencia"><div class="folha"><small>' + p.aud.mes + "</small><b>" + p.aud.dia + "</b></div>" +
+      '<div><p class="tipo">' + p.aud.tipo + '</p><p class="quando">' + p.aud.hora + " · " + p.comarca + (p.juizo ? " · " + p.juizo : "") + "</p>" +
+      '<p class="aviso">Agenda manual: crie a agenda da audiência no Espaider.</p></div></div>' : "";
+
+    el.innerHTML =
+      '<div class="ficha-topo">' +
+        '<div class="k">' + p.cliente + " · " + c.trib + " · fase " + p.fase.toLowerCase() + "</div>" +
+        '<div class="cnj" aria-label="Número CNJ ' + p.n + '">' +
+          "<div><b>" + c.seq + "</b><span>sequencial</span></div><i>-</i>" +
+          "<div><b>" + c.dv + "</b><span>dígito</span></div><i>.</i>" +
+          "<div><b>" + c.ano + "</b><span>ano</span></div><i>.</i>" +
+          "<div><b>" + c.j + "</b><span>estadual</span></div><i>.</i>" +
+          '<div class="tr"><b>' + c.tr + "</b><span>" + c.trib + "</span></div><i>.</i>" +
+          "<div><b>" + c.origem + "</b><span>origem</span></div>" +
+        "</div>" +
+        '<div class="situacao"><span class="chip ' + p.status + '">' + STATUS[p.status] + "</span>" +
+          '<span class="obrig"><span class="ticks" aria-hidden="true">' + ticks + "</span>" + (7 - falta.length) + " de 7 campos obrigatórios</span></div>" +
+        '<div class="ficha-acoes">' + acoes + "</div>" +
+      "</div>" +
+      '<div class="campos">' +
+        '<div class="grupo">Partes</div>' +
+        lin("Empresa", EMPRESA[p.cliente]) +
+        lin("Adverso", p.adverso + " · " + p.doc, true) +
+        lin("Condição", p.condicao) +
+        '<div class="grupo">Processo</div>' +
+        lin("Comarca", p.comarca, true) +
+        lin("Juízo", p.juizo, true) +
+        lin("Distribuído em", p.distribuido, true) +
+        lin("Valor da causa", p.valor, true) +
+      "</div>" + aud +
+      '<div class="confere"><b>Confere com o CNJ</b><span>tribunal</span><span>distribuição</span><span>comarca</span></div>';
+
+    var marcar = $("marcar");
+    if (marcar) marcar.addEventListener("click", function () {
+      p.status = "cadastrado"; p.em = "22/10/2026";
+      totais.conferir--; totais.cadastrado++;
+      clientes.forEach(function (cl) { if (cl.nome === p.cliente) cl.cad++; });
+      avisar("Marcado como cadastrado no Espaider");
+      render();
+    });
+  }
+
+  function render() { renderFluxo(); renderClientes(); renderLista(); renderFicha(); }
+
+  var timer;
+  function avisar(txt) {
+    var t = $("toast"); t.textContent = txt; t.classList.add("on");
+    clearTimeout(timer); timer = setTimeout(function () { t.classList.remove("on"); }, 2200);
+  }
+
+  $("etapas").addEventListener("click", function (e) {
+    var b = e.target.closest(".etapa"); if (!b) return;
+    estado.status = estado.status === b.dataset.status ? null : b.dataset.status;
+    estado.aud = false; render();
+  });
+  $("clientes").addEventListener("click", function (e) {
+    var b = e.target.closest(".cliente"); if (!b) return;
+    estado.cliente = b.dataset.cliente || null; render();
+  });
+  $("lista").addEventListener("click", function (e) {
+    var b = e.target.closest(".proc"); if (!b) return;
+    estado.sel = b.dataset.n; renderLista(); renderFicha();
+  });
+  $("busca").addEventListener("input", function (e) { estado.q = e.target.value; renderLista(); renderFicha(); });
+  $("f-aud").addEventListener("click", function () { estado.aud = !estado.aud; estado.status = null; render(); });
+  $("ver-log").addEventListener("click", function (e) { e.preventDefault(); avisar("Na versão real, abre a aba LOG DE ERRO"); });
+
+  var root = document.documentElement;
+  function temaAtual() { return root.dataset.theme || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"); }
+  function rotuloTema() { $("tema").textContent = temaAtual() === "dark" ? "Tema claro" : "Tema escuro"; }
+  $("tema").addEventListener("click", function () { root.dataset.theme = temaAtual() === "dark" ? "light" : "dark"; rotuloTema(); });
+  rotuloTema();
+
+  render();
+})();
+</script>

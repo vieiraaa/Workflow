@@ -1,0 +1,17 @@
+id: T-077
+titulo: M8 · Cadastro de processos · testes de aceite (a partir só da spec)
+dono: Lupa (qa)
+regras: [CAD-01..19, TEL-27..33]
+spec: docs/spec/juridico-cadastro.yaml
+aceite:
+  - "tests/acceptance/juridico/ cobre CAD-01..19 com @pytest.mark.modulo('m8'); mensagens exatas da spec."
+  - "Dify e DataJud FALSOS em servidor HTTP local (MOTOR_SSRF_LIBERAR só no teste, SEG-08): chat-messages (answer com
+     JSON, com cercas ```, JSON inválido, 401, timeout curto configurável), files/upload, _search (achou, não achou,
+     divergente, 401). Nada toca a internet nem a DATABASE_URL."
+  - "PDFs fictícios gerados no próprio teste (PDF mínimo com texto; PDF sem texto = 'escaneado'; arquivo .pdf que não é
+     PDF; > 30 MB simulado). Nenhum dado real."
+  - "O worker é exercitado chamando o comando processar_cadastros em modo 'uma passada' (--uma-vez) ou o serviço que
+     ele usa; combine o nome com o Lead se faltar na spec."
+  - "Inclui: deduplicação por sha256 e por número válido; dígito verificador inválido não mescla; PDF > manual > CNJ;
+     CADASTRADO não volta sozinho; texto > 40.000 vira 25.000 + marcador + 15.000; chave nunca aparece em tela/resposta."
+arquivos: [tests/acceptance/juridico/]

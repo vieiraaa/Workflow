@@ -54,6 +54,17 @@
       { k: "toggle", c: "resposta_completa", rotulo: "Resposta completa (status, cabeçalhos e corpo)", ajuda: "Desligado: o item é o corpo da resposta." },
       { k: "paginacao", c: "paginacao", rotulo: "Paginação" }
     ],
+    chamar_n8n: [
+      { k: "expr", c: "url", rotulo: "URL do webhook do n8n", placeholder: "https://n8n.exemplo.com/webhook/meu-fluxo", max: 2048 },
+      { k: "alerta", texto: "URL de TESTE do n8n: só funciona enquanto o n8n estiver em “Listen for test event”. Para uso real, ative o fluxo no n8n e use /webhook/.",
+        quando: function (c) { return String(c.url || "").indexOf("/webhook-test/") >= 0; } },
+      { k: "select", c: "metodo", rotulo: "Método", opcoes: [["POST", "POST"], ["GET", "GET"]] },
+      { k: "credencial", c: "credencial", rotulo: "Credencial" },
+      { k: "select", c: "enviar", rotulo: "Enviar", recarrega: true, opcoes: [["item", "Um item por chamada"], ["todos", "Todos os itens numa chamada"], ["personalizado", "Corpo personalizado"]] },
+      { k: "expr", c: "corpo", rotulo: "Corpo a enviar (objeto ou lista JSON)", multilinha: true, mono: true, placeholder: "{ \"id\": \"{{ $json.id }}\" }", quando: eq("enviar", "personalizado") },
+      { k: "toggle", c: "aguardar_resposta", rotulo: "Aguardar a resposta do n8n", ajuda: "Desligado: o fluxo segue sem ler a resposta e cada item ganha o campo n8n_status." },
+      { k: "numero", c: "tempo_limite_s", rotulo: "Tempo limite (1 a 55 segundos)", min: 1, max: 55 }
+    ],
     codigo: [
       { k: "select", c: "modo", rotulo: "Modo", opcoes: [["uma_vez_para_todos", "Uma vez para todos os itens"], ["uma_vez_por_item", "Uma vez para cada item"]] },
       { k: "codigo", c: "codigo", rotulo: "JavaScript", max: 50000, ajuda: "Retorne uma lista de {json}. Use $input.all(), $json, $('Nó').all(). Roda isolado, sem rede e sem disco." }

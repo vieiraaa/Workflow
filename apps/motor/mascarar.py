@@ -197,7 +197,7 @@ def mascarar_grafo(grafo):
     """Cópia do grafo canônico com headers/query sensíveis dos nós http mascarados (SEG-16.5)."""
     copia = json.loads(json.dumps(grafo))
     for no in copia.get("nos", []):
-        if no.get("tipo") == "http" and isinstance(no.get("config"), dict):
+        if no.get("tipo") in ("http", "chamar_n8n") and isinstance(no.get("config"), dict):
             no["config"] = mascarar_entrada_http(no["config"], estatico=True)
     return copia
 

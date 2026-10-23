@@ -12,6 +12,7 @@
 #   ativos_do_setor -> fluxos ativos do setor do usuário (M4)
 #   Adm (todos) vê tudo COM OU SEM setor.
 #   liberadas -> Funções ativas, publicadas e liberadas ao usuário (todos / setor dele / papel dele) — FUN, M7a
+#   setor_com_acesso -> setor do usuário em ConfigCadastro.setores_com_acesso; vê TODOS os processos — CAD-02, M8
 #   nenhum   -> negado
 # Anônimo: toda rota exceto `login` redireciona para login (302 com ?next=).
 
@@ -30,6 +31,10 @@ acoes:
   funcoes.ver:          {adm: todos,  coordenador: liberadas, base: liberadas}   # FUN-02 (M7a)
   funcoes.executar:     {adm: todos,  coordenador: liberadas, base: liberadas}   # FUN-06
   funcoes.gerenciar:    {adm: todos,  coordenador: nenhum,    base: nenhum}      # FUN-03/04 (TI = Adm, D-029)
+  cadastro.ver:         {adm: todos,  coordenador: setor_com_acesso, base: setor_com_acesso}   # CAD-01/02 (M8)
+  cadastro.enviar:      {adm: todos,  coordenador: setor_com_acesso, base: setor_com_acesso}   # CAD-03/05
+  cadastro.editar:      {adm: todos,  coordenador: setor_com_acesso, base: setor_com_acesso}   # CAD-15/21
+  cadastro.configurar:  {adm: todos,  coordenador: nenhum,           base: nenhum}             # CAD-14
   conta.trocar_senha:   {adm: todos,  coordenador: todos,  base: todos}    # a própria senha (sem papel: 403, USR-15)
 
 regras:

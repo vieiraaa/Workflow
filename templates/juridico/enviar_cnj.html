@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load static %}
+{% block estilos %}<link rel="stylesheet" href="{% static 'css/juridico.css' %}">{% endblock %}
+{% block scripts %}<script src="{% static 'js/juridico.js' %}" defer></script>{% endblock %}
+{% block titulo %}Cadastrar pelo CNJ · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}Cadastrar pelo CNJ{% endblock %}
+{% block acoes %}{% url "juridico:painel" as url_painel_ %}{% include "componentes/botao.html" with rotulo="Painel" icone="chevron-left" href=url_painel_ %}{% endblock %}
+{% block conteudo %}{% url "juridico:painel" as url_painel_ %}{% url "juridico:enviar_pdfs" as url_enviar_pdfs_ %}
+{% if confirmacao %}
+<form class="formulario card card--larga" method="post" data-estado="confirmacao">
+  {% csrf_token %}
+  <input type="hidden" name="numeros" value="{{ form.numeros.value }}">
+  <input type="hidden" name="carteira" value="{{ form.carteira.value|default:'' }}">
+  <input type="hidden" name="confirmar" value="1">
+  <h2 class="card__titulo">Confirme os números</h2>
+  <p class="texto-2">Alguns processos já existem. Eles serão atualizados com os dados do CNJ (sem sobrescrever o que já foi preenchido).</p>
+  <ul class="confirmacao">
+    {% for c in confirmacao %}
+    <li class="confirmacao__item">
+      <strong>{{ c.numero }}</strong>
+      {% if not c.valido %}<span class="badge badge--erro">Número inválido</span>
+      {% elif c.ja_existe %}<span class="badge badge--executando">Já existe</span>{% if c.ja_existe.excluido %}<span class="badge badge--rascunho">Excluído</span>{% endif %}
+      <span class="texto-2 texto-sm">{{ c.ja_existe.aviso }} <a href="{{ c.ja_existe.url }}">Abrir processo</a></span>
+      {% else %}<span class="badge badge--sucesso">Novo</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  <div class="formulario__acoes">
+    {% include "componentes/botao.html" with rotulo="Voltar" href="?" %}
+    {% include "componentes/botao.html" with rotulo="Confirmar e enviar" icone="check" variante="primario" tipo="submit" carregando="Enviando…" %}
+  </div>
+</form>
+{% else %}
+<form class="formulario card card--formulario card--larga" method="post" novalidate>
+  {% csrf_token %}
+  <h2 class="card__titulo">Números de processo</h2>
+  <p class="texto-2">Cole um ou mais números CNJ (20 dígitos), separados por linha, vírgula ou ponto e vírgula. Até 50 por vez.</p>
+  {% include "componentes/alerta.html" with erros=form.non_field_errors estado="erro_validacao" %}
+  {% include "componentes/campo.html" with campo=form.numeros %}
+  {% include "componentes/campo.html" with campo=form.carteira %}
+  <div class="formulario__acoes">
+    {% include "componentes/botao.html" with rotulo="Cancelar" href=url_painel_ %}
+    {% include "componentes/botao.html" with rotulo="Cadastrar" icone="hash" variante="primario" tipo="submit" carregando="Enviando…" %}
+  </div>
+</form>
+{% endif %}
+{% endblock %}

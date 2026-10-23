@@ -1,8 +1,10 @@
 {% extends "base_publica.html" %}
+{% load static %}
 {% block titulo %}Entrar · Construtor de Workflows{% endblock %}
 {% block conteudo %}
 <header class="publica__cabecalho">
-  <div class="publica__logo">{% include "componentes/icone.html" with nome="workflow" tamanho=24 %}</div>
+  <img class="publica__logo" src="{% static 'img/marca/logo.png' %}" alt="Egger e Mesquita Advogados Associados" width="280" height="112">
+  <span class="publica__produto">Workflows</span>
   <h1>Entrar</h1>
   <p class="texto-2">Acesse o Construtor de Workflows</p>
 </header>

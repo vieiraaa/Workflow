@@ -11,6 +11,7 @@ urlpatterns = [
     path("fluxos/", include("apps.fluxos.urls")),
     path("execucoes/", include("apps.execucoes.urls")),
     path("funcoes/", include("apps.funcoes.urls")),
+    path("juridico/", include("apps.juridico.urls")),
     path("credenciais/", include("apps.credenciais.urls")),
     path("usuarios/", include("apps.contas.urls_usuarios")),
 ]

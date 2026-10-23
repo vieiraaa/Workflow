@@ -1,0 +1,9 @@
+id: T-081
+titulo: M8 · revisão visual · valor da causa no formulário em formato brasileiro
+dono: Forja (back)
+regras: [CAD-15, CAD-23 (2)]
+defeito: "TEL-28: o campo Valor da causa abre como '12500.00'. ProcessoForm só troca o initial se 'valor_causa' não estiver em self.initial, mas o ModelForm já o preenche pela instância."
+aceite:
+  - "Campo abre como '12.500,00' (milhar com ponto, decimal com vírgula); salvar esse texto mantém o valor; formatos aceitos do CAD-23 continuam valendo."
+  - "Teste unitário; aceite juridico verde."
+arquivos: [apps/juridico/, tests/unit/juridico/]

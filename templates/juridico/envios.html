@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% load static %}
+{% block estilos %}<link rel="stylesheet" href="{% static 'css/juridico.css' %}">{% endblock %}
+{% block scripts %}<script src="{% static 'js/juridico.js' %}" defer></script>{% endblock %}
+{% block titulo %}Envios · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}Envios{% endblock %}
+{% block acoes %}{% url "juridico:painel" as url_painel_ %}{% include "componentes/botao.html" with rotulo="Painel" icone="chevron-left" href=url_painel_ %}{% endblock %}
+{% block conteudo %}{% url "juridico:painel" as url_painel_ %}{% url "juridico:enviar_pdfs" as url_enviar_pdfs_ %}
+<div class="card card--semrecuo" data-envios>
+  {% if envios %}
+  {% include "componentes/tabela_envios.html" %}
+  {% include "componentes/paginacao.html" with page_obj=envios %}
+  {% else %}
+  {% include "componentes/vazio.html" with icone="list-checks" titulo="Nenhum envio ainda" texto="Quando você enviar PDFs ou números CNJ, o andamento aparece aqui." acao_rotulo="Enviar PDFs" acao_url=url_enviar_pdfs_ %}
+  {% endif %}
+</div>
+{% endblock %}

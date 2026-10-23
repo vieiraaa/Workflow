@@ -23,12 +23,14 @@ PROPRIAS = "proprias"
 SETOR = "setor"
 ATIVOS_DO_SETOR = "ativos_do_setor"
 LIBERADAS = "liberadas"
+SETOR_COM_ACESSO = "setor_com_acesso"
 
 # Modelo (app_label.model) -> ação de leitura usada por escopo() quando `acao` não é informada.
 ACAO_DE_LEITURA = {
     "fluxos.fluxo": "fluxos.ver",
     "execucoes.execucao": "execucoes.ver",
     "funcoes.funcao": "funcoes.ver",
+    "juridico.processo": "cadastro.ver",
 }
 
 
@@ -85,10 +87,25 @@ def _visivel_no_setor(usuario, objeto):
     return getattr(objeto, "executado_por_id", None) == usuario.pk
 
 
+def _setor_com_acesso(usuario):
+    """CAD-02: o setor do usuário está em ConfigCadastro.setores_com_acesso (vale por instância)."""
+    if not hasattr(usuario, "_acesso_cadastro"):
+        from apps.juridico.models import ConfigCadastro
+
+        # Uma consulta constante (o menu roda em toda página); sem criar a linha de config.
+        usuario._acesso_cadastro = (
+            usuario.setor_id is not None
+            and ConfigCadastro.objects.filter(setores_com_acesso=usuario.setor_id).exists()
+        )
+    return usuario._acesso_cadastro
+
+
 def pode(usuario, acao, objeto=None):
     escopo_da_acao = _escopo_da_acao(usuario, acao)
     if escopo_da_acao == NENHUM:
         return False
+    if escopo_da_acao == SETOR_COM_ACESSO:
+        return _setor_com_acesso(usuario)  # vê TODOS os processos do escritório (CAD-02)
     if objeto is None or escopo_da_acao == TODOS:
         return True
     if escopo_da_acao == SETOR:
@@ -121,6 +138,8 @@ def escopo(usuario, qs, acao=None):
     escopo_da_acao = _escopo_da_acao(usuario, acao)
     if escopo_da_acao == TODOS:
         return qs
+    if escopo_da_acao == SETOR_COM_ACESSO:
+        return qs if _setor_com_acesso(usuario) else qs.none()
     if escopo_da_acao in (SETOR, ATIVOS_DO_SETOR):
         if not usuario.setor_id or not _tem_setor(qs.model):
             return qs.none()

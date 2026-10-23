@@ -16,6 +16,7 @@
   var TIPOS = {
     gatilho: { rotulo: "Manual", grupo: "gatilhos", icone: "zap", titulo: "Início", busca: "gatilho manual iniciar" },
     http: { rotulo: "Requisição HTTP", grupo: "acoes", icone: "globe", titulo: "Requisição HTTP", busca: "http api get post rest chamada" },
+    chamar_n8n: { rotulo: "Chamar n8n", grupo: "acoes", icone: "webhook", titulo: "Chamar n8n", busca: "n8n webhook chamar workflow fluxo" },
     codigo: { rotulo: "Código", grupo: "dados", icone: "code", titulo: "Código", busca: "codigo code javascript js script" },
     editar_campos: { rotulo: "Editar campos", grupo: "dados", icone: "pen-line", titulo: "Editar campos", busca: "set campos editar atribuir" },
     filtrar: { rotulo: "Filtrar", grupo: "dados", icone: "funnel", titulo: "Filtrar", busca: "filter filtrar condicao" },
@@ -48,6 +49,8 @@
     switch (tipo) {
       case "http":
         return { metodo: "GET", url: "", query: [], headers: [], corpo: { tipo: "nenhum", conteudo: "" }, credencial: null, resposta: "automatica", resposta_completa: false, paginacao: null };
+      case "chamar_n8n":
+        return { url: "", metodo: "POST", credencial: null, enviar: "item", corpo: "", aguardar_resposta: true, tempo_limite_s: 30 };
       case "codigo": return { modo: "uma_vez_para_todos", codigo: "return $input.all();" };
       case "editar_campos": return { modo: "manual", campos: [], incluir_outros: true };
       case "filtrar": return { condicoes: [condicaoPadrao()], combinar: "e", manter_descartados: false };
@@ -122,12 +125,16 @@
     return curto(p.esquerda + " " + String(p.operador || "").replace(/_/g, " ") + (p.direita ? " " + p.direita : ""), 36) + (lista.length > 1 ? " +" + (lista.length - 1) : "");
   }
 
+  /* N8N-02: URL do modo de teste do n8n só responde enquanto ele escuta um evento de teste. */
+  function urlTesteN8n(url) { return String(url == null ? "" : url).indexOf("/webhook-test/") >= 0; }
+
   function resumo(no) {
     var c = no.config || {};
     switch (no.tipo) {
       case "gatilho": return "Início manual";
       case "saida": return "Mostra o resultado";
       case "http": return c.url ? (c.metodo || "GET") + " " + c.url : "Configure a URL";
+      case "chamar_n8n": return c.url ? (c.metodo || "POST") + " · n8n" + (urlTesteN8n(c.url) ? " (teste)" : "") : "Configure a URL do webhook";
       case "codigo": return c.modo === "uma_vez_por_item" ? "JavaScript · por item" : "JavaScript · todos os itens";
       case "editar_campos": return (c.campos || []).length ? (c.campos.length + (c.campos.length === 1 ? " campo" : " campos")) : (c.modo === "json" ? "Modo JSON" : "Sem campos");
       case "filtrar": case "se": return resumoCondicoes(c);
@@ -297,7 +304,7 @@
     GRUPOS: GRUPOS, TIPOS: TIPOS, ORDEM_TIPOS: ORDEM_TIPOS, METODOS: METODOS, CORES_NOTA: CORES_NOTA, EM_ERRO: EM_ERRO,
     LIMITE_REGRAS: LIMITE_REGRAS, normalizarPaginacao: normalizarPaginacao, clonar: clonar, tipoDe: tipoDe, configPadrao: configPadrao, condicaoPadrao: condicaoPadrao,
     portas: portas, novoId: novoId, tituloUnico: tituloUnico, resumo: resumo, extrair: extrair, especificacao: especificacao,
-    especificacaoNota: especificacaoNota, tamanhoNota: tamanhoNota, migrar: migrar, anteriores: anteriores, dadosDoNo: dadosDoNo, lerFixos: lerFixos
+    especificacaoNota: especificacaoNota, tamanhoNota: tamanhoNota, migrar: migrar, anteriores: anteriores, dadosDoNo: dadosDoNo, lerFixos: lerFixos, urlTesteN8n: urlTesteN8n
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else raiz.ConversorGrafo = API;

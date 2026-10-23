@@ -1,48 +1,94 @@
-/* Design base: tokens. Toda decisão visual mora aqui (o designer refina este arquivo). */
+/* Design base: tokens da identidade Egger e Mesquita v2 (D-038, guia IMPLEMENTACAO-PAINEL.md, 22/10/2026).
+   Toda decisão visual mora aqui. Os NOMES dos tokens são estáveis (as telas dependem deles); mude só os valores.
+   Equivalência com o guia: --fundo=--bg, --superficie=--surface, --borda=--hairline, --primaria=--accent,
+   --primaria-texto=--on-accent, --primaria-suave=--fill-accent, --rotulo=--destaque, --ok=--success, --erro=--danger. */
 :root {
   color-scheme: light;
-  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
-  --font-mono: ui-monospace, "Cascadia Code", "SF Mono", Consolas, monospace;
-  --text-title: 1.75rem; --text-h2: 1.25rem; --text-body: 0.9375rem; --text-sm: 0.8125rem;
+  --font: "IBM Plex Sans", "Helvetica Neue", Arial, "Segoe UI", system-ui, sans-serif;
+  --font-titulo: "Montserrat", "Helvetica Neue", Arial, sans-serif;           /* a letra do logo */
+  --font-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;  /* CNJ, contagens, dia */
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Code", Consolas, monospace;          /* código e JSON */
+  --text-title: 1.625rem; --text-h2: 1.25rem; --text-body: 0.875rem; --text-sm: 0.8125rem;   /* base 14px; título 26px */
+  --text-kpi: 1.375rem;      /* número das etapas do fluxo */
+  --text-cnj: 1.3125rem;     /* número CNJ da ficha (21px) */
+  --text-rotulo: 0.8125rem;  /* títulos de painel e de grupo (Montserrat 600, caixa normal) */
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-6: 24px; --sp-8: 32px; --sp-12: 48px;
-  --content-max: 1200px;
+  --content-max: 1440px;
+  --lateral-largura: 236px;
 
-  --bg: #f2f2f7;            /* fundo agrupado do iOS */
-  --surface: #ffffff;
-  --surface-2: #f9f9fb;
-  --text: #1c1c1e; --text-2: rgba(60,60,67,.70); --text-3: rgba(60,60,67,.45);
-  --hairline: rgba(60,60,67,.14);
-  --fill: rgba(120,120,128,.10); --fill-2: rgba(120,120,128,.16);
+  /* marca (iguais nos dois temas) */
+  --marca-roxo: #4F1F5C;     /* letras do logo */
+  --marca-ameixa: #3E2745;   /* fundo da versão negativa */
+  --marca-ouro: #F8B334;     /* o "e" do logo */
+  --ouro: var(--marca-ouro); /* emblema, item ativo da lateral, foco, folha da audiência */
 
-  --accent: #007aff; --fill-accent: rgba(0,122,255,.10);
-  --success: #34c759; --warning: #ff9f0a; --danger: #ff3b30; --orange: #ff9500;
-  --ring: 0 0 0 4px rgba(0,122,255,.22);
+  /* claro */
+  --bg: #F6F4F8;
+  --surface: #FFFFFF;
+  --surface-2: #F1EDF4;
+  --hairline: #E6E0EB; --borda-forte: #D2CAD9;
+  --text: #1F1625; --text-2: #5D5367; --text-3: #72667C;   /* guia: #85798F, escurecido p/ AA */
+  --fill: rgba(79,31,92,.05); --fill-2: rgba(79,31,92,.09);
 
-  --r-s: 6px; --r-m: 10px; --r-l: 14px; --r-xl: 20px; --r-pill: 999px;
-  --shadow-1: 0 1px 2px rgba(0,0,0,.04), 0 1px 8px rgba(0,0,0,.04);
-  --shadow-2: 0 4px 12px rgba(0,0,0,.06), 0 16px 40px rgba(0,0,0,.10);
+  --accent: var(--marca-roxo); --on-accent: #FFFFFF; --fill-accent: rgba(79,31,92,.07);
+  --destaque: #7A3F8C;       /* títulos de grupo da ficha, código do tribunal */
+  --ouro-texto: #8A5B00;     /* texto dourado legível sobre fundo claro */
+
+  /* lateral: SEMPRE ameixa (presença da marca), nos dois temas */
+  --sidebar: var(--marca-ameixa);
+  --lat-texto: #EDE3F1; --lat-texto-2: #B7A2C1;
+  --lat-ativo-fundo: rgba(248,179,52,.15); --lat-borda: rgba(255,255,255,.09);
+
+  /* status: o dourado é da marca e das ações, NUNCA de status */
+  --success: #12805F; --fill-success: rgba(18,128,95,.10);     /* Cadastrado */
+  --conf: #2F5FC4;    --fill-conf: rgba(47,95,196,.09);        /* Conferir */
+  --pend: #C2412D;    --fill-pend: rgba(194,65,45,.09);        /* Com pendências, campo faltando */
+  --danger: #C42B3C;  --fill-danger: rgba(196,43,60,.09);      /* erro de leitura/execução */
+  --warning: var(--pend); --fill-warning: var(--fill-pend);    /* compatibilidade com telas antigas */
+  --orange: #C2660A; --purple: #7A3F8C;
+  --ring: 0 0 0 2px var(--ouro);                               /* foco: contorno dourado de 2px */
+
+  --r-s: 6px; --r-m: 8px; --r-l: 12px; --r-xl: 18px; --r-pill: 999px;
+  --shadow-1: 0 1px 2px rgba(31,22,37,.05), 0 8px 24px rgba(31,22,37,.05);
+  --shadow-2: 0 4px 12px rgba(31,22,37,.08), 0 16px 40px rgba(31,22,37,.12);
+  --brilho-status: 0 0 0 0 transparent;
   --ease: cubic-bezier(.2,.8,.2,1); --dur: 180ms;
 }
 
+/* escuro: ameixa profundo (derivado da versão negativa do logo) */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #000000;
-  --surface: #1c1c1e;
-  --surface-2: #2c2c2e;
-  --text: #f5f5f7; --text-2: rgba(235,235,245,.68); --text-3: rgba(235,235,245,.40);
-  --hairline: rgba(84,84,88,.55);
-  --fill: rgba(118,118,128,.22); --fill-2: rgba(118,118,128,.32);
-  --accent: #0a84ff; --fill-accent: rgba(10,132,255,.18);
-  --success: #30d158; --warning: #ffd60a; --danger: #ff453a; --orange: #ff9f0a;
-  --ring: 0 0 0 4px rgba(10,132,255,.35);
-  --shadow-1: 0 1px 2px rgba(0,0,0,.4);
-  --shadow-2: 0 8px 32px rgba(0,0,0,.5);
+  --bg: #17101C;
+  --surface: #211827;
+  --surface-2: #2A1F31;
+  --hairline: #35283D; --borda-forte: #4A3A54;
+  --text: #F2EBF4; --text-2: #C0B2C8; --text-3: #918299;
+  --fill: rgba(242,235,244,.05); --fill-2: rgba(242,235,244,.09);
+
+  --accent: var(--marca-ouro); --on-accent: #2B1B05; --fill-accent: rgba(248,179,52,.12);
+  --destaque: #CFA8DC;
+  --ouro-texto: #F8B334;
+
+  --sidebar: #0F0912;
+  --lat-texto: #EDE3F1; --lat-texto-2: #9E8AA8;
+  --lat-ativo-fundo: rgba(248,179,52,.13); --lat-borda: rgba(255,255,255,.07);
+
+  --success: #4FD1A5; --fill-success: rgba(79,209,165,.12);
+  --conf: #93B5FF;    --fill-conf: rgba(147,181,255,.12);
+  --pend: #FF8B7B;    --fill-pend: rgba(255,139,123,.12);
+  --danger: #FF6B78;  --fill-danger: rgba(255,107,120,.12);
+  --orange: #FF9F43; --purple: #CFA8DC;
+
+  --shadow-1: 0 1px 0 rgba(255,255,255,.03) inset, 0 10px 30px rgba(0,0,0,.35);
+  --shadow-2: 0 12px 40px rgba(0,0,0,.5);
 }
 
 html, body { background: var(--bg); color: var(--text); font: 400 var(--text-body)/1.5 var(--font); }
 body { margin: 0; min-height: 100vh; -webkit-font-smoothing: antialiased; }
+h1, h2, h3 { font-family: var(--font-titulo); font-weight: 600; }
+:focus-visible { outline: 2px solid var(--ouro); outline-offset: 2px; }
 
-/* Opcional, DESLIGADO por padrão: vidro para a etapa de acabamento (designer). */
+/* Opcional, DESLIGADO: vidro. Não usar sem decisão de design. */
 .vidro {
   background: color-mix(in srgb, var(--surface) 70%, transparent);
   -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);

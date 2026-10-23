@@ -63,5 +63,11 @@ class Command(BaseCommand):
                 setor = Setor.objects.get_or_create(nome=nome)[0]
                 demo.pessoas_do_setor(setor, senha)
             demo.semear()
+        try:  # M8: dados fictícios do cadastro de processos
+            juridico_demo = importlib.import_module("apps.juridico.demo")
+        except ImportError:
+            juridico_demo = None
+        if juridico_demo is not None:
+            juridico_demo.semear()
         if gerada and criados:
             self.stdout.write(f"Senha gerada (só para dev): {senha}")

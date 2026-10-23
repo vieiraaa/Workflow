@@ -1,0 +1,10 @@
+{# p: item da lista do painel (CAD-19/27). No desktop o clique seleciona (url_painel, via data-href-desktop); no celular abre o detalhe. #}
+<a class="proc" href="{{ p.url_detalhe }}" data-href-desktop="{{ p.url_painel }}" data-processo="{{ p.pk }}" title="{{ p.numero }}"{% if p.selecionado %} aria-current="true"{% endif %}>
+  <div class="proc__l1">
+    <span class="proc__num">{% if p.numero_sequencial %}<b>{{ p.numero_sequencial }}</b>{{ p.numero_resto }}{% else %}{{ p.numero }}{% endif %}</span>
+    <span class="chip-status chip-status--{% if p.status == 'CADASTRADO' %}ok{% elif p.status == 'CONFERIR' %}conf{% else %}pend{% endif %}">{{ p.status_rotulo }}{% if p.status == "COM_PENDENCIAS" and p.faltando %} · {{ p.faltando }}{% endif %}</span>
+  </div>
+  <div class="proc__adv">{{ p.adverso|default:"—" }}{% if p.cpf_cnpj_mascarado %} · {{ p.cpf_cnpj_mascarado }}{% endif %}</div>
+  <div class="proc__meta">{{ p.carteira|default:"—" }} · {{ p.comarca|default:"—" }} · {% if p.valor_texto %}{{ p.valor_texto }}{% else %}<span class="falta">sem valor da causa</span>{% endif %}</div>
+  {% if p.audiencia_texto %}<div class="proc__aud{% if p.audiencia_proxima %} proc__aud--urgente{% endif %}" title="Próxima audiência">{% include "componentes/icone.html" with nome="calendar-clock" tamanho=16 %}<span>{{ p.audiencia_texto }}</span></div>{% endif %}
+</a>

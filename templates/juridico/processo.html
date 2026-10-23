@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% load static %}
+{% block estilos %}<link rel="stylesheet" href="{% static 'css/juridico.css' %}">{% endblock %}
+{% block scripts %}<script src="{% static 'js/juridico.js' %}" defer></script>{% endblock %}
+{% block titulo %}Processo {{ processo.numero }} · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}Processo <span class="nowrap">{{ processo.numero }}</span>{% endblock %}
+{% block acoes %}{% url "juridico:painel" as url_painel_ %}{% include "componentes/botao.html" with rotulo="Painel" icone="chevron-left" href=url_painel_ %}{% endblock %}
+{% block conteudo %}{% url "juridico:painel" as url_painel_ %}{% url "juridico:enviar_pdfs" as url_enviar_pdfs_ %}
+<section class="card processo-cab">
+  <div class="processo-cab__topo">
+    <div class="processo-cab__ident">
+      <p class="texto-2 texto-sm">{{ processo.carteira|default:"Sem carteira" }}{% if processo.criado_por_texto %} · {{ processo.criado_por_texto }}{% endif %}</p>
+      <h2 class="detalhe__numero">{{ processo.numero }}</h2>
+      <div class="processo-cab__chips">{% include "componentes/badge_status.html" with status=processo.status|lower rotulo=processo.status_rotulo %}{% include "componentes/icone_cnj.html" with situacao=cnj.situacao %}</div>
+    </div>
+    <div class="detalhe__acoes">
+      {% if url_pdf %}{% include "componentes/botao.html" with rotulo="Baixar PDF" icone="download" href=url_pdf %}{% endif %}
+      {% if pode_editar %}<form method="post" action="{% url 'juridico:consultar_cnj' processo.pk %}">{% csrf_token %}{% include "componentes/botao.html" with rotulo="Consultar CNJ de novo" icone="refresh-cw" tipo="submit" carregando="Consultando…" %}</form>{% endif %}
+      {% if pode_marcar %}<form method="post" action="{% url 'juridico:marcar_cadastrado' processo.pk %}">{% csrf_token %}{% include "componentes/botao.html" with rotulo="Marcar como cadastrado no Espaider" icone="circle-check" variante="primario" tipo="submit" carregando="Marcando…" %}</form>{% endif %}
+      {% if pode_desfazer %}<form method="post" action="{% url 'juridico:desfazer_cadastrado' processo.pk %}">{% csrf_token %}{% include "componentes/botao.html" with rotulo="Desfazer cadastrado" icone="undo-2" variante="destrutivo" tipo="submit" %}</form>{% endif %}
+    </div>
+  </div>
+  {% if pendencias %}
+  <ul class="pendencias" aria-label="Pendências" data-estado="com_pendencias">{% for pend in pendencias %}<li>{% include "componentes/icone.html" with nome="triangle-alert" tamanho=16 %}<span>{{ pend }}</span></li>{% endfor %}</ul>
+  {% endif %}
+</section>
+
+<section class="card cnj-caixa cnj-caixa--{{ cnj.situacao }}" aria-labelledby="cnj-titulo" data-cnj="{{ cnj.situacao }}">
+  <h2 class="card__titulo" id="cnj-titulo">Validação no CNJ</h2>
+  {% if cnj.situacao == "confere" %}<p>{% include "componentes/icone_cnj.html" with situacao="confere" %} Os dados conferem com o DataJud.</p>
+  {% elif cnj.situacao == "divergente" %}<p>Os dados divergem do CNJ. Confira cada item:</p>
+  <ul class="pendencias">{% for d in cnj.divergencias %}<li>{% include "componentes/icone.html" with nome="shield-alert" tamanho=16 %}<span>{{ d }}</span></li>{% endfor %}</ul>
+  {% elif cnj.situacao == "nao_encontrado" %}<p>Não encontrado no DataJud: segredo de justiça ou ainda não indexado.</p>
+  {% elif cnj.situacao == "falhou" %}<p>A consulta ao CNJ falhou. Use “Consultar CNJ de novo” mais tarde.</p>
+  {% else %}<p class="texto-2">Ainda não consultado.</p>{% endif %}
+  {% if cnj.mensagem %}<p class="texto-2">{{ cnj.mensagem }}</p>{% endif %}
+  {% if cnj.consultado_em %}<p class="texto-2 texto-sm">Consultado em {{ cnj.consultado_em }}</p>{% endif %}
+</section>
+
+{% if resumo_grupos %}
+<section class="card" aria-labelledby="resumo-titulo">
+  <h2 class="card__titulo" id="resumo-titulo">Resumo</h2>
+  <div class="resumo-grupos">
+    {% for g in resumo_grupos %}{% include "componentes/grupo.html" with titulo=g.titulo|upper linhas=g.campos %}{% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% include "componentes/formulario_processo.html" with rotulo_salvar="Salvar" url_cancelar=url_painel_ %}
+
+{% if andamentos %}
+<section class="card" aria-labelledby="and-titulo">
+  <h2 class="card__titulo" id="and-titulo">Andamentos</h2>
+  <ol class="andamentos andamentos--cartao">{% for a in andamentos %}<li><span class="andamentos__data">{{ a.data }}</span><span>{{ a.evento }}</span>{% if a.fonte %}<span class="origem origem--{{ a.fonte }}">{{ a.fonte|upper }}</span>{% endif %}</li>{% endfor %}</ol>
+</section>
+{% endif %}
+
+<section class="card" aria-labelledby="hist-titulo">
+  <h2 class="card__titulo" id="hist-titulo">Histórico de envios</h2>
+  {% if envios %}
+  <ul class="historico">{% for e in envios %}<li><span>{{ e.quando }}</span><span>{{ e.usuario }}</span><span class="texto-2">{{ e.origem }}{% if e.descricao %} · {{ e.descricao }}{% endif %}</span></li>{% endfor %}</ul>
+  {% else %}<p class="texto-2">Nenhum envio tocou este processo.</p>{% endif %}
+</section>
+{% endblock %}

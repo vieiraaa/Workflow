@@ -37,7 +37,10 @@ VERSOES = {
     "sem_operacao": 1,
     "saida": 1,
 }
-SEM_EXPORTACAO = {"data_hora": "Operações de data e hora ainda não têm exportação para o n8n."}
+SEM_EXPORTACAO = {
+    "data_hora": "Operações de data e hora ainda não têm exportação para o n8n.",
+    "chamar_n8n": "O nó Chamar n8n chama um fluxo do n8n e não tem equivalente na exportação.",
+}
 
 
 def slug(nome):
@@ -50,7 +53,8 @@ def credenciais_usadas(grafo):
     nomes = {
         no["config"]["credencial"]
         for no in grafo.get("nos", [])
-        if no.get("tipo") == "http" and isinstance(no["config"].get("credencial"), str)
+        if no.get("tipo") in ("http", "chamar_n8n")
+        and isinstance(no["config"].get("credencial"), str)
     }
     return sorted(n for n in nomes if n)
 

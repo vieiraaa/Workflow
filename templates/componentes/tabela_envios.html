@@ -1,0 +1,17 @@
+{# envios: lista de {pk, quando, origem, casos, erros, duracao_texto, motivo, url}. Cada linha leva ao detalhe do envio. #}
+<div class="tabela-rolagem"><table class="tabela">
+  <thead><tr><th scope="col">Quando</th><th scope="col">Origem</th><th scope="col">Casos</th><th scope="col">Erros</th><th scope="col">Duração</th><th scope="col">Motivo</th><th scope="col"><span class="sr-only">Detalhe</span></th></tr></thead>
+  <tbody>
+    {% for e in envios %}
+    <tr class="tabela__linha tabela__linha--clicavel{% if e.erros %} linha--erro{% endif %}" data-href="{{ e.url }}">
+      <td class="tabela__principal"><a class="tabela__link" href="{{ e.url }}">{{ e.quando }}</a></td>
+      <td class="tabela__secundario texto-2">{{ e.origem }}</td>
+      <td class="tabela__papel">{{ e.casos }} caso{{ e.casos|pluralize }}</td>
+      <td class="tabela__status">{% if e.erros %}<span class="badge badge--erro">{{ e.erros }} erro{{ e.erros|pluralize }}</span>{% else %}<span class="texto-2">0</span>{% endif %}</td>
+      <td class="tabela__extra texto-2">{{ e.duracao_texto|default:"—" }}</td>
+      <td class="tabela__extra texto-2">{{ e.motivo|default:"—"|truncatechars:80 }}</td>
+      <td class="tabela__acoes"><span class="tabela__chevron-fixo">{% include "componentes/icone.html" with nome="chevron-right" %}</span></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table></div>

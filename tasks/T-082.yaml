@@ -1,0 +1,9 @@
+id: T-082
+titulo: M8 · revisão visual · credenciais da Configuração como lista de escolha
+dono: Vitral (front)
+regras: [CAD-14, CAD-19]
+defeito: "TEL-33: 'Credencial do Dify' e 'Credencial do DataJud' são campos de texto livre; o contexto já traz credenciais_bearer e credenciais_header."
+aceite:
+  - "Os dois campos viram select com as credenciais do tipo certo (opção vazia 'Escolha a credencial'); valor atual pré-selecionado; sem credencial do tipo → texto de ajuda com link para Nova credencial (só nome, nunca valor). Mesmo name no POST (dify_credencial / datajud_credencial)."
+  - "e2e/unit frontend verdes; aceite juridico verde."
+arquivos: [templates/juridico/, static/, tests/unit/frontend/, tests/e2e/]

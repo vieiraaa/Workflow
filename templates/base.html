@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block titulo %}Construtor de Workflows{% endblock %}</title>
   {% include "componentes/_tema_inicial.html" %}
+  <link rel="icon" type="image/png" sizes="32x32" href="{% static 'img/marca/favicon-32.png' %}">
+  <link rel="apple-touch-icon" href="{% static 'img/marca/apple-touch-icon.png' %}">
   <link rel="stylesheet" href="{% static 'css/tokens.css' %}">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
   {% block estilos %}{% endblock %}
@@ -13,21 +15,22 @@
 <div class="shell" data-shell>
   <aside class="sidebar" id="sidebar" aria-label="Menu principal">
   <div class="sidebar__interno">
-    <div class="sidebar__marca">{% include "componentes/icone.html" with nome="workflow" %}<span>Construtor</span></div>
+    <a class="sidebar__marca" href="{% url 'inicio' %}" aria-label="Workflows · Egger e Mesquita Advogados Associados"><img class="sidebar__emblema" src="{% static 'img/marca/emblema.png' %}" alt="" width="38" height="38"><span class="sidebar__marca-textos"><span class="sidebar__nome">Workflows</span><span class="sidebar__produto">Egger e Mesquita</span></span></a>
     <ul class="sidebar__menu">
       {% for item in menu %}
+      {% ifchanged item.grupo %}{% if item.grupo %}<li class="sidebar__grupo" role="presentation">{{ item.grupo }}</li>{% endif %}{% endifchanged %}
       <li><a class="sidebar__item" href="{{ item.url }}"{% if item.ativo %} aria-current="page"{% endif %}>{% include "componentes/icone.html" with nome=item.icone %}<span>{{ item.rotulo }}</span></a></li>
       {% endfor %}
     </ul>
     <div class="sidebar__rodape">
-      {% if sem_papel %}
-      <div class="sidebar__usuario"><strong>{{ usuario_nome }}</strong><span class="texto-2 texto-sm">{{ usuario_papel }}</span></div>
-      {% else %}
-      <a class="sidebar__usuario sidebar__usuario--link" href="{% url 'contas:trocar_senha' %}" title="Trocar minha senha">
-        <span class="sidebar__usuario-textos"><strong>{{ usuario_nome }}</strong><span class="texto-2 texto-sm">{{ usuario_papel }}</span></span>
-        {% include "componentes/icone.html" with nome="key-round" tamanho=16 %}
-      </a>
-      {% endif %}
+      <div class="sidebar__rodape-linha">
+        {% if sem_papel %}
+        <div class="sidebar__usuario"><strong>{{ usuario_nome }}</strong><span>{{ usuario_papel }}</span></div>
+        {% else %}
+        <a class="sidebar__usuario" href="{% url 'contas:trocar_senha' %}" title="Trocar minha senha"><strong>{{ usuario_nome }}</strong><span>{{ usuario_papel }}</span></a>
+        {% endif %}
+        {% include "componentes/botao_tema.html" %}
+      </div>
       <form method="post" action="{% url 'logout' %}">{% csrf_token %}
         <button class="botao botao--secundario botao--bloco" type="submit">{% include "componentes/icone.html" with nome="log-out" tamanho=16 %}<span>Sair</span></button>
       </form>
@@ -38,10 +41,9 @@
   <div class="principal">
     <header class="topbar">
       <button class="botao botao--icone topbar__menu" type="button" data-menu-alternar aria-controls="sidebar" aria-expanded="false" aria-label="Abrir menu">{% include "componentes/icone.html" with nome="menu" %}</button>
-      <h1 class="topbar__titulo">{% block titulo_pagina %}{% endblock %}</h1>
+      <div class="topbar__texto"><h1 class="topbar__titulo">{% block titulo_pagina %}{% endblock %}</h1>{% block subtitulo %}{% endblock %}</div>
       <div class="topbar__acoes">
         {% block acoes %}{% endblock %}
-        {% include "componentes/botao_tema.html" %}
       </div>
     </header>
     <main class="conteudo {% block conteudo_classe %}{% endblock %}">{% block conteudo %}{% endblock %}</main>

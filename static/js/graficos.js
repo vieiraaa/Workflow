@@ -101,10 +101,16 @@
       if (rolagem.scrollWidth > rolagem.clientWidth) rolagem.scrollLeft = rolagem.scrollWidth;
     }
     desenhar();
-    var ultima = area.clientWidth, tempo;
+    var ultima = area.clientWidth, tempo, quadroPendente = false;
+    /* Redesenhar muda o layout observado: o callback só agenda, no próximo quadro, sem laço de ResizeObserver. */
     if (window.ResizeObserver) new ResizeObserver(function () {
-      if (area.clientWidth === ultima) return;
-      clearTimeout(tempo); tempo = setTimeout(function () { ultima = area.clientWidth; desenhar(); }, 120);
+      if (quadroPendente) return;
+      quadroPendente = true;
+      requestAnimationFrame(function () {
+        quadroPendente = false;
+        if (area.clientWidth === ultima) return;
+        clearTimeout(tempo); tempo = setTimeout(function () { ultima = area.clientWidth; desenhar(); }, 120);
+      });
     }).observe(area);
   }
 

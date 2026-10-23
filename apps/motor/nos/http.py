@@ -166,7 +166,7 @@ def _resposta_gravavel(resposta):
     }
 
 
-def _enviar(ctx, resolvido, cabecalho, requisicoes):
+def _enviar(ctx, resolvido, cabecalho, requisicoes, **limites):
     """Faz UMA requisição (uma página). Devolve a resposta; 4xx/5xx saem como `FalhaNo`."""
     enviado = dict(resolvido)
     if cabecalho:
@@ -180,7 +180,7 @@ def _enviar(ctx, resolvido, cabecalho, requisicoes):
     if restante <= 0:
         raise FalhaNo("timeout", cliente.MENSAGENS["timeout"], requisicao=registro)
     try:
-        resposta = cliente.requisitar(prazo_s=restante, **enviado)
+        resposta = cliente.requisitar(prazo_s=restante, **enviado, **limites)
     except cliente.ErroHttp as erro:
         raise FalhaNo(erro.categoria, erro.mensagem, requisicao=registro) from None
     ctx.segredos |= mascarar.valores_sensiveis(resposta["headers"])

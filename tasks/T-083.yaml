@@ -1,0 +1,16 @@
+id: T-083
+titulo: M8 · correções do adversarial (T-080, commit e4be57c)
+dono: Forja (back)
+regras: [CAD-06, CAD-10, CAD-07a, CAD-14, CAD-18, CAD-23]
+defeitos:
+  - "1 (alto) Cadastro manual: 2 POSTs simultâneos do mesmo número → 500 IntegrityError processo_numero_valido_unico. Esperado: um cria, o outro recebe o aviso CAD-06 (b). test_corrida_duplicidade.py::test_cadastro_manual_simultaneo_do_mesmo_numero"
+  - "2 (alto) Dois workers, PDFs diferentes, mesmo número → item em erro 'Falha inesperada ao processar o item'. Esperado: um cria, o outro atualiza o mesmo processo (CAD-11) — trate a corrida (select_for_update/get_or_create com retry na IntegrityError). test_corrida_duplicidade.py::test_dois_pdfs_do_mesmo_numero_em_workers_paralelos_geram_um_processo"
+  - "3 (alto) Dígitos Unicode (largura total, arábico-índicos) viram numero_digitos não ASCII 'válido' e furam a unicidade. Normalizar só [0-9] ASCII (str.isdigit/\\d aceitam Unicode: use [0-9]). test_dify_datajud_hostis.py::test_numero_hostil_nao_cria_numero_valido_duplicado"
+  - "4 (alto) dify_ca_pem aceita CERTIFICADO + CHAVE PRIVADA, grava e exibe. Aceitar só blocos BEGIN/END CERTIFICATE válidos; qualquer outro bloco → erro de validação, nada gravado. test_config_hostil.py::test_pem_com_chave_privada_nunca_e_guardado"
+  - "5 (médio) DataJud com orgaoJulgador string (forma inesperada) → item erro etapa Gravação e processo perdido. CAD-10: forma inesperada = cnj_validacao falhou, processo gravado. test_dify_datajud_hostis.py::test_datajud_com_campos_hostis[13]"
+  - "6 (alto) Chave do Dify/DataJud refletida nas respostas aparece em campos extraídos (adverso_nome, observacoes, andamentos, divergência, assuntos_cnj) em tela e banco. Mascarar POR VALOR (segredos das credenciais em uso) em TODO dado extraído antes de gravar (CAD-18). test_dify_datajud_hostis.py::test_chave_refletida_em_campos_de_dados_nao_aparece_em_tela_nem_banco e ::test_chave_do_datajud_refletida_na_resposta_nao_vaza"
+  - "7 (baixo) dify_url/datajud_url aceitam ftp://, //host e caractere RTL no host. Exigir http(s) com host válido (ASCII/IDNA, sem controle/bidi). test_config_hostil.py::test_urls_com_esquema_ou_forma_hostil_sao_recusadas_na_tela"
+  - "8 (baixo) Edição do processo aceita carteira inativa ou pk inválida. test_acesso_idor.py::test_carteira_do_post_nao_aceita_pk_de_carteira_inativa_ou_invalida"
+aceite:
+  - "Os 11 casos acima verdes SEM alterar os testes; tests/adversarial/juridico e tests/acceptance/juridico inteiros verdes; testes unitários para cada correção."
+arquivos: [apps/, tests/unit/ (menos frontend/)]

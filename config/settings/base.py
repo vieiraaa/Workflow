@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     "apps.motor",
     "apps.credenciais",
     "apps.funcoes",
+    "apps.juridico",
 ]
 
 MIDDLEWARE = [
@@ -115,3 +116,17 @@ LOGGING = {
         for nome in ("httpx", "httpcore")
     },
 }
+
+# Pasta PRIVADA dos PDFs do cadastro (CAD-04): nunca servida por URL (sem MEDIA_URL).
+MEDIA_ROOT = Path(os.environ.get("MEDIA_ROOT") or BASE_DIR / "arquivos_privados")
+# Cadastro de processos (M8, CAD-23 item 8). Os testes sobrescrevem com o fixture `settings`.
+JURIDICO_DIFY_TIMEOUT_S = 300
+JURIDICO_DATAJUD_TIMEOUT_S = 30
+JURIDICO_DATAJUD_INTERVALO_S = 1.5
+JURIDICO_TRAVADO_MIN = 15
+JURIDICO_TEXTO_MAX = 40_000
+JURIDICO_TEXTO_INICIO = 25_000
+JURIDICO_TEXTO_FIM = 15_000
+JURIDICO_PDF_MAX_MB = 30
+JURIDICO_PDF_MAX_ARQUIVOS = 10
+JURIDICO_RESPOSTA_MAX_BYTES = 2_097_152

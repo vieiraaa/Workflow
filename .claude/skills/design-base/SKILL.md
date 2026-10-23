@@ -1,69 +1,99 @@
 ---
 name: design-base
-description: Sistema visual base do Construtor de Workflows, limpo e simples no estilo Apple (light por padrão, dark disponível), com tokens, componentes, ícones e checklist de revisão visual. Carregue antes de criar ou alterar qualquer template, CSS ou tela, e na revisão visual de cada módulo.
+description: Identidade visual Egger e Mesquita v2 do Construtor de Workflows (lateral ameixa nos dois temas; claro lilás-claro e escuro ameixa profundo; roxo, ouro e ameixa da marca; Montserrat + IBM Plex Sans/Mono), com tokens, componentes, ícones e checklist de revisão visual. Carregue antes de criar ou alterar qualquer template, CSS ou tela, e na revisão visual de cada módulo.
 ---
 
-# Design base: simples, limpo, estilo Apple
+# Design base: identidade Egger e Mesquita v2 (D-038, substitui a paleta da D-036)
 
-O objetivo é uma base **bonita, simples e neutra**, que sirva para qualquer projeto. Um designer
-vai fazer o acabamento depois. Por isso, **organização vale mais que ornamento**: toda decisão
-visual mora em `tokens.css` e nos componentes, para que o designer mude o visual inteiro mexendo
-só nesses dois lugares.
+Produto interno de um escritório de advocacia de massa: **mesa de controladoria**: profissional, sóbria, densa de
+informação, sem ornamento. Toda decisão visual mora em `tokens.css` (nesta pasta, copiado para `static/css/tokens.css`)
+e nos componentes de `templates/componentes/`. Os NOMES dos tokens são estáveis: mude valores, não nomes.
 
-## Princípios (referência: apps nativos da Apple, como Ajustes, Lembretes e Notas)
-- Hierarquia por **tipografia e espaço**, não por bordas e caixas.
-- Muito respiro: escala de 4px, conteúdo com largura máxima confortável.
-- **Um** acento de cor (azul do sistema). As demais cores só têm significado (sucesso, erro, aviso).
-- Superfícies brancas sobre fundo cinza bem claro, cantos arredondados, sombras quase invisíveis.
-- Nada decorativo: sem gradientes, texturas ou ilustrações. Ícones finos e consistentes.
-- **Light é o padrão; dark é alternável e segue o sistema.**
+## Referências
+- **Guia e prévia aprovados (22/10):** `~/Downloads/Agente de IA para Prazos e Cadastro/previa-identidade/IMPLEMENTACAO-PAINEL.md`
+  e `painel-v2.html`. Os anteriores (`painel.html`, `painel-*.png`) ficam só como histórico.
+- **Marca:** roxo `#4F1F5C` (letras do logo), ouro `#F8B334` (o "e"), ameixa `#3E2745` (fundo da versão negativa).
+  Logos e emblema oficiais em `static/img/marca/`.
 
-## Base pronta
-- Copie `tokens.css` (nesta pasta) para `static/css/tokens.css` e use SÓ esses tokens. Nenhuma
-  cor, raio, sombra ou tamanho escrito à mão em outro arquivo.
-- **Fonte:** Inter vendorizada (OFL) em `static/vendor/inter/`. SF Pro não pode ser usada fora de
-  plataformas Apple (licença).
-- **Ícones:** Lucide (ISC) vendorizado como sprite SVG em `static/vendor/lucide/<versao>/`, traço
-  1.75, 20px na UI e 16px em tabela. Não use SF Symbols (licença restrita a Apple). Use o include
-  `componentes/icone.html` com `nome="..."`.
-- **Tema:** `<html data-theme="light|dark">`. Um script inline no `<head>` aplica o tema salvo
-  (`localStorage`, com try/catch) ou o `prefers-color-scheme`, antes da pintura. Botão de tema na
-  topbar.
-- **Vidro (opcional, DESLIGADO):** existe a classe `.vidro` nos tokens, mas não use agora. Fica
-  para o designer decidir na etapa de acabamento.
+## Regras de cor
+- **A lateral é sempre ameixa**, nos dois temas (`--sidebar`, textos `--lat-*`). É o lugar de maior presença da marca.
+- **Claro:** fundo `#F6F4F8`, painéis brancos, primário **roxo**.
+- **Escuro:** **ameixa profundo**, derivado da versão negativa do logo (fundo `#17101C`, painéis `#211827`), primário
+  **ouro** com texto escuro.
+- Texto sobre `--accent` usa SEMPRE `--on-accent`.
+- **Dourado é da marca e das ações** (emblema, item ativo da lateral, foco, botão primário no escuro, folha da
+  audiência), **nunca de status**.
+- **Status:**
 
-## Componentes (todos em `templates/componentes/`)
-- **Shell:** sidebar 240px (`--surface`, separador `--hairline`), item ativo com `--fill-accent`
-  e texto `--accent`; topbar com título grande da página à esquerda e ações à direita. No mobile,
-  a sidebar vira um menu recolhível.
-- **Card / grupo:** `--surface`, raio `--r-l`, `--shadow-1`. Listas de configuração no estilo
-  "grupo inset" do iOS: linhas separadas por `--hairline`, rótulo à esquerda e valor à direita.
-- **Botões:** primário (`--accent` sólido), secundário (`--fill` com texto `--accent`), destrutivo
-  (texto `--danger`), altura 36px, raio `--r-m`, ícone opcional.
-- **Campos:** fundo `--fill`, sem borda, raio `--r-m`, foco com `--ring`; label acima, erro abaixo
-  em `--danger`.
-- **Controle segmentado** para filtros curtos. **Toggle** no estilo iOS para booleanos.
-- **Tabela:** dentro de card, sem linhas verticais, cabeçalho em `--text-2` e `--text-sm`, hover
-  em `--fill`, ações à direita como botões de ícone.
-- **Badge de status:** pill tintada com um ponto: rascunho (cinza), ativo (verde),
-  executando (azul), sucesso (verde), erro (vermelho).
-- **Estado vazio:** ícone em círculo `--fill`, título, uma frase e o botão primário.
-- **Toast**, **modal** (raio `--r-xl`, fundo escurecido) e **bloco de código/JSON**
-  (`--font-mono`, fundo `--fill`, botão copiar).
-- **Nó do canvas:** card com ícone em quadrado arredondado colorido por tipo (gatilho = laranja,
-  HTTP = azul, saída = verde), título, resumo de uma linha e badge de erro.
+  | Status | Token |
+  |---|---|
+  | Cadastrado | `--success` |
+  | Conferir | `--conf` (azul) |
+  | Com pendências / campo faltando | `--pend` |
+  | Erro | `--danger` |
+
+  Cada um tem `--fill-*` para o fundo do chip.
+- Não ponha texto `--pend` sobre `--surface-2` (contraste 4,4:1).
+- Foco de teclado: contorno dourado de 2px (`:focus-visible`).
+
+## Tipografia e ícones
+| Papel | Fonte | Onde |
+|---|---|---|
+| Marca | Montserrat 600 | título da página (26px), títulos de painel e de grupo, nome na lateral |
+| Texto | IBM Plex Sans 400/500/600 | todo o resto (substitui a Inter) |
+| Números | IBM Plex Mono 400/600 | número CNJ, contagens, dia da audiência, valores alinhados |
+
+- Fontes vendorizadas (OFL) em `static/vendor/<fonte>/<versao>/`. Nada de Google Fonts em runtime.
+- Rótulos em **caixa normal**: sem CAIXA ALTA espaçada.
+- Números com `font-variant-numeric: tabular-nums`. Base 14px.
+- **Ícones:** Lucide (ISC), sprite em `static/vendor/lucide/<versao>/`, traço 1.6–1.75, 18–20px na UI, via
+  `componentes/icone.html`.
+- **Formato brasileiro:** datas DD/MM/AAAA (HH:MM), dinheiro R$ 1.234,56. Nunca ISO na tela.
+
+## Componentes
+- **Shell:** lateral de 236px ameixa com:
+  - emblema dourado redondo e "Workflows / Egger e Mesquita";
+  - seções em Montserrat 600, caixa normal;
+  - itens com ícone de linha, em `--lat-texto-2`;
+  - **item ativo** com fundo `--lat-ativo-fundo` e texto `--ouro`, **sem barrinha lateral**;
+  - rodapé com o usuário e o botão de tema.
+
+  Topo da página: título, subtítulo (`--text-3`, "Atualizado às HH:MM") e ações à direita. Abaixo de 900px, a lateral
+  vira barra no topo, só com ícones, exceto o item ativo.
+- **Fluxo / esteira** (painéis de processo; substitui cartões de KPI soltos):
+  - bloco de entrada com ponto dourado pulsando para "em leitura";
+  - barra em escala, um segmento por etapa, com largura proporcional;
+  - etapas clicáveis (`button` com `aria-pressed`): número em `--font-num`, nome na cor do status e legenda curta.
+- **Painel:** `--surface`, borda `--hairline`, raio `--r-l`, `--shadow-1`; título Montserrat 600 13px, com complemento à
+  direita em `--text-3`.
+- **Lista selecionável:** item `button`; selecionado com `--fill-accent` e `aria-current`; hover `--surface-2`.
+- **Linhas rótulo → valor:** rótulo `--text-2`, valor à direita (peso 500), separador `--hairline`. Valor faltando:
+  "não encontrado no PDF" em `--pend`, com sublinhado tracejado.
+- **Botões:**
+  - primário: `--accent` com `--on-accent`;
+  - secundário: `--surface` com borda `--borda-forte`;
+  - filtro ativo: `aria-pressed`, com borda `--accent`.
+
+  Altura de cerca de 34px, raio `--r-m`, peso 600, 13px.
+- **Campos:** fundo `--surface-2`, borda `--hairline`, raio `--r-m`, foco dourado; label acima, erro abaixo em `--danger`.
+- **Chips de status:** pill com fundo `--fill-<status>` e texto na cor do status.
+- **Estado vazio, toast, modal** (raio `--r-xl`), **bloco de código** (`--font-mono`, `--surface-2`).
+- **Gráficos:** séries nas cores de status; eixos e grade em `--hairline`; legenda em `--text-2`.
+- **Nó do canvas:** card com ícone em quadrado colorido por tipo, título, resumo de uma linha e badge de erro.
 
 ## Movimento
-Transições de 150 a 200ms com `--ease`; nada chamativo. Respeite `prefers-reduced-motion`.
+Transições de 150 a 200ms com `--ease`. O pulso do "em leitura" para com `prefers-reduced-motion`.
 
-## Checklist da revisão visual (abra as capturas de light E dark)
+## Checklist da revisão visual (capturas light E dark, 1440 E 390)
 Severidade **alta** (corrigir antes de fechar o módulo):
-- [ ] Tela sem o shell ou com cara de HTML padrão do navegador.
-- [ ] Cor, raio, sombra ou tamanho fora dos tokens; texto ilegível no dark.
+- [ ] Tela sem o shell ou com a lateral fora do ameixa; cara de HTML padrão.
+- [ ] Cor, raio, sombra ou tamanho fora dos tokens; `#fff` fixo sobre `--accent`; contraste abaixo de AA.
+- [ ] Dourado usado como cor de status; identidade de terceiros.
 - [ ] Falta o estado vazio, de erro ou de carregando.
 - [ ] Overflow horizontal ou sobreposição em 390px.
-- [ ] Formulário sem label, sem erro por campo ou sem foco visível.
-- [ ] Markup repetido em vez de componente.
-Severidade **média** (corrigir se sobrar orçamento):
+- [ ] Formulário sem label, sem erro por campo ou sem foco visível; controle clicável que não é `button`/`a`.
+- [ ] Data em ISO ou dinheiro fora do formato brasileiro.
+Severidade **média**:
+- [ ] Título ou rótulo fora da Montserrat; número fora da IBM Plex Mono ou não tabular; CAIXA ALTA espaçada.
 - [ ] Espaçamento fora da escala de 4px; ícones de tamanhos misturados.
 - [ ] Hierarquia fraca (o título não se destaca; a ação principal não é óbvia).

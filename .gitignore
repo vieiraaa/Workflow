@@ -14,3 +14,10 @@ staticfiles/
 .claude/settings.local.json
 .maestri/
 docs/ferramentas/ultima_consulta_ollama.md
+.DS_Store
+
+# prints reais do Power Apps (dados pessoais): só locais, nunca no git
+docs/briefs/agentes-juridicos/powerapps/
+
+# PDFs enviados ao Cadastro (MEDIA_ROOT privado, CAD-04): nunca no git
+arquivos_privados/

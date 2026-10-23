@@ -1,0 +1,5 @@
+{# situacao: nao_consultado|confere|divergente|nao_encontrado|falhou. Ícone com texto acessível; nada aparece para nao_consultado. #}
+{% if situacao == "confere" %}<span class="cnj cnj--ok" title="Confere com o CNJ">{% include "componentes/icone.html" with nome="shield-check" tamanho=16 %}<span class="sr-only">Confere com o CNJ</span></span>
+{% elif situacao == "divergente" %}<span class="cnj cnj--aviso" title="Diverge do CNJ">{% include "componentes/icone.html" with nome="shield-alert" tamanho=16 %}<span class="sr-only">Diverge do CNJ</span></span>
+{% elif situacao == "nao_encontrado" %}<span class="cnj cnj--neutro" title="Não encontrado no DataJud">{% include "componentes/icone.html" with nome="shield-question-mark" tamanho=16 %}<span class="sr-only">Não encontrado no DataJud</span></span>
+{% elif situacao == "falhou" %}<span class="cnj cnj--erro" title="Consulta ao CNJ falhou">{% include "componentes/icone.html" with nome="shield-x" tamanho=16 %}<span class="sr-only">Consulta ao CNJ falhou</span></span>{% endif %}

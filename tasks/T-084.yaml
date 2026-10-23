@@ -1,0 +1,12 @@
+id: T-084
+titulo: M8 · adversarial de corridas quebra os e2e seguintes (falta serialized_rollback)
+dono: Lupa (qa)
+defeito: >
+  tests/adversarial/juridico/test_corrida_duplicidade.py usa django_db(transaction=True) SEM serialized_rollback=True
+  (convenção de todos os outros testes transacionais do projeto). Depois dele, os e2e com serialized_rollback falham no
+  setup: IntegrityError django_content_type (admin, logentry). No check completo: 155 erros de e2e.
+  Reproduz: pytest tests/adversarial/juridico/test_corrida_duplicidade.py "tests/e2e/test_juridico.py::test_painel_atualiza_contagens_e_para_quando_acaba[chromium]"
+aceite:
+  - "Acrescentar serialized_rollback=True ao pytestmark do arquivo (sem mudar o que os testes verificam)."
+  - "O comando acima passa (11 verdes) e o arquivo continua verde sozinho."
+arquivos: [tests/adversarial/juridico/]

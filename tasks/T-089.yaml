@@ -1,0 +1,12 @@
+id: T-089
+titulo: Flake webkit · aviso "ResizeObserver loop" no detalhe da execução
+dono: Vitral (front)
+defeito: >
+  tests/adversarial/m3/test_ataques_execucao.py::test_xss_no_detalhe_com_resposta_hostil_nao_executa[webkit] falha ~1 em 4
+  com console "ResizeObserver loop completed with undelivered notifications.". Causa provável: static/js/execucao_fluxo.js:193
+  chama enquadrar() direto no callback do ResizeObserver e enquadrar altera o layout observado. Mesmo padrão em
+  static/js/graficos.js:105.
+aceite:
+  - "Callbacks de ResizeObserver adiam o trabalho com requestAnimationFrame (e ignoram chamadas repetidas no mesmo frame); sem laço de redimensionamento."
+  - "O teste acima passa 10 vezes seguidas em webkit (rode em laço); NADA no teste é alterado; frontend + e2e verdes."
+arquivos: [static/js/, tests/unit/frontend/, tests/e2e/]

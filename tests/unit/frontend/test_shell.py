@@ -80,7 +80,7 @@ def test_componentes_obrigatorios_existem():
 
 
 def test_vendor_com_licenca():
-    for lib in ("inter", "lucide"):
+    for lib in ("montserrat", "ibm-plex-sans", "ibm-plex-mono", "lucide"):
         licencas = list((STATIC / "vendor" / lib).glob("*/LICENSE"))
         assert licencas, lib
 
