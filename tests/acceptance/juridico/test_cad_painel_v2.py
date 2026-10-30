@@ -85,7 +85,8 @@ def test_fluxo_zerado(cad, ver):
 
 
 def test_esteira_conta_por_status_e_ignora_excluidos(cad, ver):
-    """CAD-24b/27: total = com_pendencias + conferir + cadastrados, sem excluídos; título 'N processos extraídos'."""
+    """CAD-24b/27: total = com_pendencias + conferir + cadastrados, sem excluídos. CAD-28: na tela, as abas 'Em processamento N' e
+    'Cadastrados N' (antes: título 'N processos extraídos' e '% já cadastrados', D-063)."""
     for i in range(2):
         criar_processo(cad, numero=_n(i), status="COM_PENDENCIAS", pendencias=["Verificar: Juízo"])
     for i in range(3):
@@ -98,81 +99,100 @@ def test_esteira_conta_por_status_e_ignora_excluidos(cad, ver):
     assert (f["com_pendencias"], f["conferir"], f["cadastrados"], f["total"]) == (2, 3, 1, 6)
     assert f["total"] == f["com_pendencias"] + f["conferir"] + f["cadastrados"]
     t = ver.texto(r)
-    assert re.search(r"\b6 processos extraídos\b", t) and re.search(r"\b17% já cadastrados no Espaider\b", t)
+    assert re.search(r"Em processamento\s*5\b", t) and re.search(r"Cadastrados\s*1\b", t)
+    assert "processos extraídos" not in t and "já cadastrados no Espaider" not in t
 
 
 @pytest.mark.parametrize("cadastrados,total,pct", [(1, 8, 13), (1, 3, 33), (2, 3, 67), (0, 5, 0), (5, 5, 100), (1, 200, 1), (1, 40, 3), (3, 8, 38), (1, 6, 17)])
 def test_percentual_cadastrado_arredonda_meio_para_cima(cad, ver, cadastrados, total, pct):
-    """CAD-27 (contrato): pct_cadastrados = int(round_half_up(cadastrados*100/total)) — 12,5 → 13; 2,5 → 3; 37,5 → 38."""
+    """CAD-27 (contrato): pct_cadastrados = int(round_half_up(cadastrados*100/total)) — 12,5 → 13; 2,5 → 3; 37,5 → 38. CAD-28: o percentual
+    segue no contexto, mas não aparece na tela; ela mostra os totais das abas."""
     for i in range(cadastrados):
         criar_processo(cad, numero=_n(i), status="CADASTRADO")
     for i in range(total - cadastrados):
         criar_processo(cad, numero=_n(100 + i), status="CONFERIR")
     r = _painel(cad.ana)
     assert r.context["fluxo"]["pct_cadastrados"] == pct and isinstance(r.context["fluxo"]["pct_cadastrados"], int)
-    assert f"{pct}% já cadastrados no Espaider" in ver.texto(r)
+    t = ver.texto(r)
+    assert re.search(rf"Em processamento\s*{total - cadastrados}\b", t) and re.search(rf"Cadastrados\s*{cadastrados}\b", t)
+
+
+def _etapas(h):
+    """Chips de etapa da aba Em processamento (CAD-28): links dentro de 'Etapa do cadastro'."""
+    bloco = re.search(r'aria-label="Etapa do cadastro".*?</nav>', h, re.S)
+    return re.findall(r"<a\b[^>]*>.*?</a>", bloco.group(0), re.S) if bloco else []
+
+
+def _abas(h):
+    bloco = re.search(r'aria-label="Situação dos processos".*?</nav>', h, re.S)
+    return re.findall(r"<a\b[^>]*>.*?</a>", bloco.group(0), re.S) if bloco else []
+
+
+def _txt(b):
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", b)).strip()
 
 
 def test_tres_etapas_clicaveis_com_numero_nome_e_legenda(cad, ver):
-    """CAD-24b: três ETAPAS (button, aria-pressed) com número, nome e legenda; ordem Com pendências → Conferir → Cadastrado."""
+    """CAD-28 (antes CAD-24b rev. D-053): a aba Em processamento tem as etapas Todos → Com pendências → Conferir, clicáveis (links GET) com
+    número e nome; Cadastrado deixou de ser etapa e virou a aba Cadastrados (com o seu número)."""
     criar_processo(cad, numero=_n(1), status="COM_PENDENCIAS", pendencias=["Verificar: Juízo"])
     for i in range(2):
         criar_processo(cad, numero=_n(10 + i), status="CONFERIR")
     h = ver.html(_painel(cad.ana))
-    botoes = re.findall(r"<button\b[^>]*aria-pressed=\"(?:true|false)\"[^>]*>.*?</button>", h, re.S)
-    etapas = [b for b in botoes if any(leg in b for leg in ("falta campo obrigatório", "7 de 7 campos, revisão humana", "lançado no Espaider"))]
-    assert len(etapas) == 3
-    legendas = [next(leg for leg in ("falta campo obrigatório", "7 de 7 campos, revisão humana", "lançado no Espaider") if leg in b) for b in etapas]
-    assert legendas == ["falta campo obrigatório", "7 de 7 campos, revisão humana", "lançado no Espaider"]
-    txt = [re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", b)).strip() for b in etapas]
-    assert re.search(r"\b1\b", txt[0]) and "Com pendências" in txt[0]
-    assert re.search(r"\b2\b", txt[1]) and "Conferir" in txt[1]
-    assert re.search(r"\b0\b", txt[2]) and "Cadastrado" in txt[2]
+    txt = [_txt(b) for b in _etapas(h)]
+    assert len(txt) == 3
+    assert re.search(r"\b3\b", txt[0]) and "Todos" in txt[0]
+    assert re.search(r"\b1\b", txt[1]) and "Com pendências" in txt[1]
+    assert re.search(r"\b2\b", txt[2]) and "Conferir" in txt[2]
+    abas = [_txt(a) for a in _abas(h)]
+    assert any(re.fullmatch(r"Cadastrados\s*0", a) for a in abas) and any(re.fullmatch(r"Em processamento\s*3", a) for a in abas)
 
 
-@pytest.mark.parametrize("status,indice", [("COM_PENDENCIAS", 0), ("CONFERIR", 1), ("CADASTRADO", 2)])
-def test_etapa_ativa_tem_aria_pressed_true_e_filtra_a_lista(cad, ver, status, indice):
-    """CAD-24b: ?status= marca SÓ a etapa correspondente com aria-pressed=true e filtra a lista; sem filtro todas false."""
+@pytest.mark.parametrize("consulta,indice,status", [({"status": "COM_PENDENCIAS"}, 1, "COM_PENDENCIAS"), ({"status": "CONFERIR"}, 2, "CONFERIR"),
+                                                    ({"aba": "cadastrados"}, None, "CADASTRADO")])
+def test_etapa_ativa_tem_aria_pressed_true_e_filtra_a_lista(cad, ver, consulta, indice, status):
+    """CAD-28 (antes CAD-24b): ?status= marca SÓ a etapa correspondente (aria-current="true") e filtra a lista; sem filtro só 'Todos' fica
+    marcada; ?aba=cadastrados marca a aba Cadastrados, sem etapas, e lista só o cadastrado."""
     criar_processo(cad, numero=_n(1), status="COM_PENDENCIAS", pendencias=["Verificar: Juízo"])
     criar_processo(cad, numero=_n(2), status="CONFERIR")
     criar_processo(cad, numero=_n(3), status="CADASTRADO")
-    legendas = ("falta campo obrigatório", "7 de 7 campos, revisão humana", "lançado no Espaider")
 
-    def estados(r):
-        h = ver.html(r)
-        bs = [b for b in re.findall(r"<button\b[^>]*aria-pressed=\"(?:true|false)\"[^>]*>.*?</button>", h, re.S) if any(leg in b for leg in legendas)]
-        return [re.search(r'aria-pressed="(true|false)"', b).group(1) for b in bs]
-    assert estados(_painel(cad.ana)) == ["false"] * 3
-    r = _painel(cad.ana, status=status)
-    esperado = ["false"] * 3
-    esperado[indice] = "true"
-    assert estados(r) == esperado
+    def estados(h):
+        return [re.search(r'aria-current="(true|false)"', b).group(1) for b in _etapas(h)]
+    assert estados(ver.html(_painel(cad.ana))) == ["true", "false", "false"]
+    r = _painel(cad.ana, **consulta)
+    h = ver.html(r)
+    if indice is None:
+        assert estados(h) == []
+        ativas = [_txt(a) for a in _abas(h) if 'aria-current="true"' in a]
+        assert len(ativas) == 1 and ativas[0].startswith("Cadastrados")
+    else:
+        esperado = ["false"] * 3
+        esperado[indice] = "true"
+        assert estados(h) == esperado
     assert [p["status"] for p in r.context["processos"]] == [status]
 
 
 def test_barra_em_escala_tem_um_segmento_por_etapa_proporcional(cad, ver):
-    """CAD-24b: barra com um segmento por etapa, ordem Com pendências → Conferir → Cadastrado, largura proporcional (1:2:1 → 25%/50%/25%)."""
+    """CAD-28 (substitui a barra em escala da CAD-24b, D-063): a proporção entre as etapas aparece como números — 1 com pendências, 2 para
+    conferir e 1 cadastrado viram 'Com pendências 1', 'Conferir 2' e a aba 'Cadastrados 1'; a barra saiu da tela."""
     criar_processo(cad, numero=_n(1), status="COM_PENDENCIAS", pendencias=["x"])
     for i in range(2):
         criar_processo(cad, numero=_n(10 + i), status="CONFERIR")
     criar_processo(cad, numero=_n(20), status="CADASTRADO")
     h = ver.html(_painel(cad.ana))
-    larguras = re.findall(r"width:\s*([\d.]+)%", h)
-    esperadas = [25.0, 50.0, 25.0]
-    achado = [float(x) for x in larguras]
-    # os três segmentos aparecem nessa ordem, em algum ponto da página
-    for i in range(len(achado) - 2):
-        if all(abs(achado[i + k] - esperadas[k]) < 0.6 for k in range(3)):
-            break
-    else:
-        pytest.fail(f"segmentos 25/50/25 não encontrados em ordem: {achado}")
+    assert [_txt(b) for b in _etapas(h)] == ["Todos 3", "Com pendências 1", "Conferir 2"]
+    assert [_txt(a) for a in _abas(h)] == ["Aprovações 0", "Em processamento 3", "Cadastrados 1"]
+    assert "barra--" not in h
 
 
 def test_topo_com_titulo_atualizado_botoes(cad, ver):
-    """CAD-24: topo com título, 'Atualizado às HH:MM', 'Audiências (n)' (aria-pressed), 'Menu' e '+ Enviar PDFs'."""
+    """CAD-24 (rev. D-053): topo com título, 'Atualizado às HH:MM', 'Audiências (n)' (aria-pressed), 'Menu' e
+    'Adicionar processos' (primário; abre Enviar PDFs, Cadastrar pelo nº e Cadastro manual)."""
     r = _painel(cad.ana)
     t = ver.texto(r)
-    assert "Painel de Processos" in t and "Menu" in t and "+ Enviar PDFs" in t and "Audiências (0)" in t
+    assert "Painel de Processos" in t and "Menu" in t and "Adicionar processos" in t and "Audiências (0)" in t
+    assert "Enviar PDFs para leitura" in t and "Cadastrar pelo nº (CNJ)" in t
     assert re.search(r"Atualizado às \d{2}:\d{2}", t) and f"Atualizado às {r.context['atualizado_em']}" in t
     h = ver.html(r)
     botao = re.search(r"<(?:a|button)\b[^>]*>\s*(?:<[^>]+>\s*)*Audiências \(0\)", h)
@@ -221,14 +241,16 @@ def test_filtro_carteira_outros_e_so_sem_carteira(cad):
     sem = criar_processo(cad, numero=_n(1), carteira=None, status="CONFERIR")
     criar_processo(cad, numero=_n(2), carteira=None, status="CADASTRADO")
     criar_processo(cad, numero=_n(3), carteira=cad.carteiras["Ativos"], status="CONFERIR")
-    assert len(_painel(cad.ana, carteira="outros").context["processos"]) == 2
+    # CAD-28: cada aba mostra a sua parte (o cadastrado sem carteira está em Cadastrados)
+    assert len(_painel(cad.ana, carteira="outros").context["processos"]) == 1
+    assert len(_painel(cad.ana, carteira="outros", aba="cadastrados").context["processos"]) == 1
     assert [p["pk"] for p in _painel(cad.ana, carteira="outros", status="CONFERIR").context["processos"]] == [sem.pk]
 
 
 def test_vazio_com_filtros(cad, ver):
     """CAD-24: sem resultados nos filtros → 'Nenhum processo com esses filtros. Limpe a busca ou escolha outro cliente.'"""
     criar_processo(cad, numero=_n(1), status="CONFERIR")
-    t = ver.texto(_painel(cad.ana, status="CADASTRADO"))
+    t = ver.texto(_painel(cad.ana, status="COM_PENDENCIAS"))  # CAD-28: Cadastrado virou aba; o filtro vazio é o de outra etapa
     assert "Nenhum processo com esses filtros" in t and "Limpe a busca ou escolha outro cliente." in t
 
 
@@ -313,7 +335,8 @@ def test_linha_selecionada_tem_aria_current(cad, ver):
     a = criar_processo(cad, numero=_n(1))
     b = criar_processo(cad, numero=_n(2))
     h = ver.html(_painel(cad.ana, p=a.pk))
-    itens = re.findall(r'<a\b[^>]*aria-current="(?!page")[^"]*"[^>]*>.*?</a>', h, re.S)
+    lista = re.search(r"data-pn-lista>.*?</section>", h, re.S).group(0)  # CAD-28: abas e etapas também usam aria-current
+    itens = re.findall(r'<a\b[^>]*aria-current="(?!page")[^"]*"[^>]*>.*?</a>', lista, re.S)
     assert len(itens) == 1
     assert a.numero in re.sub(r"\s+", "", re.sub(r"<[^>]+>", "", itens[0])).replace(" ", "") or a.numero.replace("-", "") in re.sub(r"\D", "", itens[0]) or a.numero_digitos in re.sub(r"\D", "", itens[0])
     assert b.numero_digitos not in re.sub(r"\D", "", itens[0])
@@ -481,7 +504,7 @@ def test_ficha_acao_cadastrado(cad, ver):
     """CAD-25d: CADASTRADO → texto '✓ Cadastrado no Espaider em DD/MM/AAAA' + 'Editar' (sem botão de marcar)."""
     quando = timezone.now() - timedelta(days=2)
     p = criar_processo(cad, numero=_n(1), status="CADASTRADO", cadastrado_espaider_em=quando, cadastrado_espaider_por=cad.ana_u)
-    r, sel = _sel(cad, p)
+    r, sel = _sel(cad, p, aba="cadastrados")  # CAD-28: o cadastrado está na aba Cadastrados
     t = ver.texto(r)
     assert sel["acao"] == "cadastrado" and f"Cadastrado no Espaider em {timezone.localtime(quando):%d/%m/%Y}" in t
     assert "Editar" in t and "Marcar cadastrado no Espaider" not in t and "Completar campos" not in t

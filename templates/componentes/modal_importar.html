@@ -1,9 +1,9 @@
-{# id, url_importar. Envia o arquivo (.json nativo ou do n8n) por POST multipart; o servidor cria um fluxo novo em rascunho. #}
+{# id, url_importar, titulo e texto (opcionais; padrão: importar fluxo). Envia o arquivo .json por POST multipart: nos fluxos cria um fluxo novo em rascunho; em Aprovações importa a carga do n8n (D-060). #}
 <dialog class="modal" id="{{ id }}" aria-labelledby="{{ id }}-titulo">
   <form class="modal__corpo formulario" method="post" action="{{ url_importar }}" enctype="multipart/form-data" novalidate data-importar>
     {% csrf_token %}
-    <h2 id="{{ id }}-titulo">Importar fluxo</h2>
-    <p class="texto-2">Escolha um arquivo .json exportado daqui ou do n8n. Cria um fluxo novo em rascunho e mostra um relatório do que entrou e do que precisa de ajuste.</p>
+    <h2 id="{{ id }}-titulo">{{ titulo|default:"Importar fluxo" }}</h2>
+    <p class="texto-2">{{ texto|default:"Escolha um arquivo .json exportado daqui ou do n8n. Cria um fluxo novo em rascunho e mostra um relatório do que entrou e do que precisa de ajuste." }}</p>
     <div class="campo" data-campo-arquivo>
       <label class="campo__rotulo" for="{{ id }}-arquivo">Arquivo (.json, até 2 MB)</label>
       <input id="{{ id }}-arquivo" type="file" name="arquivo" accept=".json,application/json" required data-arquivo-importar>

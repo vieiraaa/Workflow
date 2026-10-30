@@ -1,5 +1,6 @@
 """Formulários do cadastro: processo (conferência/manual) e configuração (CAD-14/15/21)."""
 
+import re
 import unicodedata
 from decimal import Decimal
 from urllib.parse import urlsplit
@@ -12,6 +13,11 @@ from apps.credenciais.models import Credencial
 
 from . import clientes, cnj, leitura
 from .models import CAMPOS_MANUAIS, CAMPOS_TEXTO, Carteira, ConfigCadastro, Processo
+
+MSG_DIFY_PAGINA_WEB = (
+    "Esse é o link da página de chat do Dify, não da API. Use a URL base da API (no Dify: "
+    "Acesso à API), que costuma terminar em /v1."
+)
 
 CAMPOS_PROCESSO = (
     "numero", "carteira", *CAMPOS_TEXTO, "fase_atual", "distribuido_em", "data_citacao",
@@ -185,7 +191,13 @@ class ConfigForm(forms.ModelForm):
             raise forms.ValidationError(str(erro)) from None
 
     def clean_dify_url(self):
-        return _url_http(self.cleaned_data.get("dify_url"))
+        url = _url_http(self.cleaned_data.get("dify_url"))
+        # Link de compartilhar do Dify (página web do app), não a API: a chamada daria 404.
+        if re.search(
+            r"/(chat|chatbot|completion|workflow|agent)/[A-Za-z0-9]{8,}/?$", urlsplit(url).path
+        ):
+            raise forms.ValidationError(MSG_DIFY_PAGINA_WEB)
+        return url
 
     def clean_datajud_url(self):
         return _url_http(self.cleaned_data.get("datajud_url"))

@@ -468,12 +468,13 @@ def test_setor_desativado_nao_aceita_novo_usuario_nem_edicao_para_ele(mundo, M, 
     assert r.status_code == 200 and "Setor inválido." in _h(r)
 
 
-def test_setor_desativado_home_adm_conta_setores_ativos(mundo, M):
-    """HOM-03: cartão Setores ativos do Adm reflete a desativação; Home do Adm não quebra."""
-    antes = _cartoes(_home_snapshot(mundo.c["adm"])["html"])["setores_ativos"]
+def test_setor_desativado_tela_de_setores_conta_ativos(mundo, M):
+    """HOM-03 (D-043): o total de Setores ativos (agora na tela de Setores) reflete a desativação;
+    a Home do Adm não quebra e continua sem o cartão."""
+    antes = mundo.c["adm"].get(reverse("contas:setores")).context["total_ativos"]
     mundo.c["adm"].post(reverse("contas:setor_editar", kwargs={"pk": mundo.B.pk}), {"nome": mundo.B.nome})
-    depois = _cartoes(_home_snapshot(mundo.c["adm"])["html"])["setores_ativos"]
-    assert float(depois) == float(antes) - 1
+    assert mundo.c["adm"].get(reverse("contas:setores")).context["total_ativos"] == antes - 1
+    assert "setores_ativos" not in _cartoes(_home_snapshot(mundo.c["adm"])["html"])
 
 
 def test_setor_desativado_gestor_pode_criar_fluxo_sem_500(mundo):

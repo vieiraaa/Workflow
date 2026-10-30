@@ -13,7 +13,8 @@ class SetorListaView(PermissaoMixin, TemplateView):
     """Lista de setores (TEL-14, SET-02). Só Adm. Template `contas/setores.html`.
 
     Contexto (além do shell): `setores`: [{pk, nome, ativo, criado_em, url_editar}] (todos, por
-    nome; poucos registros, sem paginação), `total`, `url_novo`.
+    nome; poucos registros, sem paginação), `total`, `total_ativos` (subtítulo; saiu da Home,
+    D-043), `url_novo`.
     """
 
     acao_requerida = "setores.gerenciar"
@@ -31,7 +32,12 @@ class SetorListaView(PermissaoMixin, TemplateView):
             }
             for s in Setor.objects.order_by("nome")
         ]
-        contexto.update(setores=setores, total=len(setores), url_novo=reverse("contas:setor_novo"))
+        contexto.update(
+            setores=setores,
+            total=len(setores),
+            total_ativos=sum(s["ativo"] for s in setores),
+            url_novo=reverse("contas:setor_novo"),
+        )
         return contexto
 
 

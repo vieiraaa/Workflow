@@ -1,6 +1,8 @@
+from django.conf import settings
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import NON_FIELD_ERRORS, PermissionDenied
+from django.http import JsonResponse
 from django.views.generic import TemplateView
 
 from apps.execucoes.painel import painel_ou_erro
@@ -10,15 +12,43 @@ from .permissoes import papel_de
 
 
 class LoginView(auth_views.LoginView):
-    """Login (TEL-01). Template `registration/login.html`.
+    """Login (TEL-01; pelo AD, D-039). Template `registration/login.html`.
 
-    Contexto: `form` (campos `username` = e-mail e `password`; erros em
-    `form.non_field_errors` / `form.<campo>.errors`), `next`.
+    Contexto: `form` (campos `username` = usuário de rede, ou e-mail sem LOGIN_AD, e `password`;
+    erros em `form.non_field_errors` / `form.<campo>.errors`), `next`, `login_ad`.
+
+    POST com `X-Requested-With: fetch` (static/js/login.js) responde JSON para a tela de
+    carregamento: `{"ok": true, "nome", "destino"}` ou `{"ok": false, "erros": [{"campo",
+    "mensagem"}]}` (400; 429 no bloqueio por tentativas).
     """
 
     form_class = LoginForm
     template_name = "registration/login.html"
     redirect_authenticated_user = True
+
+    def _quer_json(self):
+        return self.request.headers.get("X-Requested-With") == "fetch"
+
+    def get_context_data(self, **kwargs):
+        return {**super().get_context_data(**kwargs), "login_ad": settings.LOGIN_AD}
+
+    def form_valid(self, form):
+        resposta = super().form_valid(form)
+        if not self._quer_json():
+            return resposta
+        nome = (self.request.user.nome or "").split()
+        return JsonResponse({"ok": True, "nome": nome[0] if nome else "", "destino": resposta.url})
+
+    def form_invalid(self, form):
+        if not self._quer_json():
+            return super().form_invalid(form)
+        erros = [
+            {"campo": None if campo == NON_FIELD_ERRORS else campo, "mensagem": mensagem}
+            for campo, mensagens in form.errors.items()
+            for mensagem in mensagens
+        ]
+        status = 429 if form.has_error(NON_FIELD_ERRORS, "bloqueado") else 400
+        return JsonResponse({"ok": False, "erros": erros}, status=status)
 
 
 class LogoutView(auth_views.LogoutView):

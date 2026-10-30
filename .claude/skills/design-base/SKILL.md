@@ -1,6 +1,6 @@
 ---
 name: design-base
-description: Identidade visual Egger e Mesquita v2 do Construtor de Workflows (lateral ameixa nos dois temas; claro lilás-claro e escuro ameixa profundo; roxo, ouro e ameixa da marca; Montserrat + IBM Plex Sans/Mono), com tokens, componentes, ícones e checklist de revisão visual. Carregue antes de criar ou alterar qualquer template, CSS ou tela, e na revisão visual de cada módulo.
+description: Identidade visual Egger e Mesquita v2 do Construtor de Workflows (lateral ameixa nos dois temas; claro lilás-claro com primário roxo; escuro grafite neutro com primário ouro (D-042); roxo, ouro e ameixa da marca; Montserrat + IBM Plex Sans/Mono), com tokens, componentes, ícones e checklist de revisão visual. Carregue antes de criar ou alterar qualquer template, CSS ou tela, e na revisão visual de cada módulo.
 ---
 
 # Design base: identidade Egger e Mesquita v2 (D-038, substitui a paleta da D-036)
@@ -13,12 +13,14 @@ e nos componentes de `templates/componentes/`. Os NOMES dos tokens são estávei
 - **Guia e prévia aprovados (22/10):** `~/Downloads/Agente de IA para Prazos e Cadastro/previa-identidade/IMPLEMENTACAO-PAINEL.md`
   e `painel-v2.html`. Os anteriores (`painel.html`, `painel-*.png`) ficam só como histórico.
 - **Marca:** roxo `#4F1F5C` (letras do logo), ouro `#F8B334` (o "e"), ameixa `#3E2745` (fundo da versão negativa).
+  O "e" sozinho (`static/img/marca/e.png`) é a marca do login e o favicon (D-042). A paleta meia-noite da D-040 foi revertida.
   Logos e emblema oficiais em `static/img/marca/`.
 
 ## Regras de cor
 - **A lateral é sempre ameixa**, nos dois temas (`--sidebar`, textos `--lat-*`). É o lugar de maior presença da marca.
 - **Claro:** fundo `#F6F4F8`, painéis brancos, primário **roxo**.
-- **Escuro:** **ameixa profundo**, derivado da versão negativa do logo (fundo `#17101C`, painéis `#211827`), primário
+- **Escuro (D-042):** **grafite neutro** com só um toque de ameixa (fundo `#131215`, painéis `#1C1A1F`; o ameixa
+  profundo pesava), lateral ameixa escura `#1B1320`, primário
   **ouro** com texto escuro.
 - Texto sobre `--accent` usa SEMPRE `--on-accent`.
 - **Dourado é da marca e das ações** (emblema, item ativo da lateral, foco, botão primário no escuro, folha da
@@ -51,12 +53,14 @@ e nos componentes de `templates/componentes/`. Os NOMES dos tokens são estávei
 - **Formato brasileiro:** datas DD/MM/AAAA (HH:MM), dinheiro R$ 1.234,56. Nunca ISO na tela.
 
 ## Componentes
-- **Shell:** lateral de 236px ameixa com:
+- **Shell:** lateral ameixa **recolhida em 72px (só ícones)** que abre para 236px por cima do conteúdo no hover
+  ou no foco por teclado (D-041); ícones no mesmo lugar aberta ou fechada; no celular, gaveta. Ela tem:
   - emblema dourado redondo e "Workflows / Egger e Mesquita";
   - seções em Montserrat 600, caixa normal;
   - itens com ícone de linha, em `--lat-texto-2`;
   - **item ativo** com fundo `--lat-ativo-fundo` e texto `--ouro`, **sem barrinha lateral**;
-  - rodapé com o usuário e o botão de tema.
+  - rodapé com o avatar (`componentes/avatar.html`: iniciais na cor `--avatar-N`, bolinha `--online`), primeiro +
+    último nome, cargo, botão de tema e Sair.
 
   Topo da página: título, subtítulo (`--text-3`, "Atualizado às HH:MM") e ações à direita. Abaixo de 900px, a lateral
   vira barra no topo, só com ícones, exceto o item ativo.
@@ -82,7 +86,7 @@ e nos componentes de `templates/componentes/`. Os NOMES dos tokens são estávei
 - **Nó do canvas:** card com ícone em quadrado colorido por tipo, título, resumo de uma linha e badge de erro.
 
 ## Movimento
-Transições de 150 a 200ms com `--ease`. O pulso do "em leitura" para com `prefers-reduced-motion`.
+Transições de 150 a 200ms com `--ease`. Troca de tema: disco na cor do tema novo saindo do botão, só transform/opacity (D-040). O pulso do "em leitura" para com `prefers-reduced-motion`.
 
 ## Checklist da revisão visual (capturas light E dark, 1440 E 390)
 Severidade **alta** (corrigir antes de fechar o módulo):

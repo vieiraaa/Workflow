@@ -29,6 +29,46 @@ def test_alias_datajud(j, tr, alias):
     assert cnj.alias_datajud(cnj.numero_valido_de(10, 2022, j, tr, 100)) == alias
 
 
+# Os 91 índices da API pública (https://datajud-wiki.cnj.jus.br/api-publica/endpoints/, 26/10/2026).
+INDICES_DATAJUD = set(
+    "stj stm tse tst tjmmg tjmrs tjmsp".split()
+    + [f"tj{uf}" for uf in cnj.UFS]
+    + [f"tre-{uf}" for uf in cnj.UFS]
+    + [f"trf{n}" for n in range(1, 7)]
+    + [f"trt{n}" for n in range(1, 25)]
+)
+
+
+def test_tabela_cobre_exatamente_os_indices_do_datajud():
+    gerados = {
+        cnj.alias_datajud(cnj.numero_valido_de(10, 2022, j, tr, 100))
+        for j in range(10)
+        for tr in range(100)
+    } - {None}
+    assert len(INDICES_DATAJUD) == 91
+    assert gerados == INDICES_DATAJUD
+
+
+@pytest.mark.parametrize(
+    ("j", "tr", "alias"),
+    [
+        (3, 0, "stj"),
+        (5, 0, "tst"),
+        (6, 0, "tse"),
+        (7, 0, "stm"),
+        (9, 13, "tjmmg"),
+        (9, 21, "tjmrs"),
+        (9, 26, "tjmsp"),
+        (9, 16, None),  # PR não tem tribunal militar próprio
+        (2, 0, None),  # CNJ não tem índice
+    ],
+)
+def test_tribunais_superiores_e_militares(j, tr, alias):
+    numero = cnj.numero_valido_de(10, 2022, j, tr, 100)
+    assert cnj.alias_datajud(numero) == alias
+    assert cnj.sigla_exibicao(numero) == "—"  # a ficha segue a CAD-23 §9
+
+
 # ---------------------------------------------------------------- máscara e formatos
 @pytest.mark.parametrize(
     ("entrada", "saida"),

@@ -124,7 +124,7 @@ def consultar_cnj(processo, config=None):
         return processo.cnj_mensagem
     mescla.aplicar_cnj(processo, campos)
     processo.cnj_divergencias = divergencias
-    processo.cnj_validacao = "divergente" if divergencias else "confere"
+    processo.cnj_validacao = mescla.situacao_cnj(divergencias)
     return None
 
 

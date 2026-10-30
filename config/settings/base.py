@@ -35,7 +35,9 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "apps.nucleo.middleware.EncerraSessaoInvalidaMiddleware",
+    "apps.contas.presenca.PresencaMiddleware",  # bolinha "online" do perfil (D-041)
     "django.contrib.messages.middleware.MessageMiddleware",
+    "apps.contas.simulacao.SimulacaoMiddleware",  # Adm vê como outro usuário (D-047)
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
@@ -72,6 +74,38 @@ AUTH_PASSWORD_VALIDATORS = [
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "inicio"
 LOGOUT_REDIRECT_URL = "login"
+
+
+def _sim(valor):
+    return str(valor).strip().lower() not in ("0", "false", "nao", "não", "no", "")
+
+
+# Login pelo Active Directory (D-039): só AD; quem entra pela 1ª vez vira Base no AD_SETOR_PADRAO.
+# LOGIN_AD=0 volta ao login local por e-mail (testes e ambientes fora da rede da empresa).
+LOGIN_AD = _sim(os.environ.get("LOGIN_AD", "1"))
+AUTHENTICATION_BACKENDS = [
+    "apps.contas.ad.BackendAD" if LOGIN_AD else "django.contrib.auth.backends.ModelBackend"
+]
+AD_SERVIDOR = os.environ.get("AD_SERVIDOR", "EEM-CWB-DC02.EEM.local")
+AD_PORTA = int(os.environ.get("AD_PORTA") or 636)
+AD_BASE_DN = os.environ.get("AD_BASE_DN", "DC=EEM,DC=local")
+# Certificado do LDAPS validado pelo repositório do SO (sem isso, um falso DC receberia as senhas).
+AD_TLS_VERIFICAR = _sim(os.environ.get("AD_TLS_VERIFICAR", "1"))
+AD_CA_CERT = os.environ.get("AD_CA_CERT", "")
+AD_CREDENCIAL_SERVICO = "binduser_hubia"
+AD_BIBLIOTECA = r"\\EEM-CWB-DC02.EEM.local\Corporativo\Tecnologia\Biblioteca"
+AD_DOMINIO_EMAIL = os.environ.get("AD_DOMINIO_EMAIL", "eem.adv.br")  # se o AD não tiver `mail`
+# Grupos do AD que podem entrar (separados por vírgula). Vazio = qualquer usuário do AD.
+AD_GRUPOS_PERMITIDOS = [
+    g.strip().lower() for g in os.environ.get("AD_GRUPOS_PERMITIDOS", "").split(",") if g.strip()
+]
+AD_SETOR_PADRAO = "Geral"
+# Logins de rede sempre Adm (garantido a cada login): sem senha local, é assim que nasce o 1º Adm.
+AD_LOGINS_ADM = [
+    g.strip().lower()
+    for g in os.environ.get("AD_LOGINS_ADM", "joao.vieira").split(",")
+    if g.strip()
+]
 
 LANGUAGE_CODE = "pt-br"
 TIME_ZONE = "America/Sao_Paulo"
@@ -123,6 +157,7 @@ MEDIA_ROOT = Path(os.environ.get("MEDIA_ROOT") or BASE_DIR / "arquivos_privados"
 JURIDICO_DIFY_TIMEOUT_S = 300
 JURIDICO_DATAJUD_TIMEOUT_S = 30
 JURIDICO_DATAJUD_INTERVALO_S = 1.5
+JURIDICO_DATAJUD_ESPERAS_429_S = (5, 15)  # novas tentativas após o erro 429 (D-058)
 JURIDICO_TRAVADO_MIN = 15
 JURIDICO_TEXTO_MAX = 40_000
 JURIDICO_TEXTO_INICIO = 25_000

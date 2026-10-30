@@ -218,8 +218,8 @@ telas:
     nome: Cadastro de processos (painel)
     rota: juridico:painel
     papel: adm
-    estados: [vazio, com_dados, com_fila]
-    regras: [CAD-16, CAD-20]
+    estados: [vazio, com_dados, com_fila, aba_cadastrados]   # D-063: abas; com_dados = Em processamento
+    regras: [CAD-16, CAD-20, CAD-28]
   - id: TEL-27
     modulo: m8
     nome: Cadastro de processos (painel, usuário base com acesso)
@@ -285,3 +285,31 @@ telas:
     papel: adm
     estados: [padrao, erro_campo, duplicado]
     regras: [CAD-21]
+  - id: TEL-36
+    modulo: m1
+    nome: Simular usuário
+    rota: contas:simular
+    papel: adm
+    estados: [vazio_busca, com_dados]   # D-047; a faixa "Simulando…" aparece nas telas do simulado
+    regras: [D-047]
+  - id: TEL-37
+    modulo: m8
+    nome: Painel · aba Aprovações (itens do n8n)
+    rota: juridico:painel   # ?aba=aprovacoes (querystring do preparador); juridico:aprovacoes só redireciona (D-063)
+    papel: adm
+    estados: [vazio, com_dados]   # D-048; o aviso "N itens aguardando aprovação" fica só na Home
+    regras: [D-048, CAD-28]
+  - id: TEL-38
+    modulo: m8
+    nome: Log da API do n8n
+    rota: juridico:api_log
+    papel: adm
+    estados: [vazio, com_dados]   # D-049
+    regras: [D-049]
+  - id: TEL-39
+    modulo: m8
+    nome: CSLOG · gerar processo.csv
+    rota: juridico:cslog
+    papel: adm
+    estados: [vazio, com_dados]   # D-064
+    regras: [D-064]

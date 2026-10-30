@@ -231,35 +231,38 @@ def test_hom03_base_ve_fluxos_ativos_do_setor_sem_rascunho(cenario):
     assert not _existe(h, "fluxos_rascunho")
 
 
-def test_hom03_usuarios_ativos_por_papel(cenario, M):
-    """HOM-03: Usuários ativos — Adm: total; gestor: do setor; Base: não exibe."""
-    w = cenario
-    total = M.Usuario.objects.filter(is_active=True).count()
-    do_setor = M.Usuario.objects.filter(is_active=True, setor=w.A).count()
-    assert _tem_valor(_h(_home(w.c["adm"])), "Usuários ativos", total)
-    assert _tem_valor(_h(_home(w.c["gA"])), "Usuários ativos", do_setor)
-    assert not _existe(_h(_home(w.c["bA"])), "usuarios_ativos")
+def test_hom03_usuarios_e_setores_ativos_fora_da_home(cenario):
+    """HOM-03 (revisado, D-043): Usuários ativos e Setores ativos não existem na Home de nenhum papel."""
+    for k in ("adm", "gA", "bA"):
+        h = _h(_home(cenario.c[k]))
+        assert not _existe(h, "usuarios_ativos") and not _existe(h, "setores_ativos"), k
+        assert "Usuários ativos" not in _texto(h) and "Setores ativos" not in _texto(h), k
 
 
-def test_hom03_usuarios_ativos_ignora_inativos(cenario, mk_usuario, M):
-    """HOM-03: usuário inativo não conta como ativo."""
+def test_hom03_usuarios_ativos_na_tela_de_usuarios_ignora_inativos(cenario, mk_usuario, M):
+    """HOM-03 (D-043): o total de ativos foi para a tela de Usuários (Adm); inativo não conta."""
     w = cenario
     u = mk_usuario("Base", w.A)
-    antes = M.Usuario.objects.filter(is_active=True, setor=w.A).count()
+    antes = M.Usuario.objects.filter(is_active=True).count()
     u.is_active = False
     u.save()
-    assert _tem_valor(_h(_home(w.c["gA"])), "Usuários ativos", antes - 1)
+    r = w.c["adm"].get(reverse("contas:usuarios"))
+    assert r.context["total_ativos"] == antes - 1
+    assert f"{antes - 1} ativos" in _texto(_h(r))
 
 
-def test_hom03_setores_ativos_so_adm(cenario, M):
-    """HOM-03: Setores ativos só para Adm (valor = setores ativos no banco, inclui Geral)."""
+def test_hom03_setores_ativos_na_tela_de_setores(cenario, M):
+    """HOM-03 (D-043): Setores ativos saiu da Home; o total (inclui Geral) fica na tela de Setores, só Adm.
+    O gráfico por setor da Home do Adm continua."""
     w = cenario
-    n = M.Setor.objects.filter(ativo=True).count()
-    assert _tem_valor(_h(_home(w.c["adm"])), "Setores ativos", n)
+    n, todos = M.Setor.objects.filter(ativo=True).count(), M.Setor.objects.count()
+    r = w.c["adm"].get(reverse("contas:setores"))
+    assert r.context["total_ativos"] == n
+    assert f"{n} ativo{'s' if n != 1 else ''} de {todos}" in _texto(_h(r))
     setores = _json_id(_h(_home(w.c["adm"])), "home-setores")
     assert {x["total"] for x in setores if x["setor"] == "Setor Beta"} == {40}
     for k in ("gA", "bA"):
-        assert not _existe(_h(_home(w.c[k])), "setores_ativos")
+        assert w.c[k].get(reverse("contas:setores")).status_code == 403
 
 
 def test_hom03_variacao_vs_periodo_anterior(cenario):
@@ -570,14 +573,14 @@ def test_hom09_formato_taxa_duracao_e_cartao_data_valor(cenario):
     """HOM-09: taxa "75%", duração "2,0 s", data-valor numérico cru em todos os cartões presentes."""
     h = _h(_home(cenario.c["gA"]))
     assert "75%" in _texto(h)
-    for chave in ("fluxos_ativos", "fluxos_rascunho", "execucoes", "taxa_sucesso", "execucoes_erro", "duracao_media", "usuarios_ativos"):
+    for chave in ("fluxos_ativos", "fluxos_rascunho", "execucoes", "taxa_sucesso", "execucoes_erro", "duracao_media"):
         assert _valor(h, chave) is not None, chave
 
 
 @pytest.mark.parametrize("quem,ausentes", [
     ("bA", ["fluxos_rascunho", "usuarios_ativos", "setores_ativos"]),
-    ("gA", ["setores_ativos"]),
-    ("adm", []),
+    ("gA", ["usuarios_ativos", "setores_ativos"]),
+    ("adm", ["usuarios_ativos", "setores_ativos"]),  # D-043: saíram da Home de todos
 ])
 def test_hom09_cartoes_inexistentes_por_papel(cenario, quem, ausentes):
     """HOM-09: cartões que o papel não vê não existem no HTML."""

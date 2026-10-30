@@ -1,0 +1,12 @@
+id: T-099
+titulo: Painel em abas · telas (design-base v2)
+dono: Vitral (front)
+depende_de: [T-097]
+regras: [CAD-28, CAD-29, D-063, design-base v2]
+aceite:
+  - "Abas no topo do painel com rótulo + número (--font-num), ativa com aria-current='true'; Aprovações com destaque quando houver pendentes; < 600 px as 3 numa linha, sem rolagem horizontal."
+  - "Em processamento: faixa em leitura/erro (só quando houver) + chips Todos/Com pendências/Conferir (aria-pressed). Saem barra de progresso, 'N extraídos · P%', cartões de etapa, aviso de aprovações e Últimos envios."
+  - "Barra de filtros: busca + Cliente + botão 'Filtros (n)' com Entrada, CNJ e Ordem e 'Limpar filtros'. Lista + ficha como hoje."
+  - "Aba Aprovações: o conteúdo de juridico/aprovacoes.html dentro do painel (extrair para componente, sem duplicar), mesmos estados e ações; Home aponta para a aba."
+  - "Vazios por aba (CAD-28), estados carregando/erro/sucesso, revisão visual pela checklist da design-base; capturas TEL-27 e TEL-37 regeneradas; tests/unit/frontend + e2e verdes."
+arquivos: [templates/, static/, tests/unit/frontend/, tests/e2e/]

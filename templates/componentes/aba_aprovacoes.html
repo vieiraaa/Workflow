@@ -1,0 +1,81 @@
+{% comment %}Aba Aprovações do painel (D-048, D-063; antiga TEL-37). Contexto da views_aprovacoes.Aprovacoes:
+itens, pendentes, filtros_status, total_pendentes, ultima_chegada, carteiras, url_aprovar, url_descartar,
+url_importar, url_api_log, url_config, lote_*. O painel carrega o js/aprovacoes.js e o modal de importar.{% endcomment %}
+<div class="pn-aprov__barra">
+  <p class="pn-aprov__resumo texto-2"><b class="num">{{ total_pendentes }}</b> pendente{{ total_pendentes|pluralize }}{% if ultima_chegada %} · última chegada {{ ultima_chegada }}{% endif %}</p>
+  <div class="pn-aprov__acoes">{% include "componentes/botao.html" with rotulo="Importar carga" icone="upload" modal="modal-importar-carga" %}{% include "componentes/botao.html" with rotulo="Log da API" icone="activity" href=url_api_log %}{% if url_config %}{% include "componentes/botao.html" with rotulo="Chave da API" icone="key-round" href=url_config|add:"#c-api" %}{% endif %}</div>
+</div>
+<form class="filtros" method="get" role="search">
+  <input type="hidden" name="aba" value="aprovacoes">
+  <div class="campo filtros__busca">
+    <label class="sr-only" for="busca">Buscar por número, cliente, tipo ou remetente</label>
+    <input id="busca" type="search" name="q" value="{{ q }}" placeholder="Buscar por número, cliente, tipo ou remetente" maxlength="100">
+  </div>
+  {% if status_atual != "pendente" %}<input type="hidden" name="status" value="{{ status_atual }}">{% endif %}
+  {% if lote_atual %}<input type="hidden" name="lote" value="{{ lote_atual }}">{% endif %}
+  {% include "componentes/botao.html" with rotulo="Buscar" icone="search" tipo="submit" %}
+  {% include "componentes/segmentado.html" with opcoes=filtros_status rotulo_acessivel="Situação" %}
+</form>
+
+{% if lote_atual %}<div class="alerta alerta--info" role="status" data-estado="filtro_lote">{% include "componentes/icone.html" with nome="funnel" tamanho=16 %}<span>Mostrando só os itens do {{ lote_rotulo }}. <a href="{{ url_sem_lote }}">Ver todos</a></span></div>{% endif %}
+<div class="card card--semrecuo">
+  {% if itens %}
+  <form method="post" action="{{ url_aprovar }}" data-aprovacoes>
+    {% csrf_token %}<input type="hidden" name="consulta" value="{{ consulta_atual }}">
+    {% if pendentes %}
+    <div class="aprovacoes__acoes">
+      <p class="aprovacoes__selecao texto-2" data-aprovacoes-contagem aria-live="polite">Selecione os itens para aprovar ou descartar.</p>
+      <div class="campo aprovacoes__campo">
+        <label for="ap-carteira">Carteira</label>
+        <select id="ap-carteira" name="carteira">{% for valor, rotulo in carteiras %}<option value="{{ valor }}">{{ rotulo }}</option>{% endfor %}</select>
+      </div>
+      <button class="botao botao--primario" type="submit" formaction="{{ url_aprovar }}" data-aprovacoes-acao>{% include "componentes/icone.html" with nome="check" tamanho=16 %}<span>Aprovar</span></button>
+      <div class="campo aprovacoes__campo aprovacoes__campo--motivo">
+        <label for="ap-motivo">Motivo do descarte <span class="texto-2">(opcional)</span></label>
+        <input id="ap-motivo" name="motivo" maxlength="300" placeholder="Ex.: já tratado por outro canal">
+      </div>
+      <button class="botao botao--secundario" type="submit" formaction="{{ url_descartar }}" data-aprovacoes-acao>{% include "componentes/icone.html" with nome="x" tamanho=16 %}<span>Descartar</span></button>
+    </div>
+    {% endif %}
+    <div class="tabela-rolagem"><table class="tabela tabela--aprovacoes">
+      <thead><tr>
+        {% if pendentes %}<th scope="col" class="ap-sel"><input type="checkbox" data-aprovacoes-todos aria-label="Selecionar todos os itens desta página"></th>{% endif %}
+        <th scope="col">Processo</th>
+        <th scope="col">Tipo</th>
+        <th scope="col">Remetente</th>
+        <th scope="col">Cliente</th>
+        <th scope="col">Data</th>
+        <th scope="col">Prazo</th>
+        {% if not pendentes %}<th scope="col">Decisão</th>{% endif %}
+      </tr></thead>
+      <tbody>
+        {% for i in itens %}
+        <tr class="tabela__linha">
+          {% if pendentes %}<td class="ap-sel">{% if i.aprovavel %}<input type="checkbox" name="ids" value="{{ i.pk }}" data-aprovacoes-item aria-label="Selecionar {{ i.numero }}">{% else %}<input type="checkbox" name="ids" value="{{ i.pk }}" data-aprovacoes-item data-so-descartar aria-label="Selecionar {{ i.numero|default:i.cliente }} (só pode ser descartado)">{% endif %}</td>{% endif %}
+          <td class="ap-proc">
+            <span class="ap-numero{% if not i.numero_valido %} ap-numero--invalido{% endif %}">{{ i.numero|default:"Sem número" }}</span>
+            {% if i.alertas or i.ja_cadastrado_url %}<span class="ap-chips">
+              {% if i.ja_cadastrado_url %}<a class="chip" href="{{ i.ja_cadastrado_url }}">Já no cadastro</a>{% endif %}
+              {% for a in i.alertas %}<span class="chip{% if a.grave %} chip--erro{% else %} chip--conf{% endif %}">{{ a.rotulo }}</span>{% endfor %}
+            </span>{% endif %}
+          </td>
+          <td class="ap-tipo">{{ i.tipo|default:"—" }}{% if i.motivo %}<span class="ap-sub texto-2">{{ i.motivo }}</span>{% endif %}</td>
+          <td class="ap-origem">{{ i.remetente|default:"—" }}{% if i.uf %} <span class="texto-2">· {{ i.uf }}</span>{% endif %}{% if i.numero_controle %}<span class="ap-sub texto-2 num">{{ i.numero_controle }}</span>{% endif %}</td>
+          <td class="ap-cliente{% if not i.cliente %} ap-vazio{% endif %}">{{ i.cliente|default:"—" }}</td>
+          <td class="ap-data num">{{ i.quando|default:"—" }}<span class="ap-sub texto-2">recebido {{ i.recebido_em }}</span></td>
+          <td class="ap-prazo{% if not i.prazo %} ap-vazio{% endif %}">{{ i.prazo|default:"—" }}</td>
+          {% if not pendentes %}<td class="ap-decisao texto-2">{{ i.decisao|default:"Pendente" }}{% if i.motivo_descarte %}<span class="ap-sub">Motivo: {{ i.motivo_descarte }}</span>{% endif %}{% if i.processo_url %}<a class="ap-sub" href="{{ i.processo_url }}">Ver processo</a>{% elif i.envio_url %}<a class="ap-sub" href="{{ i.envio_url }}">Ver envio</a>{% endif %}</td>{% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+  </form>
+  {% include "componentes/paginacao.html" %}
+  {% elif q %}
+  {% include "componentes/vazio.html" with icone="search" titulo="Nada encontrado" texto="Nenhum item para esta busca. Tente outros termos." acao_rotulo="Limpar busca" acao_url="?aba=aprovacoes" %}
+  {% elif pendentes %}
+  {% include "componentes/vazio.html" with icone="inbox" titulo="Nada esperando aprovação" texto="Quando o n8n enviar novos itens do e-mail, eles aparecem aqui para aprovação. Recebeu a carga por e-mail? Use “Importar carga”." %}
+  {% else %}
+  {% include "componentes/vazio.html" with icone="inbox" titulo="Nenhum item nesta situação" texto="Os itens aprovados e descartados aparecem aqui." %}
+  {% endif %}
+</div>

@@ -1,6 +1,15 @@
 from django.contrib import admin
 
-from .models import Carteira, ConfigCadastro, Envio, ItemEnvio, Processo
+from .models import (
+    Carteira,
+    ChamadaApi,
+    ConfigCadastro,
+    Envio,
+    ExportacaoCslog,
+    ItemEnvio,
+    Processo,
+    Recebimento,
+)
 
 
 @admin.register(Carteira)
@@ -43,3 +52,26 @@ class ItemEnvioAdmin(admin.ModelAdmin):
     list_filter = ("status", "etapa_erro", "resolvido")
     raw_id_fields = ("envio", "processo", "duplicado_de")
     exclude = ("resposta_ia",)
+
+
+@admin.register(Recebimento)
+class RecebimentoAdmin(admin.ModelAdmin):
+    list_display = ("numero", "tipo", "cliente", "status", "recebido_em", "decidido_por")
+    search_fields = ("numero", "numero_digitos", "cliente", "tipo", "numero_controle")
+    list_filter = ("status", "numero_valido", "origem", "uf")
+    raw_id_fields = ("decidido_por", "item_envio")
+
+
+@admin.register(ChamadaApi)
+class ChamadaApiAdmin(admin.ModelAdmin):
+    list_display = ("recebido_em", "status_http", "ip", "recebidos", "novos", "mensagem")
+    search_fields = ("mensagem", "ip", "agente")
+    list_filter = ("status_http",)
+
+
+@admin.register(ExportacaoCslog)
+class ExportacaoCslogAdmin(admin.ModelAdmin):
+    list_display = ("arquivo", "gerado_em", "gerado_por", "quantidade")
+    search_fields = ("arquivo", "gerado_por__email")
+    list_filter = ("arquivo",)
+    raw_id_fields = ("gerado_por", "processos")

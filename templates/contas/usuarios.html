@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block titulo %}Usuários · Construtor de Workflows{% endblock %}
 {% block titulo_pagina %}Usuários{% endblock %}
+{% block subtitulo %}<p class="topbar__sub">{{ total_ativos }} ativo{{ total_ativos|pluralize }}</p>{% endblock %}
 {% block acoes %}{% if url_novo %}{% include "componentes/botao.html" with rotulo="Novo usuário" icone="plus" variante="primario" href=url_novo %}{% endif %}{% endblock %}
 {% block conteudo %}
 <form class="filtros" method="get" role="search">

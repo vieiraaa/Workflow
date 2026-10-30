@@ -24,7 +24,7 @@
 }
 
 /* Medidas de layout (não são decisão visual de cor/forma). */
-:root { --sidebar-w: var(--lateral-largura); --topbar-h: 72px; --ctl-h: 36px; --modal-w: 440px; --form-w: 400px; --logo-h: 48px; }
+:root { --rail-w: 72px; --sidebar-w: var(--lateral-largura); --topbar-h: 72px; --ctl-h: 36px; --modal-w: 440px; --form-w: 400px; --logo-h: 48px; }
 
 *, *::before, *::after { box-sizing: border-box; }
 a { color: var(--accent); text-decoration: none; }
@@ -48,33 +48,51 @@ table, .num, .indicador__valor, .resumo__valor { font-variant-numeric: tabular-n
 .icone--gira { animation: gira 900ms linear infinite; }
 @keyframes gira { to { transform: rotate(360deg); } }
 
-/* Shell: lateral ameixa nos dois temas + área principal */
-.shell { display: grid; grid-template-columns: var(--sidebar-w) minmax(0, 1fr); min-height: 100vh; }
+/* Shell: lateral ameixa nos dois temas + área principal. A lateral fica recolhida só com os ícones
+   (--rail-w) e abre por cima do conteúdo no hover ou no foco por teclado (D-041): o conteúdo não
+   se mexe. Ícones no centro do trilho e no mesmo lugar aberta ou fechada. Ao abrir, os rótulos
+   aparecem depois da largura; ao fechar, somem JUNTO com ela (mesmo atraso e duração). */
+.shell { display: grid; grid-template-columns: var(--rail-w) minmax(0, 1fr); min-height: 100vh; }
 .sidebar { background: var(--sidebar); color: var(--lat-texto); }
-.sidebar__interno { display: flex; flex-direction: column; gap: 2px; padding: 22px 14px 18px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
-.sidebar__marca { display: flex; align-items: center; gap: 11px; padding: 0 var(--sp-2) 22px; color: var(--lat-texto); }
+.sidebar__interno {
+  position: fixed; inset: 0 auto 0 0; z-index: 30; width: var(--rail-w);
+  display: flex; flex-direction: column; gap: 2px; padding: 22px 12px 18px;
+  background: var(--sidebar); overflow: hidden auto; scrollbar-width: none; white-space: nowrap;
+  transition: width var(--dur) var(--ease) 220ms, box-shadow var(--dur) var(--ease) 220ms;
+}
+.sidebar__interno:hover, .sidebar__interno:has(:focus-visible) { width: var(--sidebar-w); box-shadow: var(--shadow-2); transition-delay: 100ms; }
+.sidebar__rotulo { opacity: 0; transition: opacity var(--dur) var(--ease) 220ms; }
+.sidebar__interno:hover .sidebar__rotulo, .sidebar__interno:has(:focus-visible) .sidebar__rotulo { opacity: 1; transition-delay: 180ms; }
+.sidebar__marca { display: flex; align-items: center; gap: 11px; padding: 0 5px 22px; color: var(--lat-texto); }
 .sidebar__emblema { width: 38px; height: 38px; border-radius: var(--r-pill); flex: none; background: var(--ouro); object-fit: cover; }
 .sidebar__marca-textos { display: flex; flex-direction: column; min-width: 0; }
 .sidebar__nome { font: 600 var(--text-body)/1.1 var(--font-titulo); letter-spacing: .01em; }
 .sidebar__produto { font-size: 12px; color: var(--lat-texto-2); margin-top: 2px; }
 .sidebar__menu { display: flex; flex-direction: column; gap: 2px; list-style: none; margin: 0; padding: 0; flex: 1; }
-.sidebar__grupo { padding: 16px 10px 6px; font: 600 11.5px/1.4 var(--font-titulo); color: var(--lat-texto-2); list-style: none; }
+.sidebar__grupo { position: relative; padding: 16px 15px 6px; font: 600 11.5px/1.4 var(--font-titulo); color: var(--lat-texto-2); list-style: none; }
+.sidebar__grupo::before { content: ""; position: absolute; left: 12px; width: 24px; top: calc(50% + 5px); border-top: 1px solid var(--lat-borda); transition: opacity var(--dur) var(--ease) 220ms; }
+.sidebar__interno:hover .sidebar__grupo::before, .sidebar__interno:has(:focus-visible) .sidebar__grupo::before { opacity: 0; transition-delay: 0ms; }
 .sidebar__item {
-  display: flex; align-items: center; gap: 11px; padding: 8px 10px; border-radius: var(--r-m);
+  display: flex; align-items: center; gap: 11px; padding: 8px 15px; border-radius: var(--r-m);
   color: var(--lat-texto-2); font-weight: 500; transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
 }
-.sidebar__item .icone { width: 18px; height: 18px; }
+.sidebar__item .icone { width: 18px; height: 18px; flex: none; }
 .sidebar__item:hover { color: var(--lat-texto); }
 .sidebar__item[aria-current="page"] { background: var(--lat-ativo-fundo); color: var(--ouro); }
-.sidebar__rodape { margin-top: auto; border-top: 1px solid var(--lat-borda); padding: 14px 10px 0; display: flex; flex-direction: column; gap: var(--sp-2); }
-.sidebar__rodape-linha { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
-.sidebar__usuario { display: flex; flex-direction: column; min-width: 0; }
-.sidebar__usuario strong { font: 600 13.5px/1.3 var(--font-titulo); overflow-wrap: anywhere; color: var(--lat-texto); }
-.sidebar__usuario span { font-size: 12px; color: var(--lat-texto-2); }
-a.sidebar__usuario { border-radius: var(--r-s); }
+/* Contador de pendências no item (D-048): sobre o ícone, visível com a lateral fechada ou aberta. */
+.sidebar__item { position: relative; }
+.sidebar__contador { position: absolute; left: 26px; top: 2px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: var(--r-pill); background: var(--ouro); color: var(--sidebar); font: 600 10px/17px var(--font-num); font-variant-numeric: tabular-nums; text-align: center; box-shadow: 0 0 0 2px var(--sidebar); }
+.sidebar__rodape { margin-top: auto; border-top: 1px solid var(--lat-borda); padding: 14px 0 0; display: flex; flex-direction: column; gap: var(--sp-3); }
+.sidebar__usuario { display: flex; align-items: center; gap: 10px; padding: 2px 6px; min-width: 0; border-radius: var(--r-m); color: var(--lat-texto); }
+.sidebar__usuario-textos { display: flex; flex-direction: column; min-width: 0; }
+.sidebar__usuario-textos > * { overflow: hidden; text-overflow: ellipsis; }
+.sidebar__usuario strong { font: 600 13.5px/1.3 var(--font-titulo); color: var(--lat-texto); }
+.sidebar__usuario-textos span { font-size: 12px; color: var(--lat-texto-2); }
 a.sidebar__usuario:hover strong { color: var(--ouro); }
+.sidebar__rodape-acoes { display: flex; align-items: center; gap: var(--sp-2); padding: 0 8px; }
+.sidebar__sair { flex: 1; min-width: 0; }
 .sidebar .botao--icone, .sidebar .botao--secundario { background: transparent; color: var(--lat-texto-2); box-shadow: inset 0 0 0 1px var(--lat-borda); height: 32px; }
-.sidebar .botao--icone { width: 32px; }
+.sidebar .botao--icone { width: 32px; flex: none; }
 .sidebar .botao--icone:hover, .sidebar .botao--secundario:hover { background: transparent; color: var(--lat-texto); }
 .principal { min-width: 0; display: flex; flex-direction: column; }
 .topbar {
@@ -83,16 +101,24 @@ a.sidebar__usuario:hover strong { color: var(--ouro); }
 }
 .topbar__texto { flex: 1; min-width: 0; }
 .topbar__titulo { min-width: 0; overflow-wrap: anywhere; }
+.topbar__sub { color: var(--text-3); font-size: var(--text-sm); margin-top: var(--sp-1); }  /* "Atualizado às…", contagens */
 .nowrap { white-space: nowrap; }
 .topbar__acoes { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
 .botao.topbar__menu { display: none; }
 .conteudo { width: 100%; max-width: var(--content-max); padding: var(--sp-4) 30px 40px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
 .sidebar-fundo { display: none; }
+/* Simular usuário (D-047): faixa no topo enquanto o Adm vê o sistema como outra pessoa */
+.simulacao { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; padding: var(--sp-2) 30px; background: var(--fill-conf); border-bottom: 1px solid color-mix(in srgb, var(--conf) 30%, transparent); font-size: var(--text-sm); }
+.simulacao > .icone { color: var(--conf); flex: none; }
+.simulacao__texto { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 
 @media (max-width: 800px) {
+  .simulacao { padding: var(--sp-2) var(--sp-4); }
   .shell { grid-template-columns: minmax(0, 1fr); }
   .sidebar { position: fixed; inset: 0 auto 0 0; width: var(--sidebar-w); z-index: 20; transform: translateX(-100%); transition: transform var(--dur) var(--ease); }
-  .sidebar__interno { height: 100%; }
+  .sidebar__interno, .sidebar__interno:hover { position: relative; width: 100%; height: 100%; box-shadow: none; transition: none; }
+  .sidebar__rotulo { opacity: 1; }
+  .sidebar__grupo::before { display: none; }
   .shell.menu-aberto .sidebar { transform: none; box-shadow: var(--shadow-2); }
   .shell.menu-aberto .sidebar-fundo { display: block; position: fixed; inset: 0; z-index: 10; background: rgba(15, 9, 18, .6); }
   :root { --topbar-h: 56px; }
@@ -155,6 +181,8 @@ a.sidebar__usuario:hover strong { color: var(--ouro); }
 .alerta { display: flex; gap: var(--sp-2); align-items: flex-start; padding: var(--sp-3); border-radius: var(--r-m); font-size: var(--text-sm); background: var(--fill); border: 1px solid var(--hairline); }
 .alerta--erro { color: var(--danger); background: var(--fill-danger); border-color: color-mix(in srgb, var(--danger) 30%, transparent); }
 .alerta--sucesso { color: var(--success); background: var(--fill-success); border-color: color-mix(in srgb, var(--success) 30%, transparent); }
+.alerta--info { color: var(--conf); background: var(--fill-conf); border-color: color-mix(in srgb, var(--conf) 30%, transparent); }
+.alerta a { color: inherit; text-decoration: underline; }
 
 /* Segmentado e toggle */
 .segmentado { display: inline-flex; max-width: 100%; overflow-x: auto; white-space: nowrap; background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--r-m); padding: 2px; gap: 2px; }
@@ -323,3 +351,86 @@ a.sidebar__usuario:hover strong { color: var(--ouro); }
 .etiqueta-funcao { margin-left: var(--sp-2); }
 
 :root[data-theme="dark"] .publica__logo { filter: brightness(0) invert(1); opacity: .95; }
+
+/* Login pelo AD (TEL-01) e tela de carregamento após o login (D-039): layout do Monitor de IA. */
+.publica__caixa:has(.login) { width: min(380px, 100%); }
+.login { padding: var(--sp-8) 28px; gap: var(--sp-2); border-radius: var(--r-xl); box-shadow: var(--shadow-2); }
+.login__marca { align-self: center; width: 148px; height: auto; margin-bottom: var(--sp-2); }  /* o "e" do logo */
+.login__titulo { text-align: center; font: 600 22px/1.2 var(--font-titulo); letter-spacing: -.02em; margin: 0; }
+.login__sub { text-align: center; color: var(--text-2); margin: 0 0 var(--sp-4); }
+.login .formulario { gap: var(--sp-4); }
+.login__botao { height: 42px; }
+.carregamento { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: var(--bg); animation: carregamento-entra .35s var(--ease); }
+.carregamento__interno { display: flex; align-items: center; gap: 28px; padding: var(--sp-4); }
+.carregamento__sep { width: 1px; height: 64px; background: var(--hairline); }
+.carregamento__logo { display: block; width: 190px; height: auto; }
+.carregamento__msg { position: absolute; bottom: 22%; left: 0; right: 0; margin: 0; text-align: center; color: var(--text-2); font-size: var(--text-body); }
+.orb { display: block; flex: none; width: 84px; height: 84px; }
+:root[data-theme="dark"] .carregamento__logo { filter: brightness(0) invert(1); opacity: .95; }
+@keyframes carregamento-entra { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .carregamento { animation: none; } }
+@media (max-width: 560px) {
+  .carregamento__interno { flex-direction: column; gap: 22px; }
+  .carregamento__sep { width: 56px; height: 1px; }
+  .carregamento__logo { width: 160px; }
+}
+
+/* Troca de tema (D-040): disco na cor do tema novo, animado no app.js (transform e opacity). */
+.tema-disco { position: fixed; z-index: 1000; border-radius: 50%; pointer-events: none; will-change: transform, opacity; }
+
+/* Avatar (D-041): iniciais na cor fixa da pessoa; bolinha verde de online com um pulso discreto
+   (só transform/opacity). O anel da bolinha tem a cor do fundo onde o avatar está. */
+.avatar {
+  --av: 36px; --anel: var(--surface);
+  position: relative; display: inline-grid; place-items: center; flex: none; width: var(--av); height: var(--av);
+  border-radius: var(--r-pill); color: var(--on-avatar); font: 600 calc(var(--av) * .38)/1 var(--font-titulo); letter-spacing: .02em;
+  background: linear-gradient(135deg, var(--avatar-cor), color-mix(in srgb, var(--avatar-cor) 70%, var(--marca-ameixa)));
+}
+.avatar--sm { --av: 28px; } .avatar--xl { --av: 88px; }
+.avatar--c1 { --avatar-cor: var(--avatar-1); } .avatar--c2 { --avatar-cor: var(--avatar-2); } .avatar--c3 { --avatar-cor: var(--avatar-3); }
+.avatar--c4 { --avatar-cor: var(--avatar-4); } .avatar--c5 { --avatar-cor: var(--avatar-5); } .avatar--c6 { --avatar-cor: var(--avatar-6); }
+.sidebar .avatar { --anel: var(--sidebar); }
+.avatar__ponto { position: absolute; right: 0; bottom: 0; width: max(10px, calc(var(--av) * .24)); aspect-ratio: 1; border-radius: var(--r-pill); background: var(--text-3); box-shadow: 0 0 0 2px var(--anel); }
+.avatar__ponto--on { background: var(--online); }
+.avatar__ponto--on::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--online); animation: avatar-pulso 2.4s var(--ease) infinite; }
+@keyframes avatar-pulso { from { transform: scale(1); opacity: .55; } 70%, to { transform: scale(2.4); opacity: 0; } }
+
+/* Perfil (D-041) */
+.perfil__cabecalho { flex-direction: row; align-items: center; gap: var(--sp-6); flex-wrap: wrap; }
+.perfil__identidade { display: flex; flex-direction: column; gap: var(--sp-1); min-width: 0; flex: 1; }
+.perfil__nome { margin: 0; font-size: var(--text-h2); overflow-wrap: anywhere; }
+.perfil__cargo { margin: 0; color: var(--text-2); }
+.perfil__selos { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin-top: var(--sp-2); }
+.perfil__selo { display: inline-flex; align-items: center; gap: 6px; padding: 2px var(--sp-3); border-radius: var(--r-pill); background: var(--fill); color: var(--text-2); font-size: var(--text-sm); font-weight: 500; }
+.perfil__selo .icone { width: 14px; height: 14px; }
+.perfil__presenca { font-size: var(--text-sm); color: var(--text-3); }
+.perfil__presenca--on { color: var(--success); font-weight: 600; }
+.perfil__grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
+.perfil__coluna { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.perfil__acesso { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sp-8); align-items: start; }
+.perfil__acesso .perfil__subtitulo { margin: 0 0 var(--sp-3); }
+.perfil__acesso .campo__ajuda { margin-top: var(--sp-3); }
+.perfil__bio { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
+.perfil__lista { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--sp-2); }
+.perfil__lista li { display: flex; gap: var(--sp-2); align-items: flex-start; overflow-wrap: anywhere; }
+.perfil__lista li .icone { width: 16px; height: 16px; flex: none; margin-top: 2px; color: var(--accent); }
+.perfil__linhas { margin: 0; display: flex; flex-direction: column; }
+.perfil__linhas > div { display: flex; justify-content: space-between; gap: var(--sp-4); padding: var(--sp-2) 0; border-bottom: 1px solid var(--hairline); }
+.perfil__linhas > div:last-child { border-bottom: 0; }
+.perfil__linhas dt { color: var(--text-2); }
+.perfil__linhas dd { margin: 0; font-weight: 500; text-align: right; overflow-wrap: anywhere; min-width: 0; }
+.perfil__atividade { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
+.perfil__atividade li { border-bottom: 1px solid var(--hairline); }
+.perfil__atividade li:last-child { border-bottom: 0; }
+.perfil__atividade a { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-2) 0; color: var(--text); }
+.perfil__atividade a:hover .perfil__fluxo { color: var(--accent); }
+.perfil__fluxo { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.perfil__quando { color: var(--text-3); font: 400 var(--text-sm)/1 var(--font-num); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.perfil__telas { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin: 0; padding: 0; list-style: none; }
+.perfil__subtitulo { margin: var(--sp-2) 0 0; font: 600 var(--text-rotulo)/1.4 var(--font-titulo); color: var(--text-2); }
+@media (max-width: 1000px) { .perfil__grade, .perfil__acesso { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 560px) { .perfil__cabecalho { flex-direction: column; align-items: flex-start; } }
+
+/* Easter egg (D-045): vídeo em tela cheia no fundo preto, acima de tudo; some ao acabar (app.js). */
+.easteregg { position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center; background: var(--easteregg-fundo); }
+.easteregg video { width: 100%; height: 100%; object-fit: contain; }

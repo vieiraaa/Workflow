@@ -13,11 +13,13 @@
 #   Adm (todos) vê tudo COM OU SEM setor.
 #   liberadas -> Funções ativas, publicadas e liberadas ao usuário (todos / setor dele / papel dele) — FUN, M7a
 #   setor_com_acesso -> setor do usuário em ConfigCadastro.setores_com_acesso; vê TODOS os processos — CAD-02, M8
+#   proprio  -> só o próprio usuário (perfil) — D-041
 #   nenhum   -> negado
 # Anônimo: toda rota exceto `login` redireciona para login (302 com ?next=).
 
 acoes:
   usuarios.gerenciar:   {adm: todos,  coordenador: nenhum, base: nenhum}   # listar, criar, editar, desativar, redefinir senha
+  usuarios.simular:     {adm: todos,  coordenador: nenhum, base: nenhum}   # ver o sistema como outro usuário ativo, só leitura (D-047)
   fluxos.ver:           {adm: todos,  coordenador: setor,  base: ativos_do_setor}   # lista de fluxos
   fluxos.criar:         {adm: todos,  coordenador: setor,  base: nenhum}
   fluxos.editar:        {adm: todos,  coordenador: setor,  base: nenhum}   # inclui abrir o editor, salvar grafo, ativar/desativar
@@ -34,8 +36,11 @@ acoes:
   cadastro.ver:         {adm: todos,  coordenador: setor_com_acesso, base: setor_com_acesso}   # CAD-01/02 (M8)
   cadastro.enviar:      {adm: todos,  coordenador: setor_com_acesso, base: setor_com_acesso}   # CAD-03/05
   cadastro.editar:      {adm: todos,  coordenador: setor_com_acesso, base: setor_com_acesso}   # CAD-15/21
+  cadastro.aprovar:     {adm: todos,  coordenador: setor_com_acesso, base: setor_com_acesso}   # itens do n8n pendentes de aprovação (D-048)
   cadastro.configurar:  {adm: todos,  coordenador: nenhum,           base: nenhum}             # CAD-14
   conta.trocar_senha:   {adm: todos,  coordenador: todos,  base: todos}    # a própria senha (sem papel: 403, USR-15)
+  perfis.ver:           {adm: todos,  coordenador: todos,  base: todos}    # perfil de qualquer colega (D-041); inativo só o Adm vê
+  perfis.editar:        {adm: todos,  coordenador: proprio, base: proprio} # bio e responsabilidades; papel/setor/ativo = usuarios.gerenciar
 
 regras:
   - id: PRM-01

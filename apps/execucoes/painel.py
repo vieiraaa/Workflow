@@ -13,7 +13,6 @@ from django.db.models.functions import TruncDay, TruncHour, TruncMonth, TruncWee
 from django.urls import reverse
 from django.utils import timezone
 
-from apps.contas.models import Setor, Usuario
 from apps.contas.permissoes import escopo, papel_de, pode
 from apps.fluxos.models import Fluxo
 
@@ -323,21 +322,8 @@ def montar_painel(usuario, periodo):
             _variacao(seg, seg_ant, "menor"),
         ),
     ]
-    if not base:
-        usuarios = Usuario.objects.filter(is_active=True)
-        if not adm:
-            usuarios = (
-                usuarios.filter(setor_id=usuario.setor_id) if usuario.setor_id else usuarios.none()
-            )
-        n = usuarios.count()
-        indicadores.append(
-            _indicador("usuarios_ativos", "Usuários ativos", str(n), str(n), None, False)
-        )
-    if adm:
-        n = Setor.objects.filter(ativo=True).count()
-        indicadores.append(
-            _indicador("setores_ativos", "Setores ativos", str(n), str(n), None, False)
-        )
+    # Usuários e setores ativos saíram da Home (D-043): o número fica nas telas de Usuários e
+    # Setores, que são do Adm.
 
     pode_criar = pode(usuario, "fluxos.criar")
     return {

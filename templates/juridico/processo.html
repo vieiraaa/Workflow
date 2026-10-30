@@ -28,6 +28,7 @@
 <section class="card cnj-caixa cnj-caixa--{{ cnj.situacao }}" aria-labelledby="cnj-titulo" data-cnj="{{ cnj.situacao }}">
   <h2 class="card__titulo" id="cnj-titulo">Validação no CNJ</h2>
   {% if cnj.situacao == "confere" %}<p>{% include "componentes/icone_cnj.html" with situacao="confere" %} Os dados conferem com o DataJud.</p>
+  {% if cnj.divergencias %}<ul class="pendencias" data-cnj-aviso>{% for d in cnj.divergencias %}<li>{% include "componentes/icone.html" with nome="info" tamanho=16 %}<span>Só difere: {{ d }} (vale o PDF)</span></li>{% endfor %}</ul>{% endif %}
   {% elif cnj.situacao == "divergente" %}<p>Os dados divergem do CNJ. Confira cada item:</p>
   <ul class="pendencias">{% for d in cnj.divergencias %}<li>{% include "componentes/icone.html" with nome="shield-alert" tamanho=16 %}<span>{{ d }}</span></li>{% endfor %}</ul>
   {% elif cnj.situacao == "nao_encontrado" %}<p>Não encontrado no DataJud: segredo de justiça ou ainda não indexado.</p>

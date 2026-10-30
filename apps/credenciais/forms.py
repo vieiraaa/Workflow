@@ -80,6 +80,10 @@ class CredencialForm(forms.Form):
         if not cofre.chave_configurada():
             self.add_error(None, cofre.MSG_SEM_CHAVE + " Peça a quem administra o servidor.")
             return dados
+        if tipo in (Credencial.BEARER, Credencial.HEADER):
+            # Vai direto num header HTTP: espaço nas pontas é sempre lixo de copiar/colar.
+            # Senha (Basic/SMTP) fica como digitada, porque espaço pode fazer parte dela.
+            dados["valor"] = (dados.get("valor") or "").strip()
         if not (dados.get("valor") or "") and (self.instance is None or not self.dados_atuais):
             self.add_error("valor", MSG_OBRIGATORIO)
         if tipo == Credencial.HEADER and not (dados.get("header_nome") or "").strip():

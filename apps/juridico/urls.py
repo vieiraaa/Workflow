@@ -1,11 +1,25 @@
 from django.urls import path
 
-from . import views
+from . import views, views_aprovacoes, views_cslog
 
 app_name = "juridico"
 
 urlpatterns = [
     path("", views.PainelView.as_view(), name="painel"),
+    path("aprovacoes/", views_aprovacoes.AprovacoesView.as_view(), name="aprovacoes"),
+    path("aprovacoes/aprovar/", views_aprovacoes.AprovarView.as_view(), name="aprovar"),
+    path("aprovacoes/descartar/", views_aprovacoes.DescartarView.as_view(), name="descartar"),
+    path(
+        "aprovacoes/importar/",
+        views_aprovacoes.ImportarCargaView.as_view(),
+        name="importar_carga",
+    ),
+    path("api-log/", views_aprovacoes.ApiLogView.as_view(), name="api_log"),
+    path(
+        "config/chave-api/",
+        views_aprovacoes.GerarChaveApiView.as_view(),
+        name="gerar_chave_api",
+    ),
     path("processos/novo/", views.ProcessoNovoView.as_view(), name="processo_novo"),
     path("processos/<int:pk>/", views.ProcessoView.as_view(), name="processo"),
     path(
@@ -32,6 +46,9 @@ urlpatterns = [
     path("itens/<int:pk>/resolver/", views.ResolverView.as_view(), name="resolver"),
     path("erros/", views.ErrosView.as_view(), name="erros"),
     path("audiencias/", views.AudienciasView.as_view(), name="audiencias"),
+    path("cslog/", views_cslog.CslogView.as_view(), name="cslog"),
+    path("cslog/gerar/", views_cslog.CslogGerarView.as_view(), name="cslog_gerar"),
+    path("cslog/<int:pk>/baixar/", views_cslog.CslogBaixarView.as_view(), name="cslog_baixar"),
     path("config/", views.ConfigView.as_view(), name="config"),
     path("config/testar/", views.TestarConexaoView.as_view(), name="testar_conexao"),
     path("config/carteiras/nova/", views.CarteiraNovaView.as_view(), name="carteira_nova"),

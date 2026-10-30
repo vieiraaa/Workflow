@@ -1,0 +1,2 @@
+{# usuario (iniciais, cor_avatar), tamanho: sm|md|xl (padrão md), ponto: "on"|"off" (omitido = sem bolinha; de bool use online|yesno:"on,off"). Decorativo: nome e status vêm em texto ao lado. #}
+<span class="avatar avatar--{{ tamanho|default:'md' }} avatar--c{{ usuario.cor_avatar }}" aria-hidden="true">{{ usuario.iniciais }}{% if ponto %}<span class="avatar__ponto{% if ponto == 'on' %} avatar__ponto--on{% endif %}"></span>{% endif %}</span>

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load static %}
+{% block estilos %}<link rel="stylesheet" href="{% static 'css/juridico.css' %}">{% endblock %}
+{% block titulo %}Log da API do n8n · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}Log da API do n8n{% endblock %}
+{% block subtitulo %}<p class="topbar__sub">{% if ultima_chamada %}Última chamada {{ ultima_chamada }} · nas últimas 24 h: <span class="num">{{ resumo_24h.total }}</span> chamada{{ resumo_24h.total|pluralize }}{% if resumo_24h.recusadas %} (<span class="num">{{ resumo_24h.recusadas }}</span> recusada{{ resumo_24h.recusadas|pluralize }}){% endif %}, <span class="num">{{ resumo_24h.novos }}</span> {{ resumo_24h.novos|pluralize:"item novo,itens novos" }}{% else %}Nenhuma chamada recebida ainda{% endif %}</p>{% endblock %}
+{% block acoes %}{% include "componentes/botao.html" with rotulo="Aprovações" icone="chevron-left" href=url_aprovacoes %}{% if url_config %}{% include "componentes/botao.html" with rotulo="Chave da API" icone="key-round" href=url_config|add:"#c-api" %}{% endif %}{% endblock %}
+{% block conteudo %}
+<div class="filtros">
+  {% include "componentes/segmentado.html" with opcoes=filtros_resultado rotulo_acessivel="Resultado" %}
+  <p class="texto-2 texto-sm lg-nota">Cada POST do n8n vira uma linha, inclusive os recusados. O corpo e a chave nunca são guardados.</p>
+</div>
+
+<div class="card card--semrecuo">
+  {% if chamadas %}
+  <div class="tabela-rolagem"><table class="tabela tabela--log-api">
+    <thead><tr>
+      <th scope="col">Quando</th>
+      <th scope="col">Resultado</th>
+      <th scope="col">Itens recebidos</th>
+      <th scope="col">Situação dos novos</th>
+      <th scope="col">Origem</th>
+      <th scope="col">Tamanho · tempo</th>
+      <th scope="col"><span class="sr-only">Ações</span></th>
+    </tr></thead>
+    <tbody>
+      {% for c in chamadas %}
+      <tr class="tabela__linha">
+        <td class="lg-quando num">{{ c.quando }}</td>
+        <td class="lg-res">{% if c.aceita %}{% include "componentes/badge_status.html" with status="sucesso" rotulo=c.status_rotulo %}{% else %}{% include "componentes/badge_status.html" with status="erro" rotulo=c.status_rotulo %}<span class="ap-sub texto-2">HTTP {{ c.status_http }} · {{ c.mensagem }}</span>{% endif %}</td>
+        <td class="lg-itens{% if not c.aceita %} ap-vazio{% endif %}">{% if c.aceita %}<span class="num">{{ c.recebidos }}</span> recebido{{ c.recebidos|pluralize }}<span class="ap-sub texto-2"><span class="num">{{ c.novos }}</span> novo{{ c.novos|pluralize }} · <span class="num">{{ c.repetidos }}</span> repetido{{ c.repetidos|pluralize }}{% if c.invalidos %} · <span class="lg-invalidos"><span class="num">{{ c.invalidos }}</span> inválido{{ c.invalidos|pluralize }}</span>{% endif %}</span>{% else %}<span class="texto-2">—</span>{% endif %}</td>
+        <td class="lg-sit{% if not c.novos %} ap-vazio{% endif %}">{% if c.novos %}<span class="ap-chips">{% if c.pendentes %}<span class="chip chip--conf">{{ c.pendentes }} pendente{{ c.pendentes|pluralize }}</span>{% endif %}{% if c.aprovados %}<span class="chip chip--ok">{{ c.aprovados }} aprovado{{ c.aprovados|pluralize }}</span>{% endif %}{% if c.descartados %}<span class="chip">{{ c.descartados }} descartado{{ c.descartados|pluralize }}</span>{% endif %}{% if not c.pendentes and not c.aprovados and not c.descartados %}<span class="texto-2">Itens apagados</span>{% endif %}</span>{% else %}<span class="texto-2">—</span>{% endif %}</td>
+        <td class="lg-origem"><span class="num">{{ c.ip }}</span>{% if c.agente %}<span class="ap-sub texto-2 lg-agente" title="{{ c.agente }}">{{ c.agente|truncatechars:40 }}</span>{% endif %}</td>
+        <td class="lg-tec num texto-2">{{ c.tamanho }} · {{ c.duracao }}</td>
+        <td class="tabela__acoes lg-acao">{% if c.url_itens %}{% include "componentes/botao.html" with rotulo="Ver itens" icone="list-checks" href=c.url_itens %}{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% include "componentes/paginacao.html" %}
+  {% elif resultado_atual %}
+  {% include "componentes/vazio.html" with icone="search" titulo="Nenhuma chamada com este resultado" texto="Troque o filtro para ver as demais chamadas." acao_rotulo="Ver todas" acao_url="?" %}
+  {% else %}
+  {% include "componentes/vazio.html" with icone="activity" titulo="Nenhuma chamada ainda" texto="Quando o n8n chamar a API, cada envio aparece aqui, inclusive os recusados." %}
+  {% endif %}
+</div>
+{% endblock %}

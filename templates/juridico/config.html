@@ -45,6 +45,26 @@
   <form method="post" action="{% url 'juridico:testar_conexao' %}">{% csrf_token %}{% include "componentes/botao.html" with rotulo="Testar conexão" icone="plug" tipo="submit" carregando="Testando…" %}</form>
 </section>
 
+<section class="card" aria-labelledby="c-api-titulo" id="c-api">
+  <h2 class="card__titulo" id="c-api-titulo">API do n8n</h2>
+  <p class="texto-2">O n8n manda os itens tratados do e-mail para este endereço (POST com a lista em JSON). Cada item entra em Aprovações, onde o jurídico aprova ou descarta.</p>
+  {% if chave_api_nova %}
+  <div class="alerta alerta--sucesso" role="status" data-estado="chave_nova">
+    {% include "componentes/icone.html" with nome="key-round" tamanho=16 %}
+    <span>Chave nova: <code class="api__chave">{{ chave_api_nova }}</code> Copie agora e cole no n8n: depois só aparece o início dela.</span>
+  </div>
+  {% endif %}
+  <dl class="api__linhas">
+    <div><dt>Endereço</dt><dd><code class="api__valor">{{ url_api }}</code></dd></div>
+    <div><dt>Cabeçalho</dt><dd><code class="api__valor">Authorization: Bearer &lt;chave&gt;</code></dd></div>
+    <div><dt>Chave</dt><dd>{% if chave_api %}<code class="api__valor">{{ chave_api.inicio }}…</code> <span class="texto-2">criada em {{ chave_api.criada_em }}</span>{% else %}<span class="api__sem-chave">Nenhuma chave gerada: a API recusa todos os envios.</span>{% endif %}</dd></div>
+  </dl>
+  <div class="api__acoes">
+  <form method="post" action="{{ url_gerar_chave }}">{% csrf_token %}{% if chave_api %}{% include "componentes/botao.html" with rotulo="Gerar nova chave (a atual para de valer)" icone="refresh-cw" tipo="submit" %}{% else %}{% include "componentes/botao.html" with rotulo="Gerar chave" icone="key-round" variante="primario" tipo="submit" %}{% endif %}</form>
+  {% url "juridico:api_log" as url_api_log_ %}{% include "componentes/botao.html" with rotulo="Ver o log da API" icone="activity" href=url_api_log_ %}
+  </div>
+</section>
+
 <section class="card card--semrecuo" aria-labelledby="c-carteiras">
   <h2 class="painel__titulo painel__titulo--cartao" id="c-carteiras">Carteiras</h2>
   <ul class="carteiras-config">

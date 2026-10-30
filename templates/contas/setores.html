@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block titulo %}Setores · Construtor de Workflows{% endblock %}
 {% block titulo_pagina %}Setores{% endblock %}
+{% block subtitulo %}<p class="topbar__sub">{{ total_ativos }} ativo{{ total_ativos|pluralize }} de {{ total }}</p>{% endblock %}
 {% block acoes %}{% if url_novo %}{% include "componentes/botao.html" with rotulo="Novo setor" icone="plus" variante="primario" href=url_novo %}{% endif %}{% endblock %}
 {% block conteudo %}
 <div class="card card--semrecuo">

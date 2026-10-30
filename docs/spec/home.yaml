@@ -12,8 +12,9 @@ regras:
     texto: >
       Cartões de indicadores (rótulo, número grande, variação vs. período anterior equivalente em % com seta e cor
       semântica): Fluxos ativos · Fluxos em rascunho (estado atual, não dependem do período) · Execuções no período ·
-      Taxa de sucesso no período (%) · Execuções com erro no período · Duração média (s) · Usuários ativos (Adm: total;
-      Coordenador: do setor; Base: não exibe) · Setores ativos (só Adm).
+      Taxa de sucesso no período (%) · Execuções com erro no período · Duração média (s). (Revisado em 23/10, D-043:
+      Usuários ativos e Setores ativos saíram da Home para todos os papéis; o total de ativos fica no subtítulo das
+      telas de Usuários e de Setores, que são só do Adm.)
   - id: HOM-04
     texto: >
       Gráfico "Execuções no período": barras empilhadas sucesso x erro por intervalo — 24h: por hora (24 barras);
@@ -43,8 +44,8 @@ regras:
     texto: >
       Contrato da Home (fecha lacunas do T-040). CARTÕES: cada um é um elemento com data-indicador="<chave>" e
       data-valor="<número cru>"; chaves: fluxos_ativos, fluxos_rascunho, execucoes, taxa_sucesso, execucoes_erro,
-      duracao_media, usuarios_ativos, setores_ativos. Base não vê fluxos_rascunho, usuarios_ativos nem setores_ativos
-      (o cartão não existe no HTML); Coordenador não vê setores_ativos. FORMATOS: taxa inteira arredondada "75%";
+      duracao_media. Base não vê fluxos_rascunho (o cartão não existe no HTML). usuarios_ativos e setores_ativos não
+      existem no HTML de nenhum papel (D-043). FORMATOS: taxa inteira arredondada "75%";
       duração média com 1 casa e vírgula "1,2 s"; variação inteira com sinal "+12%"/"−8%" e data-variacao="<int>";
       sem base no período anterior (0) → "novo" e data-variacao="". TAXA = sucesso/(sucesso+erro); execução em
       andamento conta no total de execuções mas não em sucesso/erro nem na taxa. GRÁFICOS via json_script:

@@ -1,0 +1,14 @@
+id: T-097
+titulo: Painel em abas (Aprovações · Em processamento · Cadastrados) · backend
+dono: Forja (back)
+regras: [CAD-28, CAD-29, D-063]
+aceite:
+  - "QuerySet de Processo com em_processamento() e concluidos(), único lugar da regra (hoje concluído = status CADASTRADO; docstring diz que o CSLog entra ali, antes do Espaider). Painel, contagens, clientes cadastrados/total e juridico:status usam esses métodos."
+  - "PainelView aceita ?aba= (processamento padrão; inválido → processamento) e entrega o contexto da CAD-29 (aba, abas, filtros_extra_n, url_limpar, fluxo, etapas); ?p= fora da aba não abre ficha; queries constantes por aba."
+  - "Aba aprovacoes: a lógica da AprovacoesView reaproveitada (sem duplicar) dentro do painel, mesmos nomes de contexto; sem cadastro.aprovar → 403. GET juridico:aprovacoes → 302 para juridico:painel?aba=aprovacoes preservando status/q/lote/pagina. Aprovar, descartar e importar voltam para a aba (o importar com status=todos&lote=)."
+  - "Marcar cadastrado volta para ?aba=processamento sem p=, mensagem 'Processo <nº> cadastrado: foi para Cadastrados.' (só a partir da ficha do painel: voltar=painel)."
+  - "Menu lateral (apps/nucleo/contexto.py): sai o item Aprovações; o contador de pendentes vai para 'Cadastro de processos' só para quem tem cadastro.aprovar. aviso_aprovacoes (Home) aponta para a aba. ultimos_envios e fluxo.pct_cadastrados ficam no contexto (CAD-19/27), fora da tela."
+  - "juridico:status (JSON) traz os totais das abas."
+  - "scripts/telas.py: preparadores TEL-27/aba_cadastrados e TEL-37 (rota juridico:painel, querystring aba=aprovacoes)."
+  - "Docstrings com o CONTEXTO atualizadas; tests/unit/ cobrindo os itens acima; check --rapido verde. Testes de aceite que quebrarem por CAD-28: reporte ao Lead (a T-098 reconcilia), não edite."
+arquivos: [apps/juridico/, apps/nucleo/contexto.py, scripts/telas.py, tests/unit/juridico/, tests/unit/nucleo/]

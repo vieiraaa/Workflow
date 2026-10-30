@@ -11,7 +11,8 @@ from .base import INSTALLED_APPS as _APPS
 
 DEBUG = False  # páginas de erro do produto (403/404); estáticos via runserver --insecure
 SECRET_KEY = "demo-local-nao-e-segredo"
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]"]
+# DEMO_IP (scripts/demo.py --ip): também atende pelo IP da máquina na rede local.
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]", *filter(None, [os.environ.get("DEMO_IP")])]
 
 # apps.nucleo antes do staticfiles: seu runserver serve /static/ com no-cache (T-037).
 INSTALLED_APPS = ["apps.nucleo", *(a for a in _APPS if a != "apps.nucleo")]

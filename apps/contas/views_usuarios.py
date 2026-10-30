@@ -55,7 +55,8 @@ class UsuarioListaView(PermissaoMixin, TemplateView):
       `opcoes_setor` [{id, nome, selecionado}] e `filtros_setor` [{rotulo, url, ativo}] (segmentado)
     - `filtros_papel`, `filtros_status`: opções {rotulo, url, ativo} (segmentado.html)
     - `ordenacoes`: {nome, email, criado_em} -> {url, sentido ('asc'|'desc'|'')} dos cabeçalhos
-    - `total`: nº de usuários no filtro; `url_novo`: rota de criação
+    - `total`: nº de usuários no filtro; `total_ativos`: ativos no sistema (subtítulo; saiu da
+      Home, D-043); `url_novo`: rota de criação
     """
 
     acao_requerida = "usuarios.gerenciar"
@@ -183,6 +184,7 @@ class UsuarioListaView(PermissaoMixin, TemplateView):
             ],
             ordenacoes=ordens,
             total=paginator.count,
+            total_ativos=Usuario.objects.filter(is_active=True).count(),
             url_novo=url_novo,
         )
         return contexto

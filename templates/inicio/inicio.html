@@ -5,6 +5,7 @@
 {% block acoes %}{% if pode_criar_fluxo and url_novo_fluxo %}{% include "componentes/botao.html" with rotulo="Novo fluxo" icone="plus" variante="primario" href=url_novo_fluxo %}{% endif %}{% endblock %}
 {% block estilos %}<link rel="stylesheet" href="{% static 'css/home.css' %}">{% endblock %}
 {% block conteudo %}
+{% include "componentes/aviso_aprovacoes.html" %}
 {% if erro_carregar %}
 <section class="card" data-estado="erro">{% include "componentes/vazio.html" with icone="triangle-alert" titulo="Não foi possível carregar o início" texto="Tente novamente em instantes." acao_rotulo="Tentar de novo" acao_url="?" %}</section>
 {% elif sem_dados %}

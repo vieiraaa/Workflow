@@ -19,3 +19,12 @@ Servidores: :8000 = demo local · Métricas: python3 docs/metricas/metricas.py
 ## 20/10/2026
 - Identidade visual Egger e Mesquita (branch feat/identidade-eem, sobre feat/m8-cadastro): design-base nova, todas as telas, papel do Vitral reescrito; T-086..089; check completo VERDE; 336 capturas; PR em docs/prs/identidade-eem.md. Merge/push só a pedido. Pendente do usuário: logo negativo PNG transparente.
 - 23/10: identidade v2 + painel v2 do Cadastro (T-090..096) · check completo VERDE · 336 capturas · push em andamento já feito (74ff5be); segundo push com o fechamento.
+
+## 27/10/2026
+- D-063 · Painel em abas (Aprovações · Em processamento · Cadastrados; CAD-28/29): T-097/098/099 feitas direto a pedido do
+  usuário (fora do Maestri), já no servidor central :8001. Regra de concluído em ProcessoQuerySet (CSLog entra ali).
+  Aceite do painel reconciliado (cada troca no relato da sessão). Pendente: commit; falhas de ambiente no Windows
+  (SIGALRM, WebKit, env > 32767, Playwright em loop asyncio) e as 2 de certificado do Dify (clientes.py não commitado).
+
+## 30/10/2026
+- D-064 · CSLOG (TEL-39): tela com seleção + geração do processo.csv (cslog.py, views_cslog.py, migração 0007). Feito direto a pedido do usuário. Próximo: os outros 2 arquivos do CSLOG e a importação oficial (aí muda q_concluido).

@@ -8,6 +8,18 @@ import unicodedata
 
 # Código TR (segmento 8 = Justiça Estadual; 6 = Eleitoral) → UF, na ordem oficial do CNJ.
 UFS = "ac al ap am ba ce dft es go ma mt ms mg pa pb pr pe pi rj rn rs ro rr sc se sp to".split()
+# Índices do DataJud fora da regra segmento × UF: tribunais superiores (TR 00) e a Justiça Militar
+# estadual (só MG, RS e SP têm tribunal próprio). Lista oficial dos 91 índices:
+# https://datajud-wiki.cnj.jus.br/api-publica/endpoints/ (STF e CNJ não têm índice).
+ESPECIAIS = {
+    ("3", 0): "stj",
+    ("5", 0): "tst",
+    ("6", 0): "tse",
+    ("7", 0): "stm",
+    ("9", 13): "tjmmg",
+    ("9", 21): "tjmrs",
+    ("9", 26): "tjmsp",
+}
 _RE_NUMERO = re.compile(r"[^0-9]")  # \D aceitaria dígitos Unicode (largura total, árabe-índicos)
 
 
@@ -52,11 +64,14 @@ def numero_valido_de(sequencial, ano, j, tr, origem):
 
 
 def alias_datajud(numero):
-    """Alias do índice DataJud (`tjsp`, `trf4`, `trt9`, `tre-sp`) ou None se não suportado."""
+    """Alias do índice DataJud (`tjsp`, `trf4`, `trt9`, `tre-sp`, `stj`, `tjmsp`) ou None se o
+    tribunal não tem índice na API pública."""
     digitos = so_digitos(numero)
     if len(digitos) != 20:
         return None
     segmento, tr = digitos[13], int(digitos[14:16])
+    if (segmento, tr) in ESPECIAIS:
+        return ESPECIAIS[(segmento, tr)]
     if segmento == "8" and 1 <= tr <= len(UFS):
         return f"tj{UFS[tr - 1]}"
     if segmento == "4" and 1 <= tr <= 6:
@@ -84,7 +99,7 @@ SEM_SIGLA = "—"
 
 def sigla_exibicao(numero):
     """Sigla para a ficha (TJSP, TJDFT, TRF3, TRT2, TRE-SP); outro segmento ou TR fora do mapa
-    → '—' (CAD-23 §9)."""
+    → '—' (CAD-23 §9; superiores e militares também, mesmo tendo índice no DataJud, D-050)."""
     digitos = so_digitos(numero)
     if len(digitos) != 20:
         return SEM_SIGLA

@@ -64,6 +64,10 @@ class ConfigCadastro(models.Model):
     datajud_recusado_em = models.DateTimeField(
         "chave do DataJud recusada em", null=True, blank=True, editable=False
     )
+    # API de entrada do n8n (D-048): só o sha256 da chave; o valor aparece uma vez, ao gerar.
+    api_chave_hash = models.CharField(max_length=64, blank=True, editable=False)
+    api_chave_inicio = models.CharField(max_length=12, blank=True, editable=False)
+    api_chave_criada_em = models.DateTimeField(null=True, blank=True, editable=False)
 
     class Meta:
         verbose_name = "configuração do cadastro"
@@ -81,7 +85,24 @@ class ConfigCadastro(models.Model):
         return setor_id is not None and self.setores_com_acesso.filter(pk=setor_id).exists()
 
 
-class _SoAtivos(models.Manager):
+class ProcessoQuerySet(models.QuerySet):
+    """Abas do painel (D-063): ÚNICO lugar da regra de concluído. Concluído = lançado no CSLog E no
+    Espaider (o CSLog vem antes); enquanto o CSLog não existe no modelo, basta o Espaider. Quando
+    ele entrar, mude só `q_concluido` (o que está no Espaider sem CSLog volta a Em
+    processamento)."""
+
+    @staticmethod
+    def q_concluido():
+        return models.Q(status="CADASTRADO")
+
+    def concluidos(self):
+        return self.filter(self.q_concluido())
+
+    def em_processamento(self):
+        return self.exclude(self.q_concluido())
+
+
+class _SoAtivos(models.Manager.from_queryset(ProcessoQuerySet)):
     def get_queryset(self):
         return super().get_queryset().filter(excluido_em__isnull=True)
 
@@ -170,6 +191,8 @@ class Processo(models.Model):
         on_delete=models.SET_NULL,
         related_name="+",
     )
+    # Tipo de ação no CSLOG escolhido na última exportação (chave de cslog.TIPOS, ex.: "P8").
+    cslog_tipo = models.CharField("tipo de ação no CSLOG", max_length=6, blank=True)
     proxima_audiencia = models.DateTimeField("próxima audiência", null=True, blank=True)
     proxima_audiencia_tipo = models.CharField(
         "tipo da audiência", max_length=80, blank=True
@@ -330,3 +353,103 @@ class ItemEnvio(models.Model):
 
     def __str__(self):
         return self.nome_arquivo or self.numero_informado or f"Item {self.pk}"
+
+
+class Recebimento(models.Model):
+    """Item que o n8n enviou pela API (D-048): espera aprovação do jurídico para entrar no
+    cadastro. Aprovado → vira item de um Envio por CNJ (a fila de sempre, DataJud)."""
+
+    PENDENTE, APROVADO, DESCARTADO = "pendente", "aprovado", "descartado"
+    STATUS = [(PENDENTE, "Pendente"), (APROVADO, "Aprovado"), (DESCARTADO, "Descartado")]
+
+    lote = models.UUIDField("lote", db_index=True)
+    chave = models.CharField(max_length=64, unique=True)  # sha256 do item: reenvio = repetido
+    numero = models.CharField("número", max_length=40, blank=True)
+    numero_digitos = models.CharField(max_length=20, blank=True, db_index=True)
+    numero_valido = models.BooleanField("número válido", default=False)
+    tipo = models.CharField(max_length=300, blank=True)
+    remetente = models.CharField(max_length=300, blank=True)
+    remetente_sigla = models.CharField(max_length=30, blank=True)
+    origem = models.CharField(max_length=30, blank=True)
+    numero_controle = models.CharField("número de controle", max_length=60, blank=True)
+    cliente = models.CharField(max_length=300, blank=True)
+    uf = models.CharField("UF", max_length=2, blank=True)
+    tribunal = models.CharField(max_length=30, blank=True)
+    data = models.DateField(null=True, blank=True)
+    hora = models.TimeField(null=True, blank=True)
+    motivo = models.CharField(max_length=300, blank=True)
+    prazo = models.CharField(max_length=100, blank=True)
+    alertas = models.JSONField(default=list, blank=True)
+    dados = models.JSONField("item recebido", default=dict)
+    status = models.CharField(max_length=12, choices=STATUS, default=PENDENTE, db_index=True)
+    recebido_em = models.DateTimeField(default=timezone.now)  # o lote todo com o mesmo instante
+    decidido_em = models.DateTimeField(null=True, blank=True)
+    decidido_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    motivo_descarte = models.CharField("motivo do descarte", max_length=300, blank=True)
+    item_envio = models.ForeignKey(
+        ItemEnvio, null=True, blank=True, on_delete=models.SET_NULL, related_name="recebimentos"
+    )
+
+    class Meta:
+        verbose_name = "recebimento do n8n"
+        verbose_name_plural = "recebimentos do n8n"
+        ordering = ["-recebido_em", "pk"]
+        indexes = [models.Index(fields=["status", "-recebido_em"])]
+
+    def __str__(self):
+        return self.numero or self.cliente or f"Recebimento {self.pk}"
+
+
+class ChamadaApi(models.Model):
+    """Log de cada POST na API do n8n (D-049), aceito ou recusado. Nunca guarda o corpo nem a
+    chave: só o resultado, a origem e as contagens."""
+
+    recebido_em = models.DateTimeField(default=timezone.now, db_index=True)
+    status_http = models.PositiveSmallIntegerField("status HTTP")
+    mensagem = models.CharField(max_length=300, blank=True)
+    ip = models.GenericIPAddressField("IP de origem", null=True, blank=True)
+    agente = models.CharField("user-agent", max_length=200, blank=True)
+    tamanho = models.PositiveIntegerField("tamanho (bytes)", default=0)
+    duracao_ms = models.PositiveIntegerField(default=0)
+    lote = models.UUIDField(null=True, blank=True, db_index=True)
+    recebidos = models.PositiveIntegerField(default=0)
+    novos = models.PositiveIntegerField(default=0)
+    repetidos = models.PositiveIntegerField(default=0)
+    invalidos = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        verbose_name = "chamada à API do n8n"
+        verbose_name_plural = "chamadas à API do n8n"
+        ordering = ["-recebido_em", "-pk"]
+
+    def __str__(self):
+        return f"{self.status_http} em {self.recebido_em:%d/%m/%Y %H:%M}"
+
+    @property
+    def aceita(self):
+        return self.status_http == 200
+
+
+class ExportacaoCslog(models.Model):
+    """Cada arquivo gerado para importar no CSLOG (D-064): quem, quando, quais processos e o
+    conteúdo como saiu (para baixar de novo). Gerar NÃO marca o processo como lançado no CSLOG:
+    isso fica para a importação oficial."""
+
+    arquivo = models.CharField("arquivo", max_length=40, default="processo.csv")
+    gerado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    gerado_em = models.DateTimeField(default=timezone.now, db_index=True)
+    quantidade = models.PositiveIntegerField(default=0)
+    conteudo = models.TextField("conteúdo")
+    processos = models.ManyToManyField(Processo, related_name="exportacoes_cslog")
+
+    class Meta:
+        verbose_name = "exportação para o CSLOG"
+        verbose_name_plural = "exportações para o CSLOG"
+        ordering = ["-gerado_em", "-pk"]
+
+    def __str__(self):
+        return f"{self.arquivo} de {self.gerado_em:%d/%m/%Y %H:%M}"

@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block titulo %}{{ perfil.nome_curto }} · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}{% if eh_proprio %}Meu perfil{% else %}Perfil{% endif %}{% endblock %}
+{% block acoes %}
+{% if pode_editar %}{% include "componentes/botao.html" with rotulo="Editar perfil" icone="pencil" href=url_editar %}{% endif %}
+{% endblock %}
+{% block conteudo %}
+<section class="card perfil__cabecalho" aria-labelledby="perfil-nome">
+  {% include "componentes/avatar.html" with usuario=perfil tamanho="xl" ponto=online|yesno:"on,off" %}
+  <div class="perfil__identidade">
+    <h2 class="perfil__nome" id="perfil-nome">{{ perfil.nome }}</h2>
+    <p class="perfil__cargo">{{ perfil.cargo|default:papel_rotulo }}</p>
+    <div class="perfil__selos">
+      {% if perfil.setor %}<span class="perfil__selo">{% include "componentes/icone.html" with nome="layers" tamanho=16 %}{{ perfil.setor.nome }}</span>{% endif %}
+      <span class="perfil__selo">{% include "componentes/icone.html" with nome="shield" tamanho=16 %}{{ papel_rotulo }}</span>
+      {% if online %}<span class="perfil__presenca perfil__presenca--on">Online agora</span>{% elif visto_em %}<span class="perfil__presenca">Visto por último em {{ visto_em|date:"d/m/Y H:i" }}</span>{% else %}<span class="perfil__presenca">Ainda não acessou</span>{% endif %}
+    </div>
+  </div>
+</section>
+
+<div class="perfil__grade">
+  <div class="perfil__coluna">
+    <section class="card" aria-labelledby="perfil-sobre">
+      <h2 class="card__titulo" id="perfil-sobre">Sobre</h2>
+      {% if perfil.bio %}<p class="perfil__bio">{{ perfil.bio }}</p>
+      {% else %}{% if eh_proprio %}{% include "componentes/vazio.html" with icone="user-round" frase="Conte um pouco sobre você." acao_rotulo="Escrever bio" acao_url=url_editar %}{% else %}{% include "componentes/vazio.html" with icone="user-round" frase="Ainda sem bio." %}{% endif %}{% endif %}
+    </section>
+
+    <section class="card" aria-labelledby="perfil-resp">
+      <h2 class="card__titulo" id="perfil-resp">Responsabilidades</h2>
+      {% if responsabilidades %}
+      <ul class="perfil__lista">{% for item in responsabilidades %}<li>{% include "componentes/icone.html" with nome="circle-check" tamanho=16 %}<span>{{ item }}</span></li>{% endfor %}</ul>
+      {% else %}{% if eh_proprio %}{% include "componentes/vazio.html" with icone="list-checks" frase="Liste pelo que você responde." acao_rotulo="Adicionar" acao_url=url_editar %}{% else %}{% include "componentes/vazio.html" with icone="list-checks" frase="Nenhuma responsabilidade listada." %}{% endif %}{% endif %}
+    </section>
+  </div>
+  <div class="perfil__coluna">
+    <section class="card" aria-labelledby="perfil-info">
+      <h2 class="card__titulo" id="perfil-info">Informações</h2>
+      <dl class="perfil__linhas">
+        <div><dt>E-mail</dt><dd>{{ perfil.email }}</dd></div>
+        <div><dt>Cargo</dt><dd>{{ perfil.cargo|default:"—" }}</dd></div>
+        <div><dt>Setor</dt><dd>{% if perfil.setor %}{{ perfil.setor.nome }}{% else %}—{% endif %}</dd></div>
+        <div><dt>Membro desde</dt><dd>{{ perfil.criado_em|date:"d/m/Y" }}</dd></div>
+      </dl>
+    </section>
+
+    <section class="card" aria-labelledby="perfil-atividade">
+      <h2 class="card__titulo" id="perfil-atividade">Atividade recente</h2>
+      {% if atividade %}
+      <ul class="perfil__atividade">
+        {% for item in atividade %}<li><a href="{{ item.url }}"><span class="perfil__fluxo">{{ item.fluxo_nome }}</span>{% include "componentes/badge_status.html" with status=item.status rotulo=item.status_rotulo %}<span class="perfil__quando">{{ item.iniciada_em|date:"d/m/Y H:i" }}</span></a></li>{% endfor %}
+      </ul>
+      {% else %}{% include "componentes/vazio.html" with icone="clock" frase="Nenhuma execução para mostrar." %}{% endif %}
+    </section>
+  </div>
+</div>
+
+{% if pode_gerenciar %}
+<section class="card" aria-labelledby="perfil-acesso" id="acesso">
+  <h2 class="card__titulo" id="perfil-acesso">Acesso</h2>
+  <div class="perfil__acesso">
+    <form class="formulario" method="post" action="{{ url_acesso }}#acesso" novalidate>
+      {% csrf_token %}
+      {% include "componentes/alerta.html" with erros=form_acesso.non_field_errors estado="erro_validacao" %}
+      {% include "componentes/campo.html" with campo=form_acesso.papel %}
+      {% include "componentes/campo.html" with campo=form_acesso.setor %}
+      {% include "componentes/toggle.html" with nome="ativo" rotulo="Usuário ativo" marcado=form_acesso.ativo.value erros=form_acesso.ativo.errors %}
+      <div class="formulario__acoes">
+        {% include "componentes/botao.html" with rotulo="Cadastro completo" href=url_cadastro %}
+        <button class="botao botao--primario" type="submit" data-carregando>Salvar acesso</button>
+      </div>
+    </form>
+    <div>
+      <h3 class="perfil__subtitulo">Telas que acessa hoje</h3>
+      {% if telas %}<ul class="perfil__telas">{% for tela in telas %}<li class="perfil__selo">{% include "componentes/icone.html" with nome=tela.icone tamanho=16 %}{{ tela.rotulo }}</li>{% endfor %}</ul>
+      {% else %}<p class="texto-2">Nenhuma: sem papel ou usuário inativo.</p>{% endif %}
+      <p class="campo__ajuda">Calculadas pelo papel e pelo setor. Para mudar, altere-os ao lado.</p>
+    </div>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

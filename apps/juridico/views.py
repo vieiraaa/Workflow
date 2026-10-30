@@ -6,7 +6,7 @@ escritório (todos os processos aparecem a quem tem acesso); o detalhe de Envio/
 enviou e do Adm (outro usuário → 404).
 """
 
-from datetime import timedelta
+from datetime import date, timedelta
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
@@ -27,14 +27,45 @@ from apps.credenciais.models import Credencial
 from apps.nucleo import listagem
 from apps.nucleo.entrada import limpar_texto
 
-from . import apresentacao, cnj, mescla, servico
+from . import apresentacao, cnj, mescla, recebimentos, servico
 from .clientes import DataJud, Dify, ErroCliente
 from .forms import GRUPOS, CarteiraForm, ConfigForm, ProcessoForm
-from .models import Carteira, ConfigCadastro, Envio, ItemEnvio, Processo
+from .models import Carteira, ConfigCadastro, Envio, ItemEnvio, Processo, ProcessoQuerySet
 from .processamento import aviso_existente, consultar_cnj, procurar_existente, travar_numero
 
 ORDENS = {"": "-atualizado_em", "numero": "numero_digitos", "distribuido": "-distribuido_em"}
+ROTULOS_ORDEM = {"": "Mais recentes", "numero": "Número", "distribuido": "Distribuição"}
 ROTULOS_ORIGEM = {"pdf": "PDF", "cnj": "CNJ"}
+DIAS_ENTRADA = 10  # dias com entrada listados no filtro "Entrada" do painel (D-061)
+# Abas do painel (D-063, CAD-28), na ordem da tela; Aprovações só para quem aprova.
+ABA_APROVACOES, ABA_PROCESSAMENTO, ABA_CADASTRADOS = "aprovacoes", "processamento", "cadastrados"
+ROTULOS_ABA = {
+    ABA_APROVACOES: "Aprovações",
+    ABA_PROCESSAMENTO: "Em processamento",
+    ABA_CADASTRADOS: "Cadastrados",
+}
+ETAPAS_PROCESSAMENTO = (
+    (Processo.COM_PENDENCIAS, "Com pendências"),
+    (Processo.CONFERIR, "Conferir"),
+)
+
+
+def _dia_iso(texto):
+    """'AAAA-MM-DD' válido ou ''."""
+    try:
+        return date.fromisoformat(texto[:10]).isoformat() if texto else ""
+    except ValueError:
+        return ""
+
+
+# Faixa "CNJ" do painel (D-052): rótulos curtos dos valores de Processo.cnj_validacao.
+FILTROS_CNJ = (
+    ("confere", "Confere"),
+    ("divergente", "Diverge"),
+    ("nao_encontrado", "Não encontrado"),
+    ("falhou", "Falhou"),
+    ("nao_consultado", "Não consultado"),
+)
 
 
 def _so_digitos_sql(campo):
@@ -107,6 +138,7 @@ def _ficha(p, agora, pode_editar):
             "carteira": p.carteira.nome if p.carteira_id else "",
             "tribunal": p.tribunal,
             "fase": p.get_fase_atual_display() if p.fase_atual else "",
+            "entrada": apresentacao.data_hora(p.criado_em),
             "empresa": p.empresa,
             "condicao": p.condicao,
             "adverso_nome": p.adverso_nome,
@@ -128,7 +160,13 @@ def _ficha(p, agora, pode_editar):
             "cnj": cnj.decompor(p.numero),
             "obrigatorios": obrigatorios,
             "obrig_ok": sum(o["ok"] for o in obrigatorios),
+            "faltando": [
+                o["rotulo"] for o in obrigatorios if not o["ok"]
+            ],  # "Próximo passo" (D-053)
             "acao": ACOES[p.status],
+            "url_consultar_cnj": reverse("juridico:consultar_cnj", kwargs=chave)
+            if pode_editar and p.numero_valido
+            else "",
             "url_editar": reverse("juridico:processo", kwargs=chave),
             "url_pdf": reverse("juridico:pdf", kwargs={"pk": item_pdf.pk}) if item_pdf else None,
             "url_marcar": reverse("juridico:marcar_cadastrado", kwargs=chave),
@@ -206,8 +244,9 @@ def _resumo(usuario):
         total=Count("pk"),
         com_pendencias=Count("pk", filter=Q(status=Processo.COM_PENDENCIAS)),
         conferir=Count("pk", filter=Q(status=Processo.CONFERIR)),
-        cadastrados=Count("pk", filter=Q(status=Processo.CADASTRADO)),
+        cadastrados=Count("pk", filter=ProcessoQuerySet.q_concluido()),
     )
+    c["em_processamento"] = c["total"] - c["cadastrados"]
     pendentes = Q(status__in=[ItemEnvio.NA_FILA, ItemEnvio.PROCESSANDO])
     i = ItemEnvio.objects.aggregate(
         na_fila=Count("pk", filter=pendentes),
@@ -263,20 +302,40 @@ def _com_motivo(envios):
 
 # ---------------------------------------------------------------- painel (TEL-27)
 class PainelView(CadastroMixin, TemplateView):
-    """Painel de processos (TEL-27; CAD-16). Template `juridico/painel.html`. `cadastro.ver`.
+    """Painel de processos (TEL-27/TEL-37; CAD-16, CAD-28/29). Template `juridico/painel.html`.
+    `cadastro.ver`.
 
-    Querystring: `status` (COM_PENDENCIAS|CONFERIR|CADASTRADO), `carteira` (pk | 'outros'),
-    `tribunal`, `cnj` (confere|divergente|nao_encontrado|falhou), `q` (número só dígitos, adverso,
+    ABAS (D-063): `aba` = processamento (padrão; processos ainda não concluídos) | cadastrados
+    (concluídos: CSLog e Espaider, ProcessoQuerySet) | aprovacoes (`cadastro.aprovar`, senão 403;
+    contexto da `views_aprovacoes.Aprovacoes`, os mesmos nomes da antiga TEL-37, e nada da lista
+    de processos). Em todas: `aba`, `abas` [{chave, rotulo, total, url, ativa}] (totais das abas de
+    processo respeitam cliente/entrada/CNJ/busca/audiência; Aprovações = pendentes),
+    `atualizado_em`, `filtro_audiencia`, `audiencias_n`, flags `pode_*` e `url_*` do topo.
+    Nas abas de processo, além do abaixo: `etapas` [{status, rotulo, total, url, ativo}] (só em
+    processamento: Todos, Com pendências, Conferir), `filtros_extra_n` (Entrada/CNJ/Ordem fora do
+    padrão), `url_limpar`; `filtros.aba` ('' = processamento). ?p= fora da aba → sem ficha.
+    `ultimos_envios` e `fluxo.pct_cadastrados` seguem no contexto (CAD-19/27), fora da tela;
+    `fluxo.cadastrados` = concluídos.
+
+    Querystring: `status` (COM_PENDENCIAS|CONFERIR, só em processamento), `carteira`
+    (pk | 'outros'),
+    `tribunal`, `cnj` (confere|divergente|nao_encontrado|falhou), `entrada` (AAAA-MM-DD: dia em
+    que o processo entrou no sistema, D-061), `q` (número só dígitos, adverso,
     CPF/CNPJ, comarca, empresa), `ordem` ('' = atualizado | numero | distribuido), `p` (pk do
     processo selecionado; padrão o 1º da página), `pagina` (25 por página).
 
     Contexto (além do shell):
     - `resumo` {total, com_pendencias, conferir, cadastrados, na_fila, erros}
     - `carteiras` [{chave:'todos'|'outros'|<pk>, nome, total, ativa, ativo, url}]
-    - `filtros` {status, carteira, tribunal, cnj, q, ordem}; `titulo_lista`
+    - `filtros` {status, carteira, tribunal, cnj, q, ordem, audiencia, entrada}; `titulo_lista`
+    - `opcoes_entrada` [{valor (AAAA-MM-DD|''), rotulo, total, url, ativo}], `entrada_rotulo`
     - `processos`: Page de dicts {pk, numero, adverso, cpf_cnpj_mascarado, carteira, comarca,
       valor_texto, status, status_rotulo, cnj_situacao, audiencia_texto, audiencia_proxima,
-      selecionado, url_painel, url_detalhe, url_excluir, pode_excluir}; `consulta`
+      selecionado, url_painel, url_detalhe, url_excluir, pode_excluir, selos [{chave, estado,
+      texto, titulo}] (D-052/D-054)};
+      `consulta`; `filtros_cnj` [{valor, rotulo, total, url, ativo}]
+      (faixa "CNJ" sobre a lista; contagens respeitam os demais filtros); `opcoes_ordem` [{rotulo,
+      url, ativo}] (D-053: Cliente, CNJ e Ordem viram seletores na barra de filtros)
     - `processo_sel`: {pk, numero, status, status_rotulo, carteira, tribunal, pendencias[],
       grupos[{titulo, campos[{rotulo, valor}]}] (CPF/CNPJ completo), andamentos[{data, evento,
       fonte}], url_detalhe, url_marcar, pode_marcar, pode_editar} ou None
@@ -311,6 +370,8 @@ class PainelView(CadastroMixin, TemplateView):
             qs = qs.filter(tribunal__iexact=filtros["tribunal"])
         if filtros["cnj"] in dict(Processo.CNJ):
             qs = qs.filter(cnj_validacao=filtros["cnj"])
+        if filtros.get("entrada"):
+            qs = qs.filter(criado_em__date=date.fromisoformat(filtros["entrada"]))
         q = filtros["q"]
         if q:
             condicao = (
@@ -326,14 +387,118 @@ class PainelView(CadastroMixin, TemplateView):
             qs = qs.filter(condicao)
         return qs
 
+    def _opcoes_entrada(self, filtros, url):
+        """Filtro "Entrada" (D-061): Todas + os dias em que entraram processos (data de criação no
+        sistema, fuso local), do mais recente ao mais antigo, com contagem que respeita os demais
+        filtros; o dia escolhido aparece mesmo sem processos."""
+        por_dia = list(
+            self._filtrar(self.base, {**filtros, "entrada": ""})
+            .annotate(dia=TruncDate("criado_em"))
+            .values_list("dia")
+            .annotate(n=Count("pk"))
+            .values_list("dia", "n")
+            .order_by("-dia")
+        )
+        hoje = timezone.localdate()
+        dias = dict(por_dia[:DIAS_ENTRADA])
+        if filtros["entrada"]:
+            dias.setdefault(date.fromisoformat(filtros["entrada"]), 0)
+        opcoes = [{"valor": "", "rotulo": "Todas", "total": sum(n for _, n in por_dia)}]
+        for dia in sorted(dias, reverse=True):
+            if dia == hoje:
+                rotulo = f"Hoje · {dia:%d/%m}"
+            elif dia == hoje - timedelta(days=1):
+                rotulo = f"Ontem · {dia:%d/%m}"
+            else:
+                rotulo = apresentacao.data(dia)
+            opcoes.append({"valor": dia.isoformat(), "rotulo": rotulo, "total": dias[dia]})
+        for o in opcoes:
+            o["url"] = url(entrada=o["valor"], pagina="")
+            o["ativo"] = filtros["entrada"] == o["valor"]
+        return opcoes
+
+    def _aba(self):
+        aba = self.request.GET.get("aba", "")
+        if aba == ABA_APROVACOES:
+            self.exigir("cadastro.aprovar")
+            return aba
+        return aba if aba == ABA_CADASTRADOS else ABA_PROCESSAMENTO
+
+    def _abas(self, aba, filtros):
+        """Abas com o total de cada uma; trocar entre as de processo mantém os filtros (menos o
+        status); ir para/voltar de Aprovações limpa."""
+        concluido = ProcessoQuerySet.q_concluido()
+        totais = self._filtrar(Processo.objects.all(), {**filtros, "status": ""}).aggregate(
+            processamento=Count("pk", filter=~concluido),
+            cadastrados=Count("pk", filter=concluido),
+            com_pendencias=Count("pk", filter=~concluido & Q(status=Processo.COM_PENDENCIAS)),
+            conferir=Count("pk", filter=~concluido & Q(status=Processo.CONFERIR)),
+        )
+        chaves = [ABA_PROCESSAMENTO, ABA_CADASTRADOS]
+        if pode(self.request.user, "cadastro.aprovar"):
+            chaves.insert(0, ABA_APROVACOES)
+            totais[ABA_APROVACOES] = recebimentos.total_pendentes()
+        abas = []
+        for chave in chaves:
+            valor = chave if chave != ABA_PROCESSAMENTO else ""
+            if chave == ABA_APROVACOES or aba == ABA_APROVACOES:
+                url = "?" + listagem.consulta({"aba": valor})
+            else:
+                url = "?" + listagem.consulta({**filtros, "aba": valor, "status": ""})
+            abas.append(
+                {"chave": chave, "rotulo": ROTULOS_ABA[chave], "total": totais[chave],
+                 "url": url, "ativa": chave == aba}
+            )  # fmt: skip
+        return abas, totais
+
+    def _topo(self, aba, abas, filtros, agora):
+        """O que as três abas mostram igual: abas, topo e menu."""
+        usuario = self.request.user
+        audiencias = Processo.objects.filter(proxima_audiencia__gte=agora)
+        config = ConfigCadastro.obter()
+        return {
+            "aba": aba,
+            "abas": abas,
+            "filtros": filtros,
+            "filtro_audiencia": bool(filtros["audiencia"]),
+            "atualizado_em": timezone.localtime(agora).strftime("%H:%M"),
+            "aviso_datajud": (
+                "Chave do DataJud recusada: atualize a credencial em Configuração."
+                if self.adm and config.datajud_recusado_em
+                else ""
+            ),
+            "url_status": reverse("juridico:status"),
+            "audiencias_n": audiencias.count(),
+            "audiencias_urgente": audiencias.filter(
+                proxima_audiencia__lte=agora + timedelta(days=7)
+            ).exists(),
+            "pode_enviar": pode(usuario, "cadastro.enviar"),
+            "pode_editar": pode(usuario, "cadastro.editar"),
+            "pode_configurar": self.adm,
+            "url_enviar_pdfs": reverse("juridico:enviar_pdfs"),
+            "url_enviar_cnj": reverse("juridico:enviar_cnj"),
+            "url_processo_novo": reverse("juridico:processo_novo"),
+            "url_erros": reverse("juridico:erros"),
+            "url_envios": reverse("juridico:envios"),
+            "url_config": reverse("juridico:config"),
+            "url_audiencias": reverse("juridico:audiencias"),
+        }
+
     def get_context_data(self, **kwargs):
         contexto = super().get_context_data(**kwargs)
         request = self.request
         usuario = request.user
-        pede = request.GET
+        aba = self._aba()
+        self.base = (
+            Processo.objects.concluidos()
+            if aba == ABA_CADASTRADOS
+            else Processo.objects.em_processamento()
+        )
+        pede = {} if aba == ABA_APROVACOES else request.GET
         filtros = {
+            "aba": aba if aba == ABA_CADASTRADOS else "",
             "status": pede.get("status", "")
-            if pede.get("status", "") in dict(Processo.STATUS)
+            if aba == ABA_PROCESSAMENTO and pede.get("status", "") in dict(ETAPAS_PROCESSAMENTO)
             else "",
             "carteira": limpar_texto(pede.get("carteira", ""), 20),
             "tribunal": limpar_texto(pede.get("tribunal", ""), 20),
@@ -341,13 +506,22 @@ class PainelView(CadastroMixin, TemplateView):
             "q": limpar_texto(pede.get("q", "")),
             "ordem": pede.get("ordem", "") if pede.get("ordem", "") in ORDENS else "",
             "audiencia": "1" if pede.get("audiencia") == "1" else "",
+            "entrada": _dia_iso(pede.get("entrada", "")),
         }
+        agora = timezone.now()
+        abas, totais = self._abas(aba, filtros)
+        contexto.update(self._topo(aba, abas, filtros, agora))
+        if aba == ABA_APROVACOES:
+            from .views_aprovacoes import Aprovacoes  # tardio: views_aprovacoes importa daqui
+
+            contexto.update(Aprovacoes(request, self.adm).contexto())
+            return contexto
         resumo, atualizar = _resumo(usuario)
 
         def url(**trocas):
             return "?" + listagem.consulta({**filtros, "p": ""}, {}, **trocas)
 
-        cadastrado = Q(status=Processo.CADASTRADO)
+        cadastrado = ProcessoQuerySet.q_concluido()
         por_carteira_cad = {
             c: (n, cad)
             for c, n, cad in Processo.objects.filter(carteira__isnull=False)
@@ -380,18 +554,36 @@ class PainelView(CadastroMixin, TemplateView):
         )
 
         qs = self._filtrar(
-            Processo.objects.select_related("carteira").order_by(ORDENS[filtros["ordem"]], "-pk"),
+            self.base.select_related("carteira").order_by(ORDENS[filtros["ordem"]], "-pk"),
             filtros,
         )
         paginator = Paginator(qs, listagem.POR_PAGINA)
         pagina = listagem.pagina_valida(paginator, pede.get("pagina") or pede.get("page") or 1)
+        por_cnj = dict(
+            self._filtrar(self.base, {**filtros, "cnj": ""})
+            .values_list("cnj_validacao")
+            .annotate(n=Count("pk"))
+            .values_list("cnj_validacao", "n")
+        )
+        filtros_cnj = [
+            {"valor": "", "rotulo": "Todos", "total": sum(por_cnj.values())},
+            *(
+                {"valor": valor, "rotulo": rotulo, "total": por_cnj.get(valor, 0)}
+                for valor, rotulo in FILTROS_CNJ
+            ),
+        ]
+        for f in filtros_cnj:
+            f["url"] = url(cnj=f["valor"], pagina="")
+            f["ativo"] = filtros["cnj"] == f["valor"]
+        opcoes_entrada = self._opcoes_entrada(filtros, url)
         pode_editar = pode(usuario, "cadastro.editar")
         objetos = list(pagina.object_list)
-        escolhido = next((o for o in objetos if str(o.pk) == pede.get("p", "")), None)
-        if escolhido is None and (pede.get("p", "").isascii() and pede.get("p", "").isdigit()):
-            escolhido = qs.filter(pk=int(pede["p"])).first()
-        escolhido = escolhido or (objetos[0] if objetos else None)
-        agora = timezone.now()
+        pedido = pede.get("p", "")
+        escolhido = next((o for o in objetos if str(o.pk) == pedido), None)
+        if escolhido is None and pedido.isascii() and pedido.isdigit():
+            escolhido = qs.filter(pk=int(pedido)).first()  # fora da aba/filtros → sem ficha
+        elif not pedido:
+            escolhido = objetos[0] if objetos else None
         linhas = []
         for o in objetos:
             linhas.append(
@@ -410,6 +602,7 @@ class PainelView(CadastroMixin, TemplateView):
                         "status": o.status,
                         "status_rotulo": o.status_rotulo,
                         "cnj_situacao": o.cnj_validacao,
+                        "selos": apresentacao.selos_integracao(o),
                         "audiencia_texto": apresentacao.data_hora(o.proxima_audiencia)
                         if o.proxima_audiencia and o.proxima_audiencia >= agora
                         else "",
@@ -426,15 +619,14 @@ class PainelView(CadastroMixin, TemplateView):
                 )
             )
         pagina.object_list = linhas
-        audiencias = Processo.objects.filter(proxima_audiencia__gte=agora)
-        proximas = audiencias.filter(proxima_audiencia__lte=agora + timedelta(days=7)).exists()
-        ultimos = _com_motivo(
-            _envios_anotados(_envios_visiveis(request)).order_by("-criado_em")[:5]
-        )
-        config = ConfigCadastro.obter()
 
         def url_cliente(carteira):
-            base = {"status": filtros["status"], "audiencia": filtros["audiencia"]}
+            base = {
+                "aba": filtros["aba"],
+                "status": filtros["status"],
+                "audiencia": filtros["audiencia"],
+                "entrada": filtros["entrada"],
+            }
             return "?" + listagem.consulta({**base, "carteira": carteira}, {})
 
         clientes = [
@@ -469,40 +661,58 @@ class PainelView(CadastroMixin, TemplateView):
             "total": resumo["total"],
             "pct_cadastrados": _pct(resumo["cadastrados"], resumo["total"]),
         }
+        ultimos = _com_motivo(
+            _envios_anotados(_envios_visiveis(request)).order_by("-criado_em")[:5]
+        )
+        etapas = []
+        if aba == ABA_PROCESSAMENTO:
+            etapas = [
+                {"status": "", "rotulo": "Todos", "total": totais[ABA_PROCESSAMENTO]},
+                *(
+                    {"status": s, "rotulo": rotulo, "total": totais[s.lower()]}
+                    for s, rotulo in ETAPAS_PROCESSAMENTO
+                ),
+            ]
+            for e in etapas:
+                e["url"] = url(status=e["status"], pagina="")
+                e["ativo"] = filtros["status"] == e["status"]
         contexto.update(
             fluxo=fluxo,
+            etapas=etapas,
+            filtros_extra_n=sum(bool(filtros[k]) for k in ("entrada", "cnj", "ordem")),
+            url_limpar="?" + listagem.consulta({"aba": filtros["aba"]}),
             clientes=clientes,
-            filtro_audiencia=bool(filtros["audiencia"]),
-            atualizado_em=timezone.localtime(agora).strftime("%H:%M"),
             selecionado=_ficha(escolhido, agora, pode_editar) if escolhido else None,
             resumo=resumo,
             carteiras=carteiras,
-            filtros=filtros,
-            titulo_lista=f"Processos · {nome_carteira}",
+            titulo_lista=f"Processos · {nome_carteira}"
+            + (
+                f" · {dict(FILTROS_CNJ)[filtros['cnj']]}"
+                if filtros["cnj"] in dict(FILTROS_CNJ)
+                else ""
+            )
+            + (
+                f" · entrada {apresentacao.data(date.fromisoformat(filtros['entrada']))}"
+                if filtros["entrada"]
+                else ""
+            ),
+            filtros_cnj=filtros_cnj,
+            opcoes_entrada=opcoes_entrada,
+            entrada_rotulo=next(o["rotulo"] for o in opcoes_entrada if o["ativo"]),
+            opcoes_ordem=[
+                {
+                    "rotulo": rotulo,
+                    "url": url(ordem=valor, pagina=""),
+                    "ativo": filtros["ordem"] == valor,
+                }
+                for valor, rotulo in ROTULOS_ORDEM.items()
+            ],
             processos=pagina,
             page_obj=pagina,
             consulta=listagem.consulta(filtros, {}),
             processo_sel=self._selecionado(escolhido, pode_editar) if escolhido else None,
             ultimos_envios=[_linha_envio(e) for e in ultimos],
-            aviso_datajud=(
-                "Chave do DataJud recusada: atualize a credencial em Configuração."
-                if self.adm and config.datajud_recusado_em
-                else ""
-            ),
             atualizar_auto=atualizar,
-            url_status=reverse("juridico:status"),
-            audiencias_n=audiencias.count(),
-            audiencias_urgente=proximas,
-            pode_enviar=pode(usuario, "cadastro.enviar"),
-            pode_editar=pode_editar,
-            pode_configurar=self.adm,
-            url_enviar_pdfs=reverse("juridico:enviar_pdfs"),
-            url_enviar_cnj=reverse("juridico:enviar_cnj"),
-            url_processo_novo=reverse("juridico:processo_novo"),
-            url_erros=reverse("juridico:erros"),
-            url_envios=reverse("juridico:envios"),
-            url_config=reverse("juridico:config"),
-            url_audiencias=reverse("juridico:audiencias"),
         )
         return contexto
 
@@ -807,9 +1017,11 @@ class _AcaoProcesso(SoPost):
 
 
 class MarcarCadastradoView(_AcaoProcesso):
-    """POST: marca como cadastrado no Espaider (exige status CONFERIR; CAD-15). Sem campos."""
+    """POST: marca como cadastrado no Espaider (exige status CONFERIR; CAD-15). Campo opcional
+    `voltar=painel` (ficha do painel): volta para a aba Em processamento, sem seleção (D-063)."""
 
     def agir(self, request, processo):
+        do_painel = request.POST.get("voltar") == "painel"
         if processo.status != Processo.CONFERIR:
             messages.error(request, "Resolva as pendências antes de marcar como cadastrado.")
         else:
@@ -818,7 +1030,14 @@ class MarcarCadastradoView(_AcaoProcesso):
             processo.cadastrado_espaider_por = request.user
             processo.atualizado_por = request.user
             processo.save()
-            messages.success(request, "Processo marcado como cadastrado no Espaider.")
+            messages.success(
+                request,
+                f"Processo {processo.numero} cadastrado: foi para Cadastrados."
+                if do_painel
+                else "Processo marcado como cadastrado no Espaider.",
+            )
+        if do_painel:
+            return redirect("juridico:painel")
         return redirect("juridico:processo", pk=processo.pk)
 
 
@@ -1072,7 +1291,8 @@ def _linha_item(i):
 
 class StatusView(CadastroMixin, View):
     """JSON do auto-refresh (CAD-23 §8b): {total, com_pendencias, conferir, cadastrados, na_fila,
-    erros, em_andamento}; com `?envio=<pk>` (só quem enviou e o Adm) também `itens` [{pk, status,
+    erros, em_andamento, em_processamento} (cadastrados = concluídos, aba Cadastrados; D-063);
+    com `?envio=<pk>` (só quem enviou e o Adm) também `itens` [{pk, status,
     processo_url|null, aviso|null, motivo|null}]."""
 
     http_method_names = ["get", "head", "options"]
@@ -1313,6 +1533,9 @@ class ConfigView(CadastroMixin, View):
 
     Contexto: `form`, `carteiras` [{pk, nome, empresa, ativa}], `credenciais_bearer` [nome],
     `credenciais_header` [nome], `setores`, `excluidos` (lista; use |length), `resultado_teste`.
+    API do n8n (D-048): `url_api` (endereço completo do POST), `chave_api` None | {inicio,
+    criada_em}, `chave_api_nova` ("" ou a chave recém-gerada, mostrada só uma vez),
+    `url_gerar_chave`.
     """
 
     acao_requerida = "cadastro.configurar"
@@ -1323,6 +1546,13 @@ class ConfigView(CadastroMixin, View):
 
     def _render(self, request, form):
         sem_setor = Credencial.objects.filter(setor__isnull=True).order_by("nome")
+        config = ConfigCadastro.obter()
+        chave_api = None
+        if config.api_chave_hash:
+            chave_api = {
+                "inicio": config.api_chave_inicio,
+                "criada_em": apresentacao.data_hora(config.api_chave_criada_em),
+            }
         return render(
             request,
             "juridico/config.html",
@@ -1342,6 +1572,10 @@ class ConfigView(CadastroMixin, View):
                     Processo.todos.filter(excluido_em__isnull=False).values_list("pk", flat=True)
                 ),
                 "resultado_teste": "",
+                "url_api": request.build_absolute_uri(reverse("api_juridico_recebimentos")),
+                "chave_api": chave_api,
+                "chave_api_nova": request.session.pop(recebimentos.SESSAO_CHAVE_NOVA, ""),
+                "url_gerar_chave": reverse("juridico:gerar_chave_api"),
             },
         )
 
@@ -1374,7 +1608,8 @@ class TestarConexaoView(SoPost):
             DataJud(config).consultar("tjsp", cnj.so_digitos(exemplo))
             datajud = "ok"
         except ErroCliente as erro:
-            datajud = f"falhou ({erro.mensagem.rstrip('.')})"
+            motivo = erro.mensagem.removeprefix("A consulta ao DataJud falhou: ")
+            datajud = f"falhou ({motivo.rstrip('.')})"
         mensagem = f"Dify: {dify} · DataJud: {datajud}"
         (messages.success if dify == datajud == "ok" else messages.error)(request, mensagem)
         return redirect("juridico:config")

@@ -115,7 +115,8 @@ def recalcular(processo):
     faltando = [rotulo for campo, rotulo in OBRIGATORIOS if _vazio(getattr(processo, campo))]
     if faltando:
         pendencias.append("Verificar: " + ", ".join(faltando))
-    pendencias += [f"Divergência com o CNJ: {d}" for d in processo.cnj_divergencias]
+    # Divergência com o CNJ NÃO é pendência (D-056): vale sempre o PDF; ela fica só registrada em
+    # cnj_divergencias e aparece como aviso na lista e na ficha.
     processo.pendencias = pendencias
     if processo.status != Processo.CADASTRADO:
         processo.status = Processo.COM_PENDENCIAS if pendencias else Processo.CONFERIR
@@ -280,3 +281,13 @@ def comparar(processo, fonte):
     if comarca and orgao and comarca not in _so_letras(orgao):
         divergencias.append(f"comarca (PDF: {processo.comarca} · CNJ: {orgao})")
     return divergencias
+
+
+# Divergência que só fica registrada (aviso na ficha), sem tirar o "confere" (D-062): a data de
+# distribuição do PDF costuma ser a da inclusão, e a do DataJud a do ajuizamento.
+SO_AVISO = ("distribuído em ",)
+
+
+def situacao_cnj(divergencias):
+    """'confere' sem divergência ou quando todas são só aviso (D-062); senão 'divergente'."""
+    return "divergente" if any(not d.startswith(SO_AVISO) for d in divergencias) else "confere"

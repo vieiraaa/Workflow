@@ -1,0 +1,9 @@
+id: T-098
+titulo: Aceite CAD-28/29 (painel em abas) e reconciliação do aceite da TEL-37 e do painel v2
+dono: Lupa (qa)
+regras: [CAD-28, CAD-29, D-063]
+aceite:
+  - "tests/acceptance/juridico/ cobre CAD-28/29 só pela spec: abas e contagens (com e sem cadastro.aprovar), padrão e aba inválida, chips por status só em Em processamento, Cadastrados só concluídos, 403 em ?aba=aprovacoes sem permissão, redirect de juridico:aprovacoes com a querystring, POSTs de aprovar/descartar/importar voltando para a aba, ?p= fora da aba, mensagem após marcar cadastrado, filtros mantidos/limpos na troca de aba, menu lateral sem Aprovações e com o contador em Cadastro de processos, totais no juridico:status."
+  - "Reconciliar SÓ as asserções que a CAD-28 substitui (TEL-37 em juridico:aprovacoes, esteira/barra/pct, últimos envios, aviso de aprovações no painel, item Aprovações do menu), trocando pela equivalente; nada de apagar cobertura. Relate ao Lead cada troca (antes → depois)."
+  - "Nada de internet nem DATABASE_URL; @pytest.mark.modulo('m8')."
+arquivos: [tests/acceptance/juridico/, tests/acceptance/m4/, tests/adversarial/]

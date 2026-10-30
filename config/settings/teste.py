@@ -12,6 +12,10 @@ DEBUG = False
 SECRET_KEY = "teste-nao-e-segredo"
 ALLOWED_HOSTS = ["testserver", "localhost", "127.0.0.1"]
 
+# Testes nunca falam com o AD (sem rede): login local por e-mail; o AD é testado com mock.
+LOGIN_AD = False
+AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.ModelBackend"]
+
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
 SECURE_SSL_REDIRECT = False
@@ -31,3 +35,6 @@ def _url_do_banco_de_teste():
 
 DATABASES = {"default": dj_database_url.parse(verificar_banco_teste(_url_do_banco_de_teste()))}
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+
+# Novas tentativas após o 429 do DataJud sem espera real nos testes (D-058).
+JURIDICO_DATAJUD_ESPERAS_429_S = (0, 0)

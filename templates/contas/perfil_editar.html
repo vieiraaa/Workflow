@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block titulo %}Editar perfil · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}Editar perfil{% endblock %}
+{% block conteudo %}
+<section class="card card--formulario">
+  <h2 class="card__titulo">{{ perfil.nome_curto }}</h2>
+  <p class="texto-2">Nome, cargo e e-mail vêm do AD. Aqui você conta sobre o seu trabalho.</p>
+  <form class="formulario" method="post" novalidate>
+    {% csrf_token %}
+    {% include "componentes/alerta.html" with erros=form.non_field_errors estado="erro_validacao" %}
+    {% include "componentes/campo.html" with campo=form.bio %}
+    {% include "componentes/campo.html" with campo=form.responsabilidades %}
+    <div class="formulario__acoes">
+      {% include "componentes/botao.html" with rotulo="Cancelar" href=url_perfil %}
+      <button class="botao botao--primario" type="submit" data-carregando>Salvar</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

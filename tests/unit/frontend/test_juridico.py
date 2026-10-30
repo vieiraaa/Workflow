@@ -50,6 +50,17 @@ CLIENTES = [
 ]
 PARTES = [{"valor": "0001655", "legenda": "sequencial"}, {"valor": "91", "legenda": "dígito"}, {"valor": "2025", "legenda": "ano"},
           {"valor": "8", "legenda": "estadual"}, {"valor": "16", "legenda": "TJPR"}, {"valor": "0024", "legenda": "origem"}]
+ABAS = [
+    {"chave": "aprovacoes", "rotulo": "Aprovações", "total": 4, "url": "?aba=aprovacoes", "ativa": False},
+    {"chave": "processamento", "rotulo": "Em processamento", "total": 2, "url": "?", "ativa": True},
+    {"chave": "cadastrados", "rotulo": "Cadastrados", "total": 1, "url": "?aba=cadastrados", "ativa": False},
+]
+ETAPAS = [
+    {"status": "", "rotulo": "Todos", "total": 2, "url": "?", "ativo": True},
+    {"status": "COM_PENDENCIAS", "rotulo": "Com pendências", "total": 1, "url": "?status=COM_PENDENCIAS", "ativo": False},
+    {"status": "CONFERIR", "rotulo": "Conferir", "total": 1, "url": "?status=CONFERIR", "ativo": False},
+]
+FILTROS = {"aba": "", "status": "", "carteira": "", "tribunal": "", "cnj": "", "q": "", "ordem": "", "audiencia": ""}
 OBRIG = [{"campo": c, "rotulo": c.title(), "ok": i != 2} for i, c in enumerate(("numero", "tribunal", "comarca", "juizo", "adverso", "valor", "distribuido"))]
 
 
@@ -71,8 +82,8 @@ def ficha(acao="conferir", **extra):
 def contexto_painel(**extra):
     base = {
         "fluxo": FLUXO, "clientes": CLIENTES, "filtro_audiencia": False, "atualizado_em": "16:42", "selecionado": ficha(),
-        "titulo_lista": "Processos · Todos", "consulta": "", "resumo": RESUMO,
-        "filtros": {"status": "", "carteira": "", "tribunal": "", "cnj": "", "q": "", "ordem": "", "audiencia": ""},
+        "titulo_lista": "Processos · Todos", "consulta": "", "resumo": RESUMO, "filtros": FILTROS,
+        "aba": "processamento", "abas": ABAS, "etapas": ETAPAS, "filtros_extra_n": 0, "url_limpar": "?",
         "processos": pagina([proc(1), proc(2, selecionado=False, status="COM_PENDENCIAS", status_rotulo="Com pendências", valor_texto="")]),
         "aviso_datajud": "", "atualizar_auto": False, "url_status": "/juridico/status/", "ultimos_envios": [],
         "pode_enviar": True, "pode_editar": True, "pode_configurar": True, "url_enviar_pdfs": "/juridico/enviar-pdfs/", "url_enviar_cnj": "/juridico/enviar-cnj/",
@@ -86,15 +97,22 @@ def contexto_painel(**extra):
 def test_painel_fluxo_clientes_lista_e_ficha(pedido):
     html = tela(pedido, "juridico/painel.html", **contexto_painel())
     assert HOSTIL not in html and "&lt;script&gt;" in html
-    for trecho in ("Painel de Processos", "Atualizado às 16:42 · 3 processos", "Entrada de PDFs", "em leitura", "com erro de leitura", "ver log",
-                   "processos extraídos", "% já cadastrados no Espaider", "falta campo obrigatório", "7 de 7 campos, revisão humana", "lançado no Espaider",
-                   "Clientes", "cadastrados / total", "1/3", "Processos · Todos (2)", "Audiências", "+ Enviar PDFs",
+    # D-053: entrada de PDFs só com algo em leitura/erro; "Adicionar processos" no lugar de "+ Enviar PDFs"; clientes num seletor;
+    # ficha sem o número decomposto e com "(obrigatório)" só para leitor de tela. D-063: abas com contagem, etapas viram chips,
+    # Entrada/CNJ/Ordem num botão "Filtros"; sem barra de progresso nem "% já cadastrados".
+    for trecho in ("Painel de Processos", "Atualizado às 16:42", "em leitura agora", "com erro de leitura", "ver log",
+                   'aria-label="Situação dos processos"', "Aprovações", "Em processamento", "Cadastrados", 'href="?aba=cadastrados"',
+                   'aria-label="Etapa do cadastro"', "Com pendências", "Conferir", "Filtros", "Entrada no sistema", "Situação no CNJ", "Ordem",
+                   "Clientes", "cadastrados / total", "1/3", "Processos · Todos (2)", "Audiências", "Adicionar processos", "Enviar PDFs para leitura",
                    "Com pendências · 2", "sem valor da causa", "<b>0001655</b>", "18/09/2026 10:00", 'aria-current="true"',
-                   "Detalhes do processo", "sequencial", "estadual", "TJPR", "6 de 7 campos obrigatórios", "✓ Marcar cadastrado no Espaider", "Editar",
-                   "não encontrado no PDF", "obg", "Agenda manual: crie a agenda da audiência no Espaider.", "out 2026", "Audiência de conciliação",
+                   "Detalhes do processo", "Próximo passo", "TJPR", "6 de 7 campos obrigatórios", "✓ Marcar cadastrado no Espaider", "Editar",
+                   "não encontrado no PDF", "(obrigatório)", "Agenda manual: crie a agenda da audiência no Espaider.", "out 2026", "Audiência de conciliação",
                    "Confere com o CNJ", "Ele some do painel; o histórico fica guardado.", "Confirmar exclusão", "***.111.222-**"):
         assert trecho in html, trecho
     assert 'aria-pressed="false"' in html and "data-status-url" not in html
+    assert "processos extraídos" not in html and "barra--" not in html and "Últimos envios" not in html
+    # aba ativa com aria-current="true" (o "page" é do menu lateral); Aprovações com pendentes ganha destaque
+    assert 'aria-current="true" data-aba="processamento"' in html and "pn-aba--alerta" in html
     # Audiências é neutro (secundário), com a contagem em fonte numérica; a urgência fica no chip de data da lista
     assert 'class="botao botao--secundario" role="button"' in html and '<b class="qtd">(5)</b>' in html and "botao--alerta" not in html
     assert "proc__aud--urgente" in html
@@ -102,11 +120,41 @@ def test_painel_fluxo_clientes_lista_e_ficha(pedido):
 
 
 def test_painel_etapa_ativa_filtra_e_limpa(pedido):
-    html = tela(pedido, "juridico/painel.html", **contexto_painel(filtros={"status": "CONFERIR", "carteira": "1", "tribunal": "", "cnj": "", "q": "", "ordem": "", "audiencia": ""}))
-    # as etapas são botões de um form GET: a ativa envia status vazio (limpa) e as demais enviam o seu; a carteira é preservada
-    assert '<button class="etapa etapa--conf" type="submit" name="status" value="" aria-pressed="true"' in html
-    assert 'name="status" value="COM_PENDENCIAS" aria-pressed="false"' in html and '<input type="hidden" name="carteira" value="1">' in html
-    assert "barra--filtrando" in html and 'class="barra--conf on"' in html
+    etapas = [dict(e, ativo=e["status"] == "CONFERIR") for e in ETAPAS]
+    html = tela(pedido, "juridico/painel.html", **contexto_painel(etapas=etapas, filtros=dict(FILTROS, status="CONFERIR", carteira="1")))
+    # D-063: as etapas são chips (links GET) só na aba Em processamento; "Todos" limpa; a busca preserva status e carteira
+    assert 'href="?status=CONFERIR" aria-current="true" data-status="CONFERIR"' in html
+    assert 'href="?" aria-current="false" data-status=""' in html
+    assert '<input type="hidden" name="carteira" value="1">' in html and '<input type="hidden" name="status" value="CONFERIR">' in html
+
+
+def test_painel_filtros_extra_conta_e_limpa(pedido):
+    html = tela(pedido, "juridico/painel.html", **contexto_painel(filtros_extra_n=2, url_limpar="?aba=cadastrados"))
+    assert '<b class="num">(2)</b>' in html and "Limpar filtros" in html
+    assert 'pn-filtros-extra__limpar" role="menuitem" href="?aba=cadastrados"' in html
+    assert "Limpar filtros" not in tela(pedido, "juridico/painel.html", **contexto_painel())
+
+
+def test_painel_aba_cadastrados_sem_etapas_e_vazio_proprio(pedido):
+    abas = [dict(a, ativa=a["chave"] == "cadastrados") for a in ABAS]
+    html = tela(pedido, "juridico/painel.html", **contexto_painel(
+        aba="cadastrados", abas=abas, etapas=[], processos=pagina([]), selecionado=None, filtros=dict(FILTROS, aba="cadastrados")))
+    assert 'aria-label="Etapa do cadastro"' not in html and "em leitura agora" not in html
+    assert "Nenhum processo concluído ainda." in html
+    assert '<input type="hidden" name="aba" value="cadastrados">' in html
+
+
+def test_painel_aba_aprovacoes_mostra_a_fila_e_o_importar(pedido):
+    abas = [dict(a, ativa=a["chave"] == "aprovacoes") for a in ABAS]
+    html = tela(pedido, "juridico/painel.html", **contexto_painel(
+        aba="aprovacoes", abas=abas, itens=pagina([]), pendentes=True, q="", status_atual="pendente", total_pendentes=0,
+        ultima_chegada="", filtros_status=[{"rotulo": "Pendentes", "url": "?aba=aprovacoes", "ativo": True}],
+        url_api_log="/juridico/api-log/", url_importar="/juridico/aprovacoes/importar/", lote_atual=""))
+    for trecho in ("Nada esperando aprovação", "Importar carga", "Log da API", 'data-modal-abrir="modal-importar-carga"',
+                   '<input type="hidden" name="aba" value="aprovacoes">', "js/aprovacoes.js"):
+        assert trecho in html, trecho
+    assert "Detalhes do processo" not in html and 'aria-label="Etapa do cadastro"' not in html
+    assert "{#" not in html and "views_aprovacoes" not in html  # comentário do componente não vaza
 
 
 def test_painel_audiencias_alterna_filtro(pedido):
@@ -123,9 +171,9 @@ def test_painel_com_fila_liga_auto_atualizacao(pedido):
 
 def test_painel_vazio_e_filtrado(pedido):
     vazio = tela(pedido, "juridico/painel.html", **contexto_painel(processos=pagina([]), selecionado=None))
-    assert "Nenhum processo cadastrado ainda. Envie os PDFs ou cadastre pelo número." in vazio and "Nenhum processo selecionado" in vazio
+    assert "Nada para processar." in vazio and "Nenhum processo selecionado" in vazio
     filtrado = tela(pedido, "juridico/painel.html", **contexto_painel(
-        processos=pagina([]), selecionado=None, filtros={"status": "CONFERIR", "carteira": "", "tribunal": "", "cnj": "", "q": "zz", "ordem": "", "audiencia": ""}))
+        processos=pagina([]), selecionado=None, filtros=dict(FILTROS, status="CONFERIR", q="zz")))
     assert "Nenhum processo com esses filtros. Limpe a busca ou escolha outro cliente." in filtrado
 
 
@@ -133,7 +181,7 @@ def test_painel_sem_permissoes_esconde_acoes(pedido):
     html = tela(pedido, "juridico/painel.html", **contexto_painel(
         pode_enviar=False, pode_editar=False, pode_configurar=False, audiencias_urgente=False,
         selecionado=ficha(pode_editar=False, pode_marcar=False)))
-    assert "+ Enviar PDFs" not in html and "Cadastro manual" not in html and "Configuração" not in html
+    assert "Adicionar processos" not in html and "Cadastro manual" not in html and "Configuração" not in html
     assert "Marcar cadastrado" not in html and "Confirmar exclusão" not in html
 
 
@@ -145,7 +193,7 @@ def test_ficha_por_status(pedido):
     cad = tela(pedido, "juridico/painel.html", **contexto_painel(selecionado=ficha("cadastrado", audiencia=None, cnj={"valido": False, "partes": [], "sigla": ""},
                                                                                        cnj_info={"situacao": "falhou", "rotulo": "Falhou", "divergencias": [], "mensagem": "Tribunal não suportado no DataJud.", "consultado_em": ""})))
     assert "✓ Cadastrado no Espaider em 03/10/2026" in cad and "Marcar cadastrado" not in cad and "Agenda manual" not in cad
-    assert "Tribunal não suportado no DataJud." in cad and 'class="cnj-texto"' in cad
+    assert "Tribunal não suportado no DataJud." in cad and 'class="ficha__numero"' in cad  # número como veio, sem decompor (D-053)
 
 
 def grupos_form(form):

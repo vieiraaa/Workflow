@@ -36,6 +36,23 @@
   });
 
   /* Painel: contagens a cada 10 s enquanto houver itens do usuário em andamento (o fluxo e as etapas se atualizam sozinhos). */
+  /* Lista do painel com rolagem própria (D-055): guarda a posição ao escolher um processo e volta
+     para ela depois do recarregamento; sem posição guardada, traz o selecionado para a área visível. */
+  var lista = document.querySelector("[data-pn-lista]");
+  if (lista && lista.scrollHeight > lista.clientHeight) {
+    var chave = "painel-lista:" + location.pathname, guardado = null;
+    try { guardado = sessionStorage.getItem(chave); sessionStorage.removeItem(chave); } catch (e) { /* sem storage: segue */ }
+    var sel = lista.querySelector('.proc[aria-current="true"]');
+    if (guardado !== null) lista.scrollTop = parseInt(guardado, 10) || 0;
+    if (sel && (sel.offsetTop < lista.scrollTop || sel.offsetTop + sel.offsetHeight > lista.scrollTop + lista.clientHeight)) {
+      lista.scrollTop = Math.max(0, sel.offsetTop - lista.clientHeight / 3);
+    }
+    lista.addEventListener("click", function (ev) {
+      if (!ev.target.closest("a[data-href-desktop]")) return;
+      try { sessionStorage.setItem(chave, String(lista.scrollTop)); } catch (e) { /* sem storage: segue */ }
+    });
+  }
+
   var painel = document.querySelector("[data-painel][data-status-url]");
   if (painel) {
     var aviso = painel.querySelector("[data-painel-aviso]"), texto = painel.querySelector("[data-painel-aviso-texto]");
@@ -47,8 +64,6 @@
           var el = painel.querySelector('[data-resumo="' + k + '"]');
           if (el && d[k] != null) el.textContent = String(d[k]);
         });
-        var pct = painel.querySelector('[data-pct="pct_cadastrados"]');
-        if (pct && d.total) pct.textContent = String(Math.floor(d.cadastrados * 100 / d.total));
         if (totalInicial === null) totalInicial = d.total;
         if (d.total !== totalInicial) { aviso.hidden = false; texto.textContent = "Há processos novos."; }
         if (d.em_andamento) return true;

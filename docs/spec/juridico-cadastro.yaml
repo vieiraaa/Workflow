@@ -159,11 +159,14 @@ regras:
   - id: CAD-10
     texto: >
       Validação no CNJ (DataJud), depois da extração e no caminho CNJ: só com numero_valido; alias pelo número como no
-      nó "Preparar consulta CNJ" (J=8 tj<uf>, 4 trfN, 5 trtN, 6 tre-<uf>; sem alias → cnj_validacao=falhou com
+      nó "Preparar consulta CNJ" (J=8 tj<uf>, 4 trfN, 5 trtN, 6 tre-<uf>; rev. D-050: também 3.00 stj, 5.00 tst,
+      6.00 tse, 7.00 stm, 9.13 tjmmg, 9.21 tjmrs, 9.26 tjmsp, os 91 índices da wiki oficial; sem alias → cnj_validacao=falhou com
       "Tribunal não suportado no DataJud."). POST {datajud_url}/api_publica_<alias>/_search {query:{match:{numeroProcesso}},size:1},
       prazo 30 s, no máximo 1 consulta a cada 1,5 s. Achou → compara tribunal, distribuído em e comarca (sem acento/caixa;
       comarca: contida no nome do órgão julgador): tudo igual → `confere`; diferente → `divergente` + pendência
-      "Divergência com o CNJ: <campo> (PDF: x · CNJ: y)". Não achou → `nao_encontrado` (alerta "Não encontrado no DataJud:
+      "Divergência com o CNJ: <campo> (PDF: x · CNJ: y)" [REVISADO D-056: a divergência NÃO vira pendência nem muda o
+      status; vale sempre o PDF; fica em cnj_divergencias e aparece como aviso "! DataJud diverge" na lista e "Diverge do
+      CNJ … vale o PDF" na ficha]. Não achou → `nao_encontrado` (alerta "Não encontrado no DataJud:
       segredo de justiça ou ainda não indexado.", sem pendência). 401/403 → `falhou` + erro no Log "Chave do DataJud
       recusada: atualize a credencial em Configuração." e aviso no painel para o Adm. Outras falhas → `falhou`, o
       processo é gravado mesmo assim.
@@ -294,6 +297,24 @@ regras:
       ausente → "sem valor da causa" em --pend); linha selecionada aria-current; vazio: "Nenhum processo com esses filtros.
       Limpe a busca ou escolha outro cliente." Larguras: < 1240 px clientes viram grade acima; < 900 px uma coluna e a
       lateral vira barra no topo.
+  - id: CAD-24R
+    texto: >
+      REVISÃO D-053 (26/10, pedido do usuário: "muita informação grande que se perde se for novo no processo"), prevalece
+      sobre a CAD-24/25 onde divergir; contexto da CAD-27 inalterado. Topo: "Audiências (n)", "Menu" (lista de audiências,
+      envios, log de erros, configuração) e "Adicionar processos" (primário; Enviar PDFs para leitura, Cadastrar pelo nº
+      (CNJ), Cadastro manual). Entrada de PDFs só aparece com algo em leitura ou com erro ("N em leitura agora…",
+      "N com erro de leitura · ver log"). Etapas viram o filtro principal (mesmos botões aria-pressed), com legendas em
+      português simples: "falta preencher algum dado", "revisar e lançar no Espaider", "já está no Espaider"; ao lado,
+      "N processos extraídos · P% já cadastrados no Espaider" e a barra proporcional fina. Clientes, CNJ e Ordem viram
+      seletores numa barra de filtros com a busca (cada cliente mantém "cadastrados/total" e a minibarra). Duas colunas:
+      lista (parte em destaque; número com o sequencial em negrito; "comarca · valor"; status e selos D-052 à direita) e
+      ficha. Ficha: título = adverso; número numa linha com botão de copiar (o número decomposto sai da tela, segue no
+      contexto); "carteira · tribunal · fase"; bloco PRÓXIMO PASSO pelo status com a ação principal (Completar campos +
+      Abrir PDF / ✓ Marcar cadastrado no Espaider + Editar / ✓ Cadastrado no Espaider em DD/MM/AAAA + Editar); os 7
+      obrigatórios como marcações ✓/× com "N de 7 campos obrigatórios"; Partes e Processo lado a lado ("obrigatório" só
+      para leitor de tela; o vazio segue "não encontrado no PDF"); audiência como antes; Conferências: faixa do CNJ (com
+      "Consultar CNJ" para quem edita, exceto quando confere) e Espaider; rodapé "Ver ficha completa e andamentos" e
+      Excluir (lixeira, com confirmação).
   - id: CAD-25
     texto: >
       FICHA (coluna da direita do painel, processo selecionado): (a) linha "carteira · tribunal · fase <fase>"; (b) NÚMERO CNJ
@@ -324,6 +345,44 @@ regras:
       [{valor, legenda}], sigla}, obrigatorios [{campo, rotulo, ok}], obrig_ok, acao (conferir|pendencias|cadastrado),
       url_editar, url_pdf|None, url_marcar, audiencia {dia, mes_ano, hora, tipo, local}|None, cnj_situacao). Queries
       constantes (contagens agregadas no banco). Datas DD/MM/AAAA, dinheiro R$ 1.234,56.
+  - id: CAD-28
+    texto: >
+      PAINEL EM ABAS (D-063, 27/10; prevalece sobre CAD-24/24R onde divergir). Três abas no topo do painel, links GET
+      `?aba=aprovacoes|processamento|cadastrados` (ausente ou inválido → processamento), cada uma com rótulo + número
+      (--font-num); a ativa com aria-current="true" (o "page" fica com o menu lateral). (a) EM PROCESSAMENTO = processos
+      ainda não concluídos (hoje status Com pendências + Conferir); mostra a faixa "N em leitura agora / N com erro de
+      leitura · ver log" (só quando houver) e chips "Todos (n) · Com pendências (n) · Conferir (n)" (?status=, aria-pressed).
+      (b) CADASTRADOS = processos CONCLUÍDOS: lançados no CSLog E no Espaider (o CSLog vem antes). Até o CSLog existir no
+      modelo, concluído = status CADASTRADO; a regra fica num só lugar (QuerySet: em_processamento() / concluidos()),
+      e o que está no Espaider sem CSLog conta como Em processamento quando o CSLog entrar. Sem chips; só leitura além de
+      Editar/Desfazer que já existem. (c) APROVAÇÕES = tudo o que era a TEL-37 (D-048/D-060): filtro de situação
+      (pendente|aprovado|descartado|todos, padrão pendente), busca, lote, seleção, aprovar com carteira, descartar,
+      "Importar carga", link do log da API; número da aba = Recebimentos pendentes. Só existe para quem tem
+      cadastro.aprovar; ?aba=aprovacoes sem a permissão → 403 do produto. juridico:aprovacoes (GET) → 302 para
+      juridico:painel?aba=aprovacoes com a mesma querystring (status, q, lote, pagina); aprovar/descartar/importar seguem nas
+      mesmas rotas POST e voltam para a aba. Item "Aprovações" sai do menu lateral; o contador de pendentes passa para
+      "Cadastro de processos" (só para quem aprova); o aviso da Home aponta para a aba. NAS ABAS DE PROCESSO: barra de
+      filtros com busca + Cliente (mantém cadastrados/total e minibarra) + botão "Filtros (n)" que abre Entrada, CNJ e Ordem
+      (n = quantos fora do padrão; "Limpar filtros" dentro); lista + ficha como hoje; "Audiências (n)" continua no topo e
+      filtra a aba atual. Trocar entre Em processamento e Cadastrados mantém cliente, entrada, CNJ, busca e ordem (o status
+      cai); ir para/voltar de Aprovações limpa os filtros. ?p= de processo que não é da aba → ficha vazia ("Nenhum processo
+      selecionado"). Depois de "Marcar cadastrado" volta para Em processamento sem seleção, com a mensagem "Processo <nº>
+      cadastrado: foi para Cadastrados." (vale para o botão da ficha do painel, campo
+      voltar=painel; na conferência segue como antes). SAEM do painel: barra de progresso, "N processos extraídos
+      · P%", os 3 cartões de etapa, o aviso de aprovações e "Últimos envios" (Envios segue no Menu). Vazios por aba: nada no
+      cadastro → o da CAD-16 ("Nenhum processo cadastrado ainda…"); Em processamento vazio "Nada para processar." · Cadastrados "Nenhum processo concluído ainda." ·
+      Aprovações os da TEL-37. Celular (< 600 px): as 3 abas numa linha (rótulo curto + número) sem rolagem horizontal da
+      página. Atualização automática (juridico:status) passa a trazer os totais das abas.
+  - id: CAD-29
+    texto: >
+      Contexto do painel em abas (acrescenta à CAD-27): `aba` (aprovacoes|processamento|cadastrados), `abas` [{chave,
+      rotulo, total, url, ativa}] (sem Aprovações para quem não aprova), `filtros_extra_n` (int, para "Filtros (n)"),
+      `url_limpar`. Aba processamento: `fluxo` {em_leitura, erros_leitura, url_erros, com_pendencias, conferir, total} e
+      `etapas` [{status, rotulo, total, url, ativo}]. Aba aprovacoes: o mesmo contexto da AprovacoesView (TEL-37) com os
+      mesmos nomes. `ultimos_envios` e `fluxo.pct_cadastrados` continuam no contexto (CAD-19/27), mas não
+      aparecem mais na tela; `fluxo.cadastrados` passa a contar concluídos.
+      Totais das abas de processo respeitam cliente, entrada, CNJ, busca e audiência; o de Aprovações é o total de
+      pendentes. Queries constantes por aba.
 
 contrato:
   app: "app label juridico; modelos Carteira, ConfigCadastro, Processo, Envio, ItemEnvio em apps.juridico.models; ConfigCadastro.obter() devolve a linha única (cria se faltar). Testes podem preparar estado pelo ORM (config, carteiras, usuários, processos); a verificação é pelas telas/rotas e pelos modelos acima."

@@ -27,6 +27,22 @@ MSG_TLS_DIFY = (
 )
 MSG_DIFY_RECUSOU = "O Dify recusou a chave: confira a credencial em Configuração."
 MSG_DATAJUD_RECUSOU = "Chave do DataJud recusada: atualize a credencial em Configuração."
+# Motivo por extenso de cada resposta de erro do DataJud (D-058): a tela mostra o porquê,
+# não só o código.
+MOTIVOS_DATAJUD = {
+    400: "o DataJud recusou a consulta como inválida (erro 400)",
+    404: "o DataJud não tem o índice deste tribunal (erro 404)",
+    408: "o DataJud demorou demais para responder (erro 408)",
+    429: (
+        "limite de consultas do DataJud atingido (erro 429: muitas consultas em pouco tempo); "
+        "o sistema tentou de novo e o CNJ seguiu recusando. Aguarde alguns minutos e use "
+        "'Consultar CNJ'"
+    ),
+    500: "erro interno no DataJud (erro 500); o problema é do lado do CNJ",
+    502: "o DataJud está fora do ar ou instável (erro 502)",
+    503: "o DataJud está fora do ar ou em manutenção (erro 503)",
+    504: "o DataJud demorou demais para responder (erro 504)",
+}
 RE_PEM = re.compile(
     r"-----BEGIN CERTIFICATE-----[A-Za-z0-9+/=\s]+-----END CERTIFICATE-----", re.MULTILINE
 )
@@ -296,10 +312,32 @@ def _respeitar_intervalo():
         _ultima_consulta[0] = time.monotonic()
 
 
+def motivo_datajud(status):
+    """'A consulta ao DataJud falhou: <motivo>.' para um status HTTP de erro (D-058)."""
+    motivo = MOTIVOS_DATAJUD.get(status)
+    if motivo is None:
+        lado = "do lado do CNJ" if status >= 500 else "a consulta não foi aceita"
+        motivo = f"o DataJud respondeu com o erro {status} ({lado})"
+    return f"A consulta ao DataJud falhou: {motivo}."
+
+
+def _espera_429(resposta, padrao):
+    """Segundos até tentar de novo: Retry-After (até 30 s) quando vier, senão o padrão."""
+    try:
+        pedido = float(resposta.get("headers", {}).get("retry-after", ""))
+    except ValueError:
+        return padrao
+    return max(padrao, min(pedido, 30.0))
+
+
 class DataJud:
     def __init__(self, config):
         self.base = config.datajud_url
         self.cabecalho, self.segredos = _cabecalho(config.datajud_credencial, "header", "DataJud")
+        # O DataJud exige "APIKey <chave>"; a chave colada sozinha também vale (D-051).
+        valor = self.cabecalho["valor"].strip()
+        if self.cabecalho["nome"].lower() == "authorization" and valor and " " not in valor:
+            self.cabecalho["valor"] = f"APIKey {valor}"
         self.prazo = float(settings.JURIDICO_DATAJUD_TIMEOUT_S)
 
     def consultar(self, alias, digitos):
@@ -309,21 +347,30 @@ class DataJud:
             {"nome": "Content-Type", "valor": "application/json"},
             {"nome": self.cabecalho["nome"], "valor": self.cabecalho["valor"]},
         ]
-        _respeitar_intervalo()
-        try:
-            resposta = _requisitar(
-                _juntar(self.base, f"api_publica_{alias}/_search"),
-                metodo="POST",
-                headers=headers,
-                corpo=corpo,
-                prazo_s=self.prazo,
-            )
-        except http_motor.ErroHttp as erro:
-            raise _falha_de_rede(erro, "DataJud") from None
+        # 429 (limite de consultas): espera e tenta de novo algumas vezes antes de desistir (D-058).
+        esperas = list(settings.JURIDICO_DATAJUD_ESPERAS_429_S)
+        while True:
+            _respeitar_intervalo()
+            try:
+                resposta = _requisitar(
+                    _juntar(self.base, f"api_publica_{alias}/_search"),
+                    metodo="POST",
+                    headers=headers,
+                    corpo=corpo,
+                    prazo_s=self.prazo,
+                )
+            except http_motor.ErroHttp as erro:
+                falha = _falha_de_rede(erro, "DataJud")
+                if erro.categoria != "tls":
+                    falha.mensagem = f"Não foi possível falar com o DataJud: {falha.mensagem}."
+                raise falha from None
+            if resposta["status"] != 429 or not esperas:
+                break
+            time.sleep(_espera_429(resposta, float(esperas.pop(0))))
         if resposta["status"] in (401, 403):
             raise ErroCliente("recusada", MSG_DATAJUD_RECUSOU)
         if not 200 <= resposta["status"] < 300:
-            raise ErroCliente("http", f"O DataJud respondeu {resposta['status']}")
+            raise ErroCliente("http", motivo_datajud(resposta["status"]))
         dados = _json(resposta)
         try:
             hits = dados["hits"]["hits"]

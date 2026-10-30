@@ -31,8 +31,9 @@ def test_painel_vazio_mostra_a_mensagem(cad, ver):
 
 
 def test_painel_estrutura_barra_superior_e_contadores(cad, ver):
-    """CAD-16 (barra superior continua) + CAD-24 (contadores agora na esteira): título 'Painel de Processos', Menu, 'Audiências (N)', Atualizar;
-    contagens em 'N processos extraídos', '33% já cadastrados no Espaider' e nas três etapas (antes: 'N processos · N com pendências · N cadastrados')."""
+    """CAD-16 (barra superior continua) + CAD-28 (contadores nas abas e nas etapas da aba Em processamento): título 'Painel de Processos', Menu,
+    'Audiências (N)', Atualizar; 'Em processamento N', 'Cadastrados N', chips 'Com pendências N' e 'Conferir N' (antes: esteira com 'N processos
+    extraídos', '33% já cadastrados no Espaider' e três etapas, D-063)."""
     criar_processo(cad, numero=_num(1))
     criar_processo(cad, numero=_num(2), status="COM_PENDENCIAS", pendencias=["Verificar: Juízo"])
     criar_processo(cad, numero=_num(3), status="CADASTRADO")
@@ -42,9 +43,8 @@ def test_painel_estrutura_barra_superior_e_contadores(cad, ver):
         assert trecho in t, trecho
     f = r.context["fluxo"]
     assert (f["com_pendencias"], f["conferir"], f["cadastrados"], f["total"]) == (1, 1, 1, 3)
-    assert re.search(r"\b3 processos extraídos\b", t) and "33% já cadastrados no Espaider" in t
-    for numero, nome in ((1, "Com pendências"), (1, "Conferir"), (1, "Cadastrado")):
-        assert re.search(rf"\b{numero}\b\s*{nome}", t), nome
+    for nome, numero in (("Em processamento", 2), ("Cadastrados", 1), ("Com pendências", 1), ("Conferir", 1)):
+        assert re.search(rf"{nome}\s*{numero}\b", t), nome
 
 
 def test_menu_do_painel_tem_as_entradas_da_spec_e_config_so_para_adm(cad, ver):
@@ -132,7 +132,8 @@ def test_datas_sempre_dd_mm_aaaa_nunca_iso(cad, ver):
     assert "15/03/2022" in t and "2022-03-15" not in t and "2022-04-20" not in t and "44635" not in t
     assert f"{timezone.localtime(quando):%d/%m/%Y %H:%M}" in t                     # chip de audiência na lista
     c = criar_processo(cad, numero=cnj(8888), status="CADASTRADO", cadastrado_espaider_em=timezone.now(), cadastrado_espaider_por=cad.ana_u)
-    assert f"Cadastrado no Espaider em {timezone.localtime(c.cadastrado_espaider_em):%d/%m/%Y}" in ver.texto(_painel(cad.ana, p=c.pk))
+    # CAD-28: o cadastrado está na aba Cadastrados
+    assert f"Cadastrado no Espaider em {timezone.localtime(c.cadastrado_espaider_em):%d/%m/%Y}" in ver.texto(_painel(cad.ana, p=c.pk, aba="cadastrados"))
     assert "15/03/2022" in ver.texto(cad.ana.get(reverse("juridico:processo", kwargs={"pk": p.pk})))
 
 
@@ -169,18 +170,20 @@ def test_busca_por_numero_adverso_documento_comarca_e_empresa(cad, ver):
 
 
 def test_filtros_status_e_cnj_e_ordem(cad, ver):
-    """CAD-16: ?status=, ?cnj=, ?ordem= (atualizado padrão, numero, distribuido)."""
+    """CAD-16: ?status=, ?cnj=, ?ordem= (atualizado padrão, numero, distribuido). CAD-28: Cadastrado virou a aba ?aba=cadastrados; status, CNJ
+    e ordem valem dentro da aba (padrão: Em processamento)."""
     a = criar_processo(cad, numero=_num(3), status="CONFERIR", cnj_validacao="confere", distribuido_em="2020-01-01")
     b = criar_processo(cad, numero=_num(1), status="COM_PENDENCIAS", cnj_validacao="divergente", distribuido_em="2023-01-01")
     c = criar_processo(cad, numero=_num(2), status="CADASTRADO", cnj_validacao="nao_encontrado", distribuido_em="2021-01-01")
 
     def pks(**q):
         return ver.pks(_painel(cad.ana, **q).context["processos"])
-    assert pks(status="COM_PENDENCIAS") == [b.pk] and pks(status="CADASTRADO") == [c.pk] and pks(status="CONFERIR") == [a.pk]
-    assert pks(cnj="divergente") == [b.pk] and pks(cnj="confere") == [a.pk]
-    assert pks(ordem="numero") == sorted([a.pk, b.pk, c.pk], key=lambda k: {a.pk: a.numero_digitos, b.pk: b.numero_digitos, c.pk: c.numero_digitos}[k])
-    assert pks(ordem="distribuido") in ([b.pk, c.pk, a.pk], [a.pk, c.pk, b.pk])
-    assert pks() == [x.pk for x in cad.Processo.objects.order_by("-atualizado_em")]
+    assert pks(status="COM_PENDENCIAS") == [b.pk] and pks(aba="cadastrados") == [c.pk] and pks(status="CONFERIR") == [a.pk]
+    assert pks(cnj="divergente") == [b.pk] and pks(cnj="confere") == [a.pk] and pks(cnj="nao_encontrado", aba="cadastrados") == [c.pk]
+    assert pks(cnj="nao_encontrado") == []
+    assert pks(ordem="numero") == sorted([a.pk, b.pk], key=lambda k: {a.pk: a.numero_digitos, b.pk: b.numero_digitos}[k])
+    assert pks(ordem="distribuido") in ([b.pk, a.pk], [a.pk, b.pk])
+    assert pks() == [x.pk for x in cad.Processo.objects.exclude(pk=c.pk).order_by("-atualizado_em")]
 
 
 def test_paginacao_de_25_e_queries_constantes(cad):

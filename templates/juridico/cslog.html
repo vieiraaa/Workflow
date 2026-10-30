@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% load static %}
+{% block estilos %}<link rel="stylesheet" href="{% static 'css/juridico.css' %}">{% endblock %}
+{% block scripts %}<script src="{% static 'js/cslog.js' %}" defer></script>{% endblock %}
+{% block titulo %}CSLOG · Construtor de Workflows{% endblock %}
+{% block titulo_pagina %}CSLOG{% endblock %}
+{% block subtitulo %}<p class="topbar__sub">Marque os processos e gere o processo.csv para importar no CSLOG.</p>{% endblock %}
+{% block conteudo %}
+{% if baixar_url %}<a class="sr-only" href="{{ baixar_url }}" data-cslog-baixar>Baixar o arquivo gerado</a>{% endif %}
+<form class="filtros" method="get" role="search">
+  <div class="campo filtros__busca">
+    <label class="sr-only" for="busca">Buscar por número ou autor</label>
+    <input id="busca" type="search" name="q" value="{{ q }}" placeholder="Buscar por número ou autor" maxlength="100">
+  </div>
+  {% if situacao %}<input type="hidden" name="situacao" value="{{ situacao }}">{% endif %}
+  {% include "componentes/botao.html" with rotulo="Buscar" icone="search" tipo="submit" %}
+  {% include "componentes/segmentado.html" with opcoes=filtros_situacao rotulo_acessivel="Situação no CSLOG" %}
+</form>
+
+<div class="cslog">
+<div class="card card--semrecuo">
+  {% if processos %}
+  <form method="post" action="{{ url_gerar }}" data-cslog>
+    {% csrf_token %}<input type="hidden" name="consulta" value="{{ consulta }}">
+    {% if pode_gerar %}
+    <div class="aprovacoes__acoes cslog__acoes">
+      <p class="aprovacoes__selecao texto-2" data-cslog-contagem aria-live="polite">Marque os processos que vão para o CSLOG.</p>
+      <button class="botao botao--primario" type="submit" data-cslog-acao data-carregando data-texto-carregando="Gerando…">{% include "componentes/icone.html" with nome="file-down" tamanho=16 %}<span>Gerar processo.csv</span></button>
+    </div>
+    {% endif %}
+    <div class="tabela-rolagem"><table class="tabela tabela--cslog">
+      <thead><tr>
+        {% if pode_gerar %}<th scope="col" class="ap-sel"><input type="checkbox" data-cslog-todos aria-label="Selecionar todos os processos desta página"></th>{% endif %}
+        <th scope="col">Processo</th>
+        <th scope="col">Local</th>
+        <th scope="col">Tipo de ação no CSLOG</th>
+        <th scope="col">Situação</th>
+      </tr></thead>
+      <tbody>
+        {% for p in processos %}
+        <tr class="tabela__linha">
+          {% if pode_gerar %}<td class="ap-sel">{% if p.bloqueio %}<input type="checkbox" disabled aria-label="{{ p.numero }}: {{ p.bloqueio }}">{% else %}<input type="checkbox" name="ids" value="{{ p.pk }}" data-cslog-item aria-label="Selecionar {{ p.numero }}">{% endif %}</td>{% endif %}
+          <td class="cs-proc">
+            <a class="ap-numero" href="{{ p.url_detalhe }}">{{ p.numero|default:"Sem número" }}</a>
+            <span class="ap-sub">{{ p.autor|default:"Autor não informado" }}</span>
+            <span class="ap-sub texto-2 num">{{ p.cpf|default:"sem CPF/CNPJ" }}</span>
+          </td>
+          <td class="cs-local">{{ p.comarca|default:"—" }}{% if p.uf %} <span class="texto-2">· {{ p.uf }}</span>{% endif %}</td>
+          <td class="cs-tipo">
+            {% if pode_gerar and not p.bloqueio %}
+            <div class="campo campo__select">
+              <label class="sr-only" for="tipo-{{ p.pk }}">Tipo de ação no CSLOG de {{ p.numero }}</label>
+              <select id="tipo-{{ p.pk }}" name="tipo_{{ p.pk }}">{% for grupo, opcoes in tipos_grupos %}<optgroup label="{{ grupo }}">{% for chave, rotulo in opcoes %}<option value="{{ chave }}"{% if chave == p.tipo %} selected{% endif %}>{{ rotulo }}</option>{% endfor %}</optgroup>{% endfor %}</select>{% include "componentes/icone.html" with nome="chevron-down" tamanho=16 %}
+            </div>
+            {% endif %}
+            <span class="ap-sub texto-2">{% if p.classe %}Classe: {{ p.classe }} · {% endif %}{{ p.tipo_motivo }}</span>
+          </td>
+          <td class="cs-situacao">
+            {% if p.bloqueio %}<span class="chip chip--erro">{{ p.bloqueio }}</span>
+            {% elif p.ultimo_csv %}<span class="chip chip--ok">CSV gerado em {{ p.ultimo_csv }}</span>
+            {% else %}<span class="chip">Sem CSV</span>{% endif %}
+            {% if p.faltando and not p.bloqueio %}<span class="ap-sub cs-faltando">Faltando: {{ p.faltando|join:", " }}</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+  </form>
+  {% include "componentes/paginacao.html" %}
+  {% elif q %}
+  {% include "componentes/vazio.html" with icone="search" titulo="Nada encontrado" texto="Nenhum processo para esta busca. Tente outros termos." acao_rotulo="Limpar busca" acao_url="?" %}
+  {% elif situacao == "gerados" %}
+  {% include "componentes/vazio.html" with icone="file-spreadsheet" titulo="Nenhum CSV gerado ainda" texto="Os processos que já foram para um processo.csv aparecem aqui." %}
+  {% else %}
+  {% include "componentes/vazio.html" with icone="file-spreadsheet" titulo="Nenhum processo esperando o CSLOG" texto="Quando novos processos entrarem no cadastro, eles aparecem aqui para gerar o processo.csv." %}
+  {% endif %}
+</div>
+
+<aside class="card cslog__arquivos" aria-labelledby="cslog-arquivos-titulo">
+  <h2 id="cslog-arquivos-titulo" class="cslog__titulo">Arquivos gerados</h2>
+  {% if arquivos %}
+  <ul class="cslog__lista">{% for a in arquivos %}
+    <li class="cslog__arquivo">
+      <span><b class="num">{{ a.quantidade }}</b> processo{{ a.quantidade|pluralize }} · <span class="num">{{ a.quando }}</span><span class="ap-sub texto-2">por {{ a.por }}</span></span>
+      <a class="botao botao--secundario" href="{{ a.url }}" aria-label="Baixar o processo.csv de {{ a.quando }}">{% include "componentes/icone.html" with nome="download" tamanho=16 %}<span>Baixar</span></a>
+    </li>{% endfor %}
+  </ul>
+  {% else %}
+  <p class="texto-2 cslog__nada">Nenhum arquivo gerado ainda.</p>
+  {% endif %}
+  <details class="cslog__colunas">
+    <summary>Colunas do processo.csv ({{ colunas|length }})</summary>
+    <p class="texto-2">Separador “;”, UTF-8. {{ colunas|join:" · " }}</p>
+  </details>
+</aside>
+</div>
+{% endblock %}

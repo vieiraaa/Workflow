@@ -1,53 +1,68 @@
-{# Ficha do processo selecionado (CAD-25/27). f = `selecionado` do painel. Mutação só POST + CSRF. #}
+{# Ficha do processo selecionado (CAD-25/27; D-053: quem é + "Próximo passo" no topo, obrigatórios como marcações, dados em duas colunas, conferências CNJ/Espaider). f = `selecionado` do painel. Mutação só POST + CSRF. #}
 {% with p=f.processo %}
-<section class="pn pn--ficha" aria-label="Detalhes do processo" aria-live="polite">
-  <div class="ficha-topo">
-    <div class="k">{{ p.carteira|default:"Sem carteira" }} · {{ p.tribunal|default:"—" }}{% if p.fase %} · fase {{ p.fase }}{% endif %}</div>
-    {% if f.cnj.valido %}
-    <div class="cnj" role="group" aria-label="Número CNJ {{ p.numero }}">{% for parte in f.cnj.partes %}<div{% if forloop.counter == 5 %} class="cnj__tr"{% endif %}><b>{{ parte.valor }}</b><span>{{ parte.legenda }}</span></div>{% if not forloop.last %}<i aria-hidden="true">{% if forloop.first %}-{% else %}.{% endif %}</i>{% endif %}{% endfor %}</div>
-    {% else %}
-    <div class="cnj-texto">{{ p.numero }}</div>
-    {% endif %}
-    <div class="situacao">
-      <span class="chip-status chip-status--{% if f.acao == 'cadastrado' %}ok{% elif f.acao == 'conferir' %}conf{% else %}pend{% endif %}">{{ p.status_rotulo }}</span>
-      <span class="obrig"><span class="ticks" aria-hidden="true">{% for o in f.obrigatorios %}<i class="marcador{% if not o.ok %} nao{% endif %}" title="{{ o.rotulo }}: {% if o.ok %}preenchido{% else %}faltando{% endif %}"></i>{% endfor %}</span>{{ f.obrig_ok }} de 7 campos obrigatórios</span>
+<section class="pn pn--ficha ficha" aria-label="Detalhes do processo" aria-live="polite">
+  <header class="ficha__topo">
+    <div class="ficha__id">
+      <h2 class="ficha__titulo">{{ p.adverso_nome|default:"Parte não encontrada no PDF" }}</h2>
+      <p class="ficha__sub">
+        <span class="ficha__numero"><code>{{ p.numero }}</code><button class="ficha__copiar" type="button" data-copiar aria-label="Copiar número do processo" title="Copiar número">{% include "componentes/icone.html" with nome="copy" tamanho=16 %}</button></span>
+        <span class="k">{{ p.carteira|default:"Sem carteira" }} · {{ p.tribunal|default:"—" }}{% if p.fase %} · fase {{ p.fase }}{% endif %}</span>
+        {% if p.entrada %}<span class="k ficha__entrada" title="Data em que o processo entrou no sistema">entrou em {{ p.entrada }}</span>{% endif %}
+      </p>
     </div>
-    {% if p.pendencias %}
-    <ul class="ficha-pendencias" aria-label="Pendências do processo" data-estado="pendencias">{% for pend in p.pendencias %}<li>{% include "componentes/icone.html" with nome="triangle-alert" tamanho=16 %}<span>{{ pend }}</span></li>{% endfor %}</ul>
-    {% endif %}
-    <div class="ficha-acoes">
+    <span class="chip-status chip-status--{% if f.acao == 'cadastrado' %}ok{% elif f.acao == 'conferir' %}conf{% else %}pend{% endif %}">{{ p.status_rotulo }}</span>
+  </header>
+
+  <div class="passo passo--{{ f.acao }}">
+    {% if f.acao == "pendencias" %}{% include "componentes/icone.html" with nome="circle-alert" %}{% elif f.acao == "conferir" %}{% include "componentes/icone.html" with nome="clipboard-check" %}{% else %}{% include "componentes/icone.html" with nome="circle-check" %}{% endif %}
+    <div class="passo__texto">
+      {% if f.acao == "pendencias" %}
+      <b>Próximo passo: completar {{ f.faltando|length }} dado{{ f.faltando|length|pluralize }}</b>
+      <span>Faltando: {{ f.faltando|join:", " }}.</span>
+      <small>Depois disso o processo vai para “Conferir”.</small>
+      {% elif f.acao == "conferir" %}
+      <b>Próximo passo: revisar e lançar no Espaider</b>
+      <span>Confira os dados com o PDF, cadastre no Espaider e depois marque aqui.</span>
+      {% else %}
+      <b>✓ Cadastrado no Espaider{% if p.cadastrado_em %} em {{ p.cadastrado_em }}{% endif %}</b>
+      <span>Nada pendente neste processo.</span>
+      {% endif %}
+    </div>
+    <div class="passo__acoes">
       {% if f.acao == "conferir" %}
-        {% if f.pode_marcar %}<form method="post" action="{{ f.url_marcar }}">{% csrf_token %}{% include "componentes/botao.html" with rotulo="✓ Marcar cadastrado no Espaider" variante="primario" tipo="submit" carregando="Marcando…" %}</form>{% endif %}
+        {% if f.pode_marcar %}<form method="post" action="{{ f.url_marcar }}">{% csrf_token %}<input type="hidden" name="voltar" value="painel">{% include "componentes/botao.html" with rotulo="✓ Marcar cadastrado no Espaider" variante="primario" tipo="submit" carregando="Marcando…" %}</form>{% endif %}
         {% if f.pode_editar %}{% include "componentes/botao.html" with rotulo="Editar" href=f.url_editar %}{% endif %}
       {% elif f.acao == "pendencias" %}
-        {% if f.pode_editar %}{% include "componentes/botao.html" with rotulo="Completar campos" variante="primario" href=f.url_editar %}{% else %}{% include "componentes/botao.html" with rotulo="Abrir" variante="primario" href=f.url_editar %}{% endif %}
-        {% if f.url_pdf %}{% include "componentes/botao.html" with rotulo="Abrir PDF" href=f.url_pdf %}{% endif %}
+        {% if f.pode_editar %}{% include "componentes/botao.html" with rotulo="Completar campos" icone="pencil" variante="primario" href=f.url_editar %}{% else %}{% include "componentes/botao.html" with rotulo="Abrir" variante="primario" href=f.url_editar %}{% endif %}
+        {% if f.url_pdf %}{% include "componentes/botao.html" with rotulo="Abrir PDF" icone="file-text" href=f.url_pdf %}{% endif %}
       {% else %}
-        <span class="feito">✓ Cadastrado no Espaider{% if p.cadastrado_em %} em {{ p.cadastrado_em }}{% endif %}</span>
         {% if f.pode_editar %}{% include "componentes/botao.html" with rotulo="Editar" href=f.url_editar %}{% endif %}
-      {% endif %}
-      {% if f.pode_editar %}
-      <details class="ficha-excluir">
-        <summary class="botao botao--destrutivo">{% include "componentes/icone.html" with nome="trash" tamanho=16 %}<span>Excluir</span></summary>
-        <form class="ficha-excluir__confirmar" method="post" action="{% url 'juridico:excluir' p.pk %}">{% csrf_token %}
-          <p>Excluir o processo {{ p.numero }}? Ele some do painel; o histórico fica guardado.</p>
-          <button class="botao botao--destrutivo" type="submit">Confirmar exclusão</button>
-        </form>
-      </details>
       {% endif %}
     </div>
   </div>
+  {% if p.pendencias %}
+  <ul class="ficha-pendencias" aria-label="Pendências do processo" data-estado="pendencias">{% for pend in p.pendencias %}<li>{% include "componentes/icone.html" with nome="triangle-alert" tamanho=16 %}<span>{{ pend }}</span></li>{% endfor %}</ul>
+  {% endif %}
 
-  <div class="campos">
-    <h3>Partes</h3>
-    <div class="lin"><span>Empresa</span><span>{{ p.empresa|default:"—" }}</span></div>
-    <div class="lin"><span>Adverso <small class="obg">obrigatório</small></span><span>{% if p.adverso_nome %}{{ p.adverso_nome }}{% if p.cpf_cnpj_mascarado %} · {{ p.cpf_cnpj_mascarado }}{% endif %}{% else %}<span class="falta">não encontrado no PDF</span>{% endif %}</span></div>
-    <div class="lin"><span>Condição</span><span>{{ p.condicao|default:"—" }}</span></div>
-    <h3>Processo</h3>
-    <div class="lin"><span>Comarca <small class="obg">obrigatório</small></span><span>{% if p.comarca %}{{ p.comarca }}{% else %}<span class="falta">não encontrado no PDF</span>{% endif %}</span></div>
-    <div class="lin"><span>Juízo <small class="obg">obrigatório</small></span><span>{% if p.juizo %}{{ p.juizo }}{% else %}<span class="falta">não encontrado no PDF</span>{% endif %}</span></div>
-    <div class="lin"><span>Distribuído em <small class="obg">obrigatório</small></span><span>{% if p.distribuido_em %}<span class="val">{{ p.distribuido_em }}</span>{% else %}<span class="falta">não encontrado no PDF</span>{% endif %}</span></div>
-    <div class="lin"><span>Valor da causa <small class="obg">obrigatório</small></span><span>{% if p.valor_texto %}<span class="val">{{ p.valor_texto }}</span>{% else %}<span class="falta">não encontrado no PDF</span>{% endif %}</span></div>
+  <div class="ficha__sec">
+    <h3>Campos obrigatórios <span>{{ f.obrig_ok }} de 7 campos obrigatórios</span></h3>
+    <div class="ficha__checks">{% for o in f.obrigatorios %}<span class="ficha__check{% if not o.ok %} ficha__check--falta{% endif %}" data-obrig="{{ o.campo }}">{% if o.ok %}{% include "componentes/icone.html" with nome="check" tamanho=16 %}{% else %}{% include "componentes/icone.html" with nome="x" tamanho=16 %}{% endif %}{{ o.rotulo }}<span class="sr-only">: {% if o.ok %}preenchido{% else %}faltando{% endif %}</span></span>{% endfor %}</div>
+  </div>
+
+  <div class="ficha__dados">
+    <div class="campos">
+      <h3>Partes</h3>
+      <div class="lin"><span>Empresa</span><span>{{ p.empresa|default:"—" }}</span></div>
+      <div class="lin"><span>Adverso<span class="sr-only"> (obrigatório)</span></span><span>{% if p.adverso_nome %}{{ p.adverso_nome }}{% if p.cpf_cnpj_mascarado %} · <span class="val">{{ p.cpf_cnpj_mascarado }}</span>{% endif %}{% else %}<span class="falta">não encontrado no PDF</span>{% endif %}</span></div>
+      <div class="lin"><span>Condição</span><span>{{ p.condicao|default:"—" }}</span></div>
+    </div>
+    <div class="campos">
+      <h3>Processo</h3>
+      <div class="lin"><span>Comarca<span class="sr-only"> (obrigatório)</span></span><span>{% if p.comarca %}{{ p.comarca }}{% else %}<span class="falta">não encontrado no PDF</span>{% endif %}</span></div>
+      <div class="lin"><span>Juízo<span class="sr-only"> (obrigatório)</span></span><span>{% if p.juizo %}{{ p.juizo }}{% else %}<span class="falta">não encontrado no PDF</span>{% endif %}</span></div>
+      <div class="lin"><span>Distribuído em<span class="sr-only"> (obrigatório)</span></span><span>{% if p.distribuido_em %}<span class="val">{{ p.distribuido_em }}</span>{% else %}<span class="falta">não encontrado no PDF</span>{% endif %}</span></div>
+      <div class="lin"><span>Valor da causa<span class="sr-only"> (obrigatório)</span></span><span>{% if p.valor_texto %}<span class="val">{{ p.valor_texto }}</span>{% else %}<span class="falta">não encontrado no PDF</span>{% endif %}</span></div>
+    </div>
   </div>
 
   {% if f.audiencia %}
@@ -61,14 +76,38 @@
   </div>
   {% endif %}
 
-  {% with c=f.cnj_info %}
-  {% if c.situacao == "confere" %}
-  <div class="faixa-cnj" data-cnj="confere"><b>Confere com o CNJ</b><span class="ok">tribunal {{ p.tribunal|default:"—" }}</span><span class="ok">distribuição {{ p.distribuido_em|default:"—" }}</span><span class="ok">comarca {{ p.comarca|default:"—" }}</span></div>
-  {% elif c.situacao == "divergente" %}
-  <div class="faixa-cnj faixa-cnj--pend" data-cnj="divergente"><b>Diverge do CNJ</b>{% for d in c.divergencias %}<span>{{ d }}</span>{% endfor %}</div>
-  {% else %}
-  <div class="faixa-cnj faixa-cnj--neutra" data-cnj="{{ c.situacao }}"><b>{{ c.rotulo }}</b>{% if c.mensagem %}<span>{{ c.mensagem }}</span>{% endif %}</div>
-  {% endif %}
-  {% endwith %}
+  <div class="ficha__sec">
+    <h3>Conferências</h3>
+    <div class="conferencias">
+      {% with c=f.cnj_info %}
+      <div class="conferencia">
+        {% if c.situacao == "confere" %}
+        <div class="faixa-cnj" data-cnj="confere"><b>{% include "componentes/icone.html" with nome="landmark" tamanho=16 %}Confere com o CNJ</b><span class="ok">tribunal {{ p.tribunal|default:"—" }}</span>{% if c.divergencias %}{% for d in c.divergencias %}<span class="faixa-cnj__aviso">{{ d }} · vale o PDF</span>{% endfor %}{% else %}<span class="ok">distribuição {{ p.distribuido_em|default:"—" }}</span>{% endif %}<span class="ok">comarca {{ p.comarca|default:"—" }}</span></div>
+        {% elif c.situacao == "divergente" %}
+        <div class="faixa-cnj faixa-cnj--conf" data-cnj="divergente"><b>{% include "componentes/icone.html" with nome="landmark" tamanho=16 %}Diverge do CNJ</b>{% for d in c.divergencias %}<span>{{ d }}</span>{% endfor %}<span class="faixa-cnj__nota">vale o PDF</span></div>
+        {% else %}
+        <div class="faixa-cnj faixa-cnj--neutra" data-cnj="{{ c.situacao }}"><b>{% include "componentes/icone.html" with nome="landmark" tamanho=16 %}CNJ · {{ c.rotulo }}</b>{% if c.mensagem %}<span>{{ c.mensagem }}</span>{% endif %}</div>
+        {% endif %}
+        {% if f.url_consultar_cnj and c.situacao != "confere" %}<form method="post" action="{{ f.url_consultar_cnj }}">{% csrf_token %}<button class="botao botao--secundario conferencia__acao" type="submit" data-carregando data-texto-carregando="Consultando…">{% include "componentes/icone.html" with nome="refresh-cw" tamanho=16 %}<span>Consultar CNJ</span></button></form>{% endif %}
+      </div>
+      {% endwith %}
+      <div class="conferencia conferencia--esp">
+        <div class="faixa-cnj{% if f.acao != 'cadastrado' %} faixa-cnj--neutra{% endif %}" data-espaider="{% if f.acao == 'cadastrado' %}cadastrado{% else %}pendente{% endif %}"><b>{% include "componentes/icone.html" with nome="database" tamanho=16 %}Espaider</b><span{% if f.acao == 'cadastrado' %} class="ok"{% endif %}>{% if f.acao == "cadastrado" %}lançado{% if p.cadastrado_em %} em {{ p.cadastrado_em }}{% endif %}{% else %}ainda não lançado{% endif %}</span></div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="ficha__rodape">
+    <a class="ficha__link" href="{{ f.url_editar }}">Ver ficha completa e andamentos{% include "componentes/icone.html" with nome="arrow-right" tamanho=16 %}</a>
+    {% if f.pode_editar %}
+    <details class="ficha-excluir">
+      <summary class="botao botao--icone" aria-label="Excluir o processo" title="Excluir o processo">{% include "componentes/icone.html" with nome="trash" tamanho=16 %}</summary>
+      <form class="ficha-excluir__confirmar" method="post" action="{% url 'juridico:excluir' p.pk %}">{% csrf_token %}
+        <p>Excluir o processo {{ p.numero }}? Ele some do painel; o histórico fica guardado.</p>
+        <button class="botao botao--destrutivo" type="submit">Confirmar exclusão</button>
+      </form>
+    </details>
+    {% endif %}
+  </footer>
 </section>
 {% endwith %}

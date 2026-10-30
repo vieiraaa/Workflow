@@ -7,7 +7,7 @@ import pytest
 from django.urls import reverse
 from django.utils import timezone
 
-from apps.juridico import cnj, mescla
+from apps.juridico import apresentacao, cnj, mescla
 from apps.juridico.models import (
     Carteira,
     ConfigCadastro,
@@ -175,7 +175,7 @@ def test_filtro_audiencia_combina_em_and(cliente_adm):
     url = reverse("juridico:painel")
     pks = lambda **q: [p.pk for p in cliente_adm.get(url, q).context["processos"]]  # noqa: E731
     assert pks(audiencia="1") == [com.pk]
-    assert pks(audiencia="1", status="CADASTRADO") == []
+    assert pks(audiencia="1", aba="cadastrados") == []
     assert len(pks()) == 3
 
 
@@ -221,8 +221,11 @@ def test_ficha_selecionada(cliente_adm, usuario_adm):
 def test_ficha_sem_audiencia_passada_e_acao_por_status(cliente_adm):
     passada = timezone.now() - timedelta(days=1)
     p = _processo(1, status="CADASTRADO", proxima_audiencia=passada)
-    ficha = cliente_adm.get(reverse("juridico:painel"), {"p": p.pk}).context["selecionado"]
+    painel = reverse("juridico:painel")
+    ficha = cliente_adm.get(painel, {"p": p.pk, "aba": "cadastrados"}).context["selecionado"]
     assert ficha["audiencia"] is None and ficha["acao"] == "cadastrado"
+    # D-063: ?p= de processo de outra aba não abre a ficha
+    assert cliente_adm.get(painel, {"p": p.pk}).context["selecionado"] is None
     q = _processo(2, status="CONFERIR")
     assert (
         cliente_adm.get(reverse("juridico:painel"), {"p": q.pk}).context["selecionado"]["acao"]
@@ -278,3 +281,147 @@ def test_post_sem_o_campo_do_tipo_nao_o_altera(cliente_adm):
     cliente_adm.post(url, {"proxima_audiencia_tipo": ""})
     p.refresh_from_db()
     assert p.proxima_audiencia_tipo == ""
+
+
+# ---------------------------------------------------------------- selos e filtro CNJ (D-052)
+@pytest.mark.parametrize(
+    ("cnj_validacao", "status", "esperado"),
+    [
+        ("confere", "CONFERIR", [("ok", "✓ DataJud")]),
+        ("divergente", "CONFERIR", [("conf", "! DataJud diverge")]),  # D-056: vale o PDF
+        ("nao_encontrado", "CONFERIR", [("neutro", "? DataJud não encontrou")]),
+        ("falhou", "CONFERIR", [("erro", "× DataJud falhou")]),
+        ("nao_consultado", "CONFERIR", [("vazio", "DataJud não consultado")]),
+        ("confere", "CADASTRADO", [("ok", "✓ DataJud"), ("ok", "✓ Espaider")]),
+        (
+            "nao_consultado",
+            "CADASTRADO",
+            [("vazio", "DataJud não consultado"), ("ok", "✓ Espaider")],
+        ),
+    ],
+)
+def test_selos_de_integracao(cnj_validacao, status, esperado):
+    """D-052/D-054 (opção C): texto por extenso; DataJud sempre, Espaider só quando lançado."""
+    p = Processo(cnj_validacao=cnj_validacao, status=status)
+    selos = apresentacao.selos_integracao(p)
+    assert [(s["estado"], s["texto"]) for s in selos] == esperado
+    assert all(s["titulo"] for s in selos)
+
+
+@pytest.mark.django_db
+def test_cartao_mostra_os_selos_e_o_filtro_cnj_conta_e_filtra(cliente_adm):
+    _processo(1, cnj_validacao="confere")
+    _processo(2, cnj_validacao="confere", status="CADASTRADO")
+    _processo(3, cnj_validacao="divergente", status="COM_PENDENCIAS")
+    _processo(4)  # não consultado: "DataJud não consultado" em cinza
+    resposta = cliente_adm.get(reverse("juridico:painel"))
+    # D-063: a contagem do CNJ é da aba (Em processamento; o cadastrado está na outra aba)
+    filtros = {f["valor"]: f for f in resposta.context["filtros_cnj"]}
+    assert filtros[""]["total"] == 3 and filtros[""]["ativo"]
+    assert (filtros["confere"]["total"], filtros["divergente"]["total"]) == (1, 1)
+    assert filtros["nao_consultado"]["total"] == 1 and filtros["falhou"]["total"] == 0
+    corpo = resposta.content.decode()
+    assert "CNJ: confere (DataJud)" in corpo
+    assert "! DataJud diverge" in corpo and "DataJud não consultado" in corpo
+    assert "✓ DataJud" in corpo
+    cadastrados = cliente_adm.get(reverse("juridico:painel"), {"aba": "cadastrados"})
+    filtros_cad = {f["valor"]: f for f in cadastrados.context["filtros_cnj"]}
+    assert filtros_cad[""]["total"] == 1 and filtros_cad["confere"]["total"] == 1
+    corpo = cadastrados.content.decode()
+    assert "Espaider: cadastrado" in corpo and "✓ Espaider" in corpo
+    filtrada = cliente_adm.get(reverse("juridico:painel") + filtros["confere"]["url"])
+    assert {p["cnj_situacao"] for p in filtrada.context["processos"]} == {"confere"}
+    assert filtrada.context["titulo_lista"].endswith("· Confere")
+    ativo = next(f for f in filtrada.context["filtros_cnj"] if f["ativo"])
+    assert ativo["valor"] == "confere"
+
+
+@pytest.mark.django_db
+def test_filtro_cnj_respeita_o_status_escolhido(cliente_adm):
+    _processo(1, cnj_validacao="confere")
+    _processo(2, cnj_validacao="confere", status="CADASTRADO")
+    _processo(3, cnj_validacao="confere", status="COM_PENDENCIAS")
+    resposta = cliente_adm.get(reverse("juridico:painel"), {"status": "COM_PENDENCIAS"})
+    filtros = {f["valor"]: f for f in resposta.context["filtros_cnj"]}
+    assert filtros["confere"]["total"] == 1 and "status=COM_PENDENCIAS" in filtros["confere"]["url"]
+    # ...e a aba escolhida (D-063)
+    resposta = cliente_adm.get(reverse("juridico:painel"), {"aba": "cadastrados"})
+    filtros = {f["valor"]: f for f in resposta.context["filtros_cnj"]}
+    assert filtros["confere"]["total"] == 1 and "aba=cadastrados" in filtros["confere"]["url"]
+
+
+# ---------------------------------------------------------------- filtro "Entrada" (D-061)
+def _entrou_ha(processo, dias):
+    quando = timezone.now() - timedelta(days=dias)
+    Processo.objects.filter(pk=processo.pk).update(criado_em=quando)
+    return timezone.localdate(quando)
+
+
+@pytest.mark.django_db
+def test_filtro_entrada_lista_os_dias_e_filtra(cliente_adm):
+    hoje = [_processo(seq=10 + i) for i in range(3)]
+    ontem = _processo(seq=20)
+    antigo = _processo(seq=21)
+    dia_ontem, dia_antigo = _entrou_ha(ontem, 1), _entrou_ha(antigo, 5)
+    url = reverse("juridico:painel")
+
+    contexto = cliente_adm.get(url).context
+    opcoes = contexto["opcoes_entrada"]
+    assert [(o["rotulo"].split(" ·")[0], o["total"]) for o in opcoes] == [
+        ("Todas", 5), ("Hoje", 3), ("Ontem", 1), (apresentacao.data(dia_antigo), 1)
+    ]  # fmt: skip
+    assert contexto["entrada_rotulo"] == "Todas" and opcoes[0]["ativo"]
+
+    filtrado = cliente_adm.get(url, {"entrada": timezone.localdate().isoformat()}).context
+    assert {p["pk"] for p in filtrado["processos"]} == {p.pk for p in hoje}
+    assert filtrado["entrada_rotulo"].startswith("Hoje") and "entrada" in filtrado["titulo_lista"]
+    so_ontem = cliente_adm.get(url, {"entrada": dia_ontem.isoformat()}).context["processos"]
+    assert [p["pk"] for p in so_ontem] == [ontem.pk]
+
+
+@pytest.mark.django_db
+def test_filtro_entrada_combina_com_status_e_aceita_dia_sem_processo(cliente_adm):
+    _processo(seq=30, status="CONFERIR")
+    _processo(seq=31, status="CADASTRADO")
+    url = reverse("juridico:painel")
+    hoje = timezone.localdate().isoformat()
+    contexto = cliente_adm.get(url, {"entrada": hoje, "status": "CADASTRADO"}).context
+    assert contexto["processos"].paginator.count == 1
+    assert next(o for o in contexto["opcoes_entrada"] if o["valor"] == hoje)["total"] == 1
+    vazio = cliente_adm.get(url, {"entrada": "2020-01-02"})
+    assert vazio.context["processos"].paginator.count == 0
+    assert vazio.context["entrada_rotulo"] == "02/01/2020"
+    assert 'data-estado="filtrado"' in vazio.content.decode()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("valor", ["ontem", "2026-13-40", "<script>", "9" * 50])
+def test_filtro_entrada_invalido_e_ignorado(cliente_adm, valor):
+    _processo(seq=40)
+    contexto = cliente_adm.get(reverse("juridico:painel"), {"entrada": valor}).context
+    assert contexto["filtros"]["entrada"] == "" and contexto["processos"].paginator.count == 1
+
+
+@pytest.mark.django_db
+def test_ficha_mostra_quando_o_processo_entrou(cliente_adm):
+    p = _processo(seq=50)
+    resposta = cliente_adm.get(reverse("juridico:painel"), {"p": p.pk})
+    entrada = apresentacao.data_hora(Processo.objects.get(pk=p.pk).criado_em)
+    assert resposta.context["selecionado"]["processo"]["entrada"] == entrada
+    assert f"entrou em {entrada}" in resposta.content.decode()
+
+
+@pytest.mark.django_db
+def test_etapas_e_busca_mantem_o_filtro_de_entrada(cliente_adm):
+    _processo(seq=60)
+    hoje = timezone.localdate().isoformat()
+    resposta = cliente_adm.get(reverse("juridico:painel"), {"entrada": hoje})
+    html = resposta.content.decode()
+    # D-063: a busca leva o dia num campo oculto; as etapas (chips) e as abas, na URL
+    assert html.count(f'<input type="hidden" name="entrada" value="{hoje}">') == 1
+    assert all(f"entrada={hoje}" in e["url"] for e in resposta.context["etapas"])
+    assert all(
+        f"entrada={hoje}" in a["url"]
+        for a in resposta.context["abas"]
+        if a["chave"] != "aprovacoes"
+    )

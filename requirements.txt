@@ -7,3 +7,5 @@ httpx==0.28.1
 cryptography==50.0.2
 pypdf==6.21.1
 truststore==0.10.5
+ldap3==2.9.1  # login pelo Active Directory (D-039)
+requests==2.34.2  # exigido pela biblioteca corporativa pegar_credenciais (credencial de serviço do AD)

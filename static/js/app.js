@@ -8,6 +8,70 @@
     try { localStorage.setItem("tema", tema); } catch (e) {}
   }
 
+  /* Troca de tema (D-040): um disco na cor de fundo do tema novo cresce a partir do botão (só
+     transform), o tema troca por baixo dele e o disco se desfaz (só opacity). As duas animações
+     rodam no compositor; o recálculo pesado da troca fica escondido. Movimento reduzido: na hora. */
+  var trocandoTema = false;
+  function alternarTema(botao) {
+    var novo = raiz.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    var reduzido = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (trocandoTema) return;
+    if (reduzido || !document.body.animate) { salvarTema(novo); return; }
+    trocandoTema = true;
+    var caixa = botao.getBoundingClientRect();
+    var x = caixa.left + caixa.width / 2, y = caixa.top + caixa.height / 2;
+    var raio = Math.ceil(Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y)));
+    var disco = document.createElement("div");
+    disco.className = "tema-disco";
+    disco.style.left = x - raio + "px"; disco.style.top = y - raio + "px";
+    disco.style.width = disco.style.height = 2 * raio + "px";
+    disco.style.background = getComputedStyle(raiz).getPropertyValue("--tema-disco").trim();
+    document.body.appendChild(disco);
+    function fim() { disco.remove(); trocandoTema = false; }
+    disco.animate([{ transform: "scale(0)" }, { transform: "scale(1)" }],
+      { duration: 380, easing: "cubic-bezier(.4,0,.2,1)" }).finished
+      .then(function () {
+        salvarTema(novo);
+        return disco.animate([{ opacity: 1 }, { opacity: 0 }],
+          { duration: 260, easing: "ease-out", fill: "forwards" }).finished;
+      })
+      .then(fim, fim);
+  }
+
+  /* Easter egg (D-045): 5 cliques seguidos (menos de 1 s entre eles) no botão de tema abrem o vídeo
+     em tela cheia; ao acabar, volta para a Home. Só existe data-easteregg para quem está na lista. */
+  var cliquesDoTema = [];
+  function contarCliqueDoEasteregg() {
+    var video = document.body.getAttribute("data-easteregg");
+    if (!video) return;
+    var agora = Date.now();
+    var ultimo = cliquesDoTema[cliquesDoTema.length - 1];
+    if (ultimo === undefined || agora - ultimo > 1000) cliquesDoTema = [];  /* pausa: recomeça */
+    cliquesDoTema.push(agora);
+    if (cliquesDoTema.length >= 5) { cliquesDoTema = []; abrirEasteregg(video); }
+  }
+
+  function abrirEasteregg(src) {
+    if (document.querySelector(".easteregg")) return;
+    var tela = document.createElement("div");
+    tela.className = "easteregg";
+    tela.setAttribute("role", "dialog");
+    tela.setAttribute("aria-label", "Surpresa");
+    var video = document.createElement("video");
+    video.src = src;
+    video.playsInline = true;
+    video.autoplay = true;
+    tela.appendChild(video);
+    document.body.appendChild(tela);
+    function voltar() { location.href = document.body.getAttribute("data-inicio") || "/"; }
+    function fechar(ev) { if (ev.key === "Escape") { document.removeEventListener("keydown", fechar); tela.remove(); } }
+    video.addEventListener("ended", voltar);
+    video.addEventListener("error", function () { tela.remove(); });
+    document.addEventListener("keydown", fechar);
+    var tocando = video.play();
+    if (tocando && tocando.catch) tocando.catch(function () { video.muted = true; video.play().catch(function () { tela.remove(); }); });
+  }
+
   /* Prepara o modal a partir de data-* do botão: data-form-action, data-valor-<campo>,
      data-texto-<slot>. Tudo por value/textContent. Erros do servidor somem ao reabrir. */
   function prepararModal(modal, botao) {
@@ -36,7 +100,8 @@
     var shell = document.querySelector("[data-shell]");
 
     if (alvo.hasAttribute("data-tema-alternar")) {
-      salvarTema(raiz.getAttribute("data-theme") === "dark" ? "light" : "dark");
+      contarCliqueDoEasteregg();
+      alternarTema(alvo);
     } else if (alvo.hasAttribute("data-menu-alternar") && shell) {
       var aberto = shell.classList.toggle("menu-aberto");
       alvo.setAttribute("aria-expanded", aberto ? "true" : "false");
@@ -54,9 +119,34 @@
       if (t) t.remove();
     } else if (alvo.hasAttribute("data-copiar")) {
       var codigo = alvo.parentElement.querySelector("code");
-      if (codigo && navigator.clipboard) navigator.clipboard.writeText(codigo.textContent);
+      if (codigo) copiar(codigo.textContent.trim());
     }
   });
+
+  /* navigator.clipboard só existe em HTTPS ou localhost; pelo IP da rede (http) cai no execCommand. */
+  function copiar(texto) {
+    function avisar(ok) {
+      if (window.mostrarToast) window.mostrarToast(ok ? "success" : "error", ok ? "Copiado: " + texto : "Não foi possível copiar. Selecione o texto e use Ctrl+C.");
+    }
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(texto).then(function () { avisar(true); }, function () { avisar(copiarAntigo(texto)); });
+    } else {
+      avisar(copiarAntigo(texto));
+    }
+  }
+
+  function copiarAntigo(texto) {
+    var area = document.createElement("textarea");
+    area.value = texto;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed"; area.style.top = "0"; area.style.left = "0"; area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.select();
+    var ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+    area.remove();
+    return ok;
+  }
 
   /* Clique no fundo fecha o modal. */
   document.addEventListener("click", function (ev) {

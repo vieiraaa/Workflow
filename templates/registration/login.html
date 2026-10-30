@@ -2,20 +2,34 @@
 {% load static %}
 {% block titulo %}Entrar · Construtor de Workflows{% endblock %}
 {% block conteudo %}
-<header class="publica__cabecalho">
-  <img class="publica__logo" src="{% static 'img/marca/logo.png' %}" alt="Egger e Mesquita Advogados Associados" width="280" height="112">
-  <span class="publica__produto">Workflows</span>
-  <h1>Entrar</h1>
-  <p class="texto-2">Acesse o Construtor de Workflows</p>
-</header>
-<section class="card">
-  <form class="formulario" method="post" novalidate>
+<section class="card login">
+  <img class="login__marca" src="{% static 'img/marca/e.png' %}" alt="" width="600" height="131">
+  <h1 class="login__titulo">Workflows</h1>
+  <p class="login__sub">Egger e Mesquita · {% if login_ad %}entre com seu usuário de rede{% else %}acesse o Construtor de Workflows{% endif %}</p>
+  <form class="formulario" id="form-login" method="post" novalidate>
     {% csrf_token %}
-    {% include "componentes/alerta.html" with erros=form.non_field_errors estado="erro_credenciais" %}
-    {% include "componentes/campo.html" with campo=form.username rotulo="E-mail" %}
+    <div class="alerta alerta--erro" role="alert" data-estado="erro_credenciais" data-login-erro{% if not form.non_field_errors %} hidden{% endif %}>
+      {% include "componentes/icone.html" with nome="circle-alert" tamanho=16 %}
+      <span data-login-erro-texto>{% for erro in form.non_field_errors %}{{ erro }}{% if not forloop.last %} {% endif %}{% endfor %}</span>
+    </div>
+    {% include "componentes/campo.html" with campo=form.username %}
     {% include "componentes/campo.html" with campo=form.password rotulo="Senha" %}
     {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
-    <button class="botao botao--primario botao--bloco" type="submit" data-carregando>Entrar</button>
+    <button class="botao botao--primario botao--bloco login__botao" type="submit" data-carregando data-texto-carregando="Validando…">Entrar</button>
   </form>
 </section>
+
+{# Tela de carregamento (D-039): só depois de o AD aceitar; fica no mínimo 3 s (static/js/login.js). #}
+<div class="carregamento" id="carregamento" role="status" aria-live="polite" hidden>
+  <div class="carregamento__interno">
+    <canvas class="orb" data-orb="solving" aria-hidden="true"></canvas>
+    <span class="carregamento__sep" aria-hidden="true"></span>
+    <img class="carregamento__logo" src="{% static 'img/marca/logo.png' %}" alt="Egger e Mesquita Advogados Associados" width="600" height="240">
+  </div>
+  <p class="carregamento__msg" data-carregamento-msg>Preparando seu painel…</p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script type="module" src="{% static 'js/orb.js' %}"></script>
+<script src="{% static 'js/login.js' %}" defer></script>
 {% endblock %}

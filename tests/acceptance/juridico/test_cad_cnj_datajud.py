@@ -34,9 +34,11 @@ def test_requisicao_ao_datajud_segue_a_spec(cad, ingerir):
     assert req["headers"]["authorization"] == f"APIKey {SEGREDO_DATAJUD}"
 
 
-@pytest.mark.parametrize("j,tr,alias", [(8, 26, "tjsp"), (8, 19, "tjrj"), (4, 3, "trf3"), (4, 1, "trf1"), (5, 2, "trt2"), (5, 15, "trt15"), (6, 26, "tre-sp")])
+@pytest.mark.parametrize("j,tr,alias", [(8, 26, "tjsp"), (8, 19, "tjrj"), (4, 3, "trf3"), (4, 1, "trf1"), (5, 2, "trt2"), (5, 15, "trt15"), (6, 26, "tre-sp"),
+                                         (3, 0, "stj"), (5, 0, "tst"), (6, 0, "tse"), (7, 0, "stm"), (9, 13, "tjmmg"), (9, 21, "tjmrs"), (9, 26, "tjmsp")])
 def test_alias_do_tribunal_pelo_numero(cad, enviar_cnj, rodar, j, tr, alias):
-    """CAD-10: J=8 → tj<uf>, 4 → trfN, 5 → trtN, 6 → tre-<uf>; a busca vai para api_publica_<alias>."""
+    """CAD-10 (rev. D-050): J=8 → tj<uf>, 4 → trfN, 5 → trtN, 6 → tre-<uf>, superiores com TR 00 (STJ, TST, TSE, STM)
+    e Justiça Militar estadual (TJMMG, TJMRS, TJMSP); a busca vai para api_publica_<alias>."""
     n, d = cnj(500 + tr, j=j, tr=tr)
     cad.datajud.fontes[d] = fonte_datajud(d)
     enviar_cnj(cad.ana, n, cad.carteiras["Ativos"])
@@ -44,9 +46,10 @@ def test_alias_do_tribunal_pelo_numero(cad, enviar_cnj, rodar, j, tr, alias):
     assert [b["rota"] for b in cad.datajud.buscas] == [f"/datajud/api_publica_{alias}/_search"]
 
 
-@pytest.mark.parametrize("j,tr", [(1, 0), (3, 0), (7, 0), (2, 0), (9, 99)])
+@pytest.mark.parametrize("j,tr", [(1, 0), (2, 0), (9, 99), (9, 16), (7, 5), (4, 7)])
 def test_tribunal_sem_alias_e_falhou_sem_consultar(cad, ingerir, j, tr):
-    """CAD-10: sem alias → cnj_validacao=falhou com 'Tribunal não suportado no DataJud.', e nenhuma consulta."""
+    """CAD-10 (rev. D-050): sem índice no DataJud (STF, CNJ, TR inexistente, militar estadual fora de MG/RS/SP) →
+    cnj_validacao=falhou com 'Tribunal não suportado no DataJud.', e nenhuma consulta."""
     n, d = cnj(600 + j, j=j, tr=tr)
     _, p = ingerir(cad.ana, n, campos={"tribunal": "XYZ"})
     assert p is not None and p.cnj_validacao == "falhou" and cad.datajud.buscas == []
@@ -66,17 +69,25 @@ def test_tribunal_igual_ignorando_caixa_espacos_hifen_e_ponto(cad, ingerir, pdf_
 
 
 def test_divergencia_de_tribunal(cad, ingerir):
-    """CAD-10: diferente → divergente + pendência 'Divergência com o CNJ: <campo> (PDF: x · CNJ: y)'; processo segue gravado."""
+    """CAD-10 (rev. D-056): diferente → divergente, registrada em cnj_divergencias '<campo> (PDF: x · CNJ: y)'; vale o PDF:
+    o campo fica com o valor do PDF, a divergência NÃO vira pendência e o processo vai para Conferir."""
     _, p = _cadastrar(cad, ingerir, fonte=fonte_datajud(DIG, tribunal="TJRJ"))
-    assert p.cnj_validacao == "divergente" and p.status == "COM_PENDENCIAS"
-    pend = [x for x in p.pendencias if x.startswith("Divergência com o CNJ: ")]
-    assert len(pend) == 1 and "(PDF: TJSP · CNJ: TJRJ)" in pend[0] and p.cnj_divergencias and p.tribunal == "TJSP"
+    assert p.cnj_validacao == "divergente" and p.status == "CONFERIR"
+    assert not [x for x in p.pendencias if x.startswith("Divergência com o CNJ: ")]
+    assert len(p.cnj_divergencias) == 1 and "(PDF: TJSP · CNJ: TJRJ)" in p.cnj_divergencias[0] and p.tribunal == "TJSP"
 
 
 def test_divergencia_de_data_distribuicao(cad, ingerir):
-    """CAD-23(6): data do PDF vs parte de data de dataAjuizamento, sem fuso."""
+    """CAD-23(6): data do PDF vs parte de data de dataAjuizamento, sem fuso. Rev. D-062: só a data diferente fica
+    registrada em cnj_divergencias, mas o processo continua `confere` (selo verde na lista; aviso na ficha)."""
     _, p = _cadastrar(cad, ingerir, fonte=fonte_datajud(DIG, ajuizamento="2021-01-10T00:00:00.000Z"))
-    assert p.cnj_validacao == "divergente" and any("2022" in x or "15/03/2022" in x for x in p.pendencias + p.cnj_divergencias)
+    assert p.cnj_validacao == "confere" and any("15/03/2022" in x for x in p.cnj_divergencias)
+
+
+def test_data_e_outro_campo_diferentes_divergem(cad, ingerir):
+    """D-062: a data só é aviso quando é a ÚNICA diferença; com outro campo diferente → `divergente`."""
+    _, p = _cadastrar(cad, ingerir, fonte=fonte_datajud(DIG, tribunal="TJRJ", ajuizamento="2021-01-10T00:00:00.000Z"))
+    assert p.cnj_validacao == "divergente" and len(p.cnj_divergencias) == 2
 
 
 def test_data_do_cnj_com_hora_tarde_nao_muda_o_dia(cad, ingerir):
@@ -92,7 +103,8 @@ def test_comarca_contida_no_orgao_julgador_sem_acento_e_caixa(cad, ingerir):
     n2 = cnj(1235)
     cad.datajud.fontes[n2[1]] = fonte_datajud(n2[1], orgao="2ª Vara Cível de Campinas")
     _, p2 = _cadastrar(cad, ingerir, numero=n2[0], dig=n2[1], fonte=False, variante="z")
-    assert p2.cnj_validacao == "divergente" and any("comarca" in x.lower() for x in p2.pendencias)
+    assert p2.cnj_validacao == "divergente" and any("comarca" in x.lower() for x in p2.cnj_divergencias)
+    assert not any("comarca" in x.lower() for x in p2.pendencias)  # D-056: vale o PDF, não é pendência
 
 
 def test_campo_vazio_no_pdf_nao_diverge(cad, ingerir):

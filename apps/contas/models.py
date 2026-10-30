@@ -66,6 +66,10 @@ class Usuario(AbstractUser):
         verbose_name="setor",
     )
     criado_em = models.DateTimeField("criado em", auto_now_add=True)
+    # Perfil (D-041): cargo vem do AD (`title`) a cada login; bio e responsabilidades, da pessoa.
+    cargo = models.CharField("cargo", max_length=120, blank=True)
+    bio = models.TextField("bio", blank=True)
+    responsabilidades = models.TextField("responsabilidades", blank=True)  # uma por linha
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["nome"]
@@ -82,3 +86,46 @@ class Usuario(AbstractUser):
 
     def __str__(self):
         return self.nome or self.email
+
+    def _partes_do_nome(self):
+        partes = (self.nome or self.email.split("@")[0]).split()
+        # "Silva Filho" é o sobrenome inteiro: o sufixo não vale sozinho.
+        if len(partes) > 2 and partes[-1].lower().rstrip(".") in SUFIXOS_DE_NOME:
+            return partes[0], " ".join(partes[-2:])
+        return partes[0], (partes[-1] if len(partes) > 1 else "")
+
+    @property
+    def nome_curto(self):
+        """Primeiro e último nome: "João Victor Arruda Tobias Vieira" → "João Vieira"."""
+        return " ".join(p for p in self._partes_do_nome() if p)
+
+    @property
+    def iniciais(self):
+        primeiro, ultimo = self._partes_do_nome()
+        return (primeiro[:1] + ultimo[:1]).upper() or "?"
+
+    @property
+    def cor_avatar(self):
+        """1..6: cor fixa por pessoa (tokens --avatar-N), para distinguir no meio de uma lista."""
+        return (self.pk or 0) % 6 + 1
+
+    @property
+    def lista_responsabilidades(self):
+        return [
+            linha.strip(" -•\t")
+            for linha in self.responsabilidades.splitlines()
+            if linha.strip(" -•\t")
+        ]
+
+
+SUFIXOS_DE_NOME = {
+    "filho",
+    "filha",
+    "neto",
+    "neta",
+    "junior",
+    "júnior",
+    "jr",
+    "sobrinho",
+    "segundo",
+}

@@ -21,6 +21,13 @@ def test_shell_anonimo():
         "usuario_nome": "",
         "usuario_papel": "",
         "sem_papel": False,
+        "usuario_logado": None,
+        "usuario_cargo": "",
+        "url_meu_perfil": "",
+        "pode_trocar_senha": False,
+        "easteregg_url": "",
+        "simulacao": None,
+        "aviso_aprovacoes": None,
     }
 
 
@@ -35,8 +42,10 @@ def test_shell_do_adm(usuario_adm):
         "fluxos",
         "execucoes",
         "juridico",
+        "cslog",
         "usuarios",
         "setores",
+        "simular",
         "credenciais",
     ]
 
@@ -66,8 +75,10 @@ def test_menu_por_papel(monkeypatch, usuario_adm, usuario_coordenador, usuario_b
         "fluxos",
         "execucoes",
         "juridico",
+        "cslog",
         "usuarios",
         "setores",
+        "simular",
         "credenciais",
     ]
     assert chaves(usuario_coordenador) == ["inicio", "funcoes", "fluxos", "execucoes"]
@@ -85,8 +96,10 @@ def test_item_ativo_pelo_namespace(monkeypatch, usuario_adm):
         "fluxos": True,
         "execucoes": False,
         "juridico": False,
+        "cslog": False,
         "usuarios": False,
         "setores": False,
+        "simular": False,
         "credenciais": False,
     }
 
@@ -119,7 +132,9 @@ def test_grupos_do_menu_e_ordem(monkeypatch, usuario_adm):
         ("fluxos", ""),
         ("execucoes", ""),
         ("juridico", "Jurídico"),
+        ("cslog", "Jurídico"),
         ("usuarios", "Administração"),
         ("setores", "Administração"),
+        ("simular", "Administração"),
         ("credenciais", "Administração"),
     ]

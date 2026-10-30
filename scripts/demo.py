@@ -4,6 +4,7 @@
   python scripts/demo.py              # cria o banco local se faltar, migra, semeia e sobe em :8000
   python scripts/demo.py --porta 8010
   python scripts/demo.py --resetar    # apaga e recria o banco de demo
+  python scripts/demo.py --ip 10.0.4.158   # também pela rede, no IP desta máquina (HTTP, sem TLS)
 
 Usa config.settings.demo: Postgres local (construtor_demo), nunca o .env nem o Supabase.
 Sobe também o worker do cadastro de processos (manage.py processar_cadastros). Sem
@@ -55,11 +56,11 @@ def _chave_local_de_demo():
         print("AVISO: não consegui ler/criar a chave local de demo das Credenciais.")
 
 
-def _subir_worker():
+def _subir_worker(settings="config.settings.demo"):
     """Worker do cadastro (processar_cadastros) junto da demo; encerra com o servidor."""
     worker = subprocess.Popen(
         [sys.executable, str(RAIZ / "manage.py"), "processar_cadastros"],
-        env={**os.environ, "DJANGO_SETTINGS_MODULE": "config.settings.demo"},
+        env={**os.environ, "DJANGO_SETTINGS_MODULE": settings},
         cwd=str(RAIZ),
     )
     atexit.register(lambda: worker.poll() is None and worker.terminate())
@@ -84,8 +85,11 @@ def main():
     )
     parser.add_argument("--porta", type=int, default=8000)
     parser.add_argument("--resetar", action="store_true", help="apaga e recria o banco de demo")
+    parser.add_argument("--ip", help="também atende neste IP da rede local (escuta em 0.0.0.0)")
     args = parser.parse_args()
     sys.stdout.reconfigure(line_buffering=True)
+    if args.ip:
+        os.environ["DEMO_IP"] = args.ip  # ALLOWED_HOSTS do settings.demo, também no reloader
     _chave_local_de_demo()
 
     import django
@@ -122,8 +126,12 @@ def main():
             print(f"  {rotulo:<22} {email}   senha: {SENHA_DEMO}")
         _subir_worker()
         print(f"\nSubindo em http://127.0.0.1:{args.porta}/  (Ctrl+C para parar)")
+        if args.ip:
+            print(f"Na rede: http://{args.ip}:{args.porta}/")
+            print("  HTTP sem TLS: a senha do AD trafega aberta na rede.")
         print("O código recarrega sozinho ao salvar; migration nova é aplicada no reload.\n")
-    call_command("runserver", f"127.0.0.1:{args.porta}", use_reloader=True, insecure_serving=True)
+    endereco = "0.0.0.0" if args.ip else "127.0.0.1"
+    call_command("runserver", f"{endereco}:{args.porta}", use_reloader=True, insecure_serving=True)
     return 0
 
 

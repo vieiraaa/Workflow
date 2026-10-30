@@ -175,6 +175,54 @@ def _paginado(usuarios):
     _usuarios_extras(40)
 
 
+def _aprovacoes_demo(usuarios):
+    """Itens fictícios do n8n esperando aprovação (D-048): válidos, com alerta e sem número."""
+    from apps.juridico import cnj, recebimentos
+
+    itens = [
+        {"data": "2026-10-14", "hora": f"1{i % 8}:0{i % 6}:00", "tipo": tipo,
+         "remetente_sigla": sigla, "origem": "tribunal", "uf": uf,
+         "processo": cnj.formatar(cnj.numero_valido_de(5000000 + i * 7919, 2026, 8, tr, i + 1)),
+         "alertas": alertas}
+        for i, (tipo, sigla, uf, tr, alertas) in enumerate(
+            [("PROCEDIMENTO COMUM CÍVEL", "TJRJ", "RJ", 19, []),
+             ("CUMPRIMENTO DE SENTENÇA", "TJSC", "SC", 24, []),
+             ("AGRAVO DE INSTRUMENTO", "TJRS", "RS", 21, ["uf_inferida_do_processo"]),
+             ("PROCEDIMENTO DO JUIZADO ESPECIAL CÍVEL", "TJRJ", "RJ", 19,
+              ["processo_repetido_no_email"])] * 3
+        )
+    ]  # fmt: skip
+    itens.append({"tipo": "PJE", "cliente": "CLIENTE FICTÍCIO", "uf": "RJ", "processo": None,
+                  "alertas": ["data_nao_reconhecida"]})  # fmt: skip
+    recebimentos.registrar(itens)
+
+
+def _log_api_demo(usuarios):
+    """Chamadas fictícias à API do n8n (D-049): aceitas e recusadas."""
+    from apps.juridico.models import ChamadaApi
+
+    _aprovacoes_demo(usuarios)
+    lote = recebimentos_lote()
+    ChamadaApi.objects.bulk_create(
+        [
+            ChamadaApi(status_http=200, mensagem="13 novo(s), 0 repetido(s), 0 inválido(s).",
+                       ip="10.0.4.20", agente="n8n/1.80.3", tamanho=9120, duracao_ms=88,
+                       lote=lote, recebidos=13, novos=13),
+            ChamadaApi(status_http=200, mensagem="0 novo(s), 13 repetido(s), 0 inválido(s).",
+                       ip="10.0.4.20", agente="n8n/1.80.3", tamanho=9120, duracao_ms=41,
+                       recebidos=13, repetidos=13),
+            ChamadaApi(status_http=401, mensagem="Chave da API ausente ou inválida.",
+                       ip="10.0.4.20", agente="n8n/1.80.3", tamanho=9120, duracao_ms=3),
+        ]
+    )  # fmt: skip
+
+
+def recebimentos_lote():
+    from apps.juridico.models import Recebimento
+
+    return Recebimento.objects.values_list("lote", flat=True).first()
+
+
 def _fluxos_demo(dono_chave, quantidade=8):
     """Fluxos fictícios variados (rascunho/ativo) para as listas."""
 
@@ -1064,6 +1112,14 @@ PREPARADORES = {
     ("TEL-11", "padrao"): (None, None),
     ("TEL-02", "vazio_busca"): (None, None, "?q=sem-nenhum-resultado"),
     ("TEL-02", "com_dados"): (_com_dados, None),
+    ("TEL-36", "vazio_busca"): (None, None, "?q=sem-nenhum-resultado"),
+    ("TEL-36", "com_dados"): (_com_dados, None),
+    ("TEL-37", "vazio"): (None, None, "?aba=aprovacoes"),  # aba do painel (D-063)
+    ("TEL-37", "com_dados"): (_aprovacoes_demo, None, "?aba=aprovacoes"),
+    ("TEL-38", "vazio"): (None, None),
+    ("TEL-38", "com_dados"): (_log_api_demo, None),
+    ("TEL-39", "vazio"): (_painel_vazio, None),
+    ("TEL-39", "com_dados"): (_painel_com_dados, None),  # D-064
     ("TEL-02", "paginado"): (_paginado, None),
     ("TEL-03", "padrao"): (None, None),
     ("TEL-03", "erro_validacao"): (None, _erro_novo),
@@ -1121,6 +1177,7 @@ PREPARADORES = {
     ("TEL-27", "vazio"): (_painel_vazio, None),
     ("TEL-27", "com_dados"): (_painel_com_dados, None),
     ("TEL-27", "com_fila"): (_fila_do_painel, None),
+    ("TEL-27", "aba_cadastrados"): (_painel_com_dados, None, "?aba=cadastrados"),
     ("TEL-28", "conferir"): (_processo_demo("conferir"), None),
     ("TEL-28", "com_pendencias"): (_processo_demo("com_pendencias"), None),
     ("TEL-28", "divergente_cnj"): (_processo_demo("divergente_cnj"), None),

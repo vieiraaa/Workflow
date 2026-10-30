@@ -1,10 +1,11 @@
-{# p: item da lista do painel (CAD-19/27). No desktop o clique seleciona (url_painel, via data-href-desktop); no celular abre o detalhe. #}
+{# p: item da lista do painel (CAD-19/27; D-053/D-054/D-055). Sempre as mesmas 4 linhas de uma linha só, para todos os cartões terem a mesma altura (o excesso vira "…" e o texto completo fica no title): parte + status · número · "comarca · valor · documento" · integrações (D-052, texto) + audiência. No desktop o clique seleciona (url_painel, via data-href-desktop); no celular abre o detalhe. #}
 <a class="proc" href="{{ p.url_detalhe }}" data-href-desktop="{{ p.url_painel }}" data-processo="{{ p.pk }}" title="{{ p.numero }}"{% if p.selecionado %} aria-current="true"{% endif %}>
-  <div class="proc__l1">
-    <span class="proc__num">{% if p.numero_sequencial %}<b>{{ p.numero_sequencial }}</b>{{ p.numero_resto }}{% else %}{{ p.numero }}{% endif %}</span>
-    <span class="chip-status chip-status--{% if p.status == 'CADASTRADO' %}ok{% elif p.status == 'CONFERIR' %}conf{% else %}pend{% endif %}">{{ p.status_rotulo }}{% if p.status == "COM_PENDENCIAS" and p.faltando %} · {{ p.faltando }}{% endif %}</span>
-  </div>
-  <div class="proc__adv">{{ p.adverso|default:"—" }}{% if p.cpf_cnpj_mascarado %} · {{ p.cpf_cnpj_mascarado }}{% endif %}</div>
-  <div class="proc__meta">{{ p.carteira|default:"—" }} · {{ p.comarca|default:"—" }} · {% if p.valor_texto %}{{ p.valor_texto }}{% else %}<span class="falta">sem valor da causa</span>{% endif %}</div>
-  {% if p.audiencia_texto %}<div class="proc__aud{% if p.audiencia_proxima %} proc__aud--urgente{% endif %}" title="Próxima audiência">{% include "componentes/icone.html" with nome="calendar-clock" tamanho=16 %}<span>{{ p.audiencia_texto }}</span></div>{% endif %}
+  <span class="proc__adv" title="{{ p.adverso }}">{{ p.adverso|default:"Parte não encontrada" }}</span>
+  <span class="chip-status chip-status--{% if p.status == 'CADASTRADO' %}ok{% elif p.status == 'CONFERIR' %}conf{% else %}pend{% endif %}">{{ p.status_rotulo }}{% if p.status == "COM_PENDENCIAS" and p.faltando %} · {{ p.faltando }}{% endif %}</span>
+  <span class="proc__num">{% if p.numero_sequencial %}<b>{{ p.numero_sequencial }}</b>{{ p.numero_resto }}{% else %}{{ p.numero }}{% endif %}</span>
+  <span class="proc__meta">{{ p.comarca|default:"comarca —" }} · {% if p.valor_texto %}{{ p.valor_texto }}{% else %}<span class="falta">sem valor da causa</span>{% endif %}{% if p.cpf_cnpj_mascarado %} · <span class="proc__doc">{{ p.cpf_cnpj_mascarado }}</span>{% endif %}</span>
+  <span class="proc__rodape">
+    <span class="proc__selos">{% for s in p.selos %}{% if not forloop.first %}<span class="proc__selos-sep" aria-hidden="true">·</span>{% endif %}<span class="selo selo--{{ s.estado }}" title="{{ s.titulo }}" data-integracao="{{ s.chave }}">{{ s.texto }}</span>{% endfor %}</span>
+    {% if p.audiencia_texto %}<span class="proc__aud{% if p.audiencia_proxima %} proc__aud--urgente{% endif %}" title="Próxima audiência: {{ p.audiencia_texto }}">{% include "componentes/icone.html" with nome="calendar-clock" tamanho=16 %}<span>Audiência {{ p.audiencia_texto }}</span></span>{% endif %}
+  </span>
 </a>

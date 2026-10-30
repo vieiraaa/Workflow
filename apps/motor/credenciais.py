@@ -32,6 +32,10 @@ def carregar(nome, setor_id, tipos_aceitos):
 def cabecalho_http(tipo, dados):
     """(nome, valor, segredos) do header que a credencial injeta no nó HTTP."""
     valor = dados.get("valor", "")
+    if tipo in (Credencial.BEARER, Credencial.HEADER):
+        # Espaço/quebra de linha nas pontas não vale em header HTTP: o httpx recusaria enviar e o
+        # erro sairia como "não foi possível conectar". Chave colada com espaço no fim é comum.
+        valor = valor.strip()
     if tipo == Credencial.BEARER:
         return "Authorization", f"Bearer {valor}", {valor}
     if tipo == Credencial.HEADER:

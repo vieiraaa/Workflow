@@ -2,100 +2,110 @@
 {% load static %}
 {% block titulo %}Cadastro de processos · Construtor de Workflows{% endblock %}
 {% block titulo_pagina %}Painel de Processos{% endblock %}
-{% block subtitulo %}<p class="topbar__sub">Atualizado às {{ atualizado_em }} · {{ fluxo.total }} processos</p>{% endblock %}
+{% block subtitulo %}<p class="topbar__sub">Atualizado às {{ atualizado_em }}</p>{% endblock %}
 {% block estilos %}<link rel="stylesheet" href="{% static 'css/juridico.css' %}"><link rel="stylesheet" href="{% static 'css/painel.css' %}">{% endblock %}
-{% block scripts %}<script src="{% static 'js/juridico.js' %}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/juridico.js' %}" defer></script>{% if aba == "aprovacoes" %}<script src="{% static 'js/aprovacoes.js' %}" defer></script>{% endif %}{% endblock %}
 {% block conteudo_classe %}conteudo--largo{% endblock %}
 {% block acoes %}
-<a class="botao botao--secundario" role="button" aria-pressed="{% if filtro_audiencia %}true{% else %}false{% endif %}" href="?{% if not filtro_audiencia %}audiencia=1{% endif %}{% include 'componentes/qs_filtros.html' with sem_audiencia=1 %}"><span class="sr-only">Audiências ({{ audiencias_n|default:0 }})</span><span aria-hidden="true">Audiências <b class="qtd">({{ audiencias_n|default:0 }})</b></span></a>
+<a class="botao botao--secundario" role="button" aria-pressed="{% if filtro_audiencia %}true{% else %}false{% endif %}" href="?{% if filtros.aba %}aba={{ filtros.aba }}&{% endif %}{% if not filtro_audiencia %}audiencia=1{% endif %}{% include 'componentes/qs_filtros.html' with sem_audiencia=1 %}">{% include "componentes/icone.html" with nome="calendar-clock" tamanho=16 %}<span class="sr-only">Audiências ({{ audiencias_n|default:0 }})</span><span aria-hidden="true">Audiências <b class="qtd">({{ audiencias_n|default:0 }})</b></span></a>
 <details class="menu" data-menu>
   <summary class="botao botao--secundario menu__gatilho" aria-label="Menu do cadastro">{% include "componentes/icone.html" with nome="menu" tamanho=16 %}<span>Menu</span></summary>
   <div class="menu__lista" role="menu">
     <a class="menu__item" role="menuitem" href="{{ url_audiencias }}">{% include "componentes/icone.html" with nome="calendar-clock" tamanho=16 %}<span>Lista de audiências</span></a>
-    {% if pode_enviar %}
-    <a class="menu__item" role="menuitem" href="{{ url_enviar_pdfs }}">{% include "componentes/icone.html" with nome="file-up" tamanho=16 %}<span>Enviar PDFs para leitura</span></a>
-    <a class="menu__item" role="menuitem" href="{{ url_enviar_cnj }}">{% include "componentes/icone.html" with nome="hash" tamanho=16 %}<span>Cadastrar pelo nº (CNJ)</span></a>
-    {% endif %}
-    {% if pode_editar %}<a class="menu__item" role="menuitem" href="{{ url_processo_novo }}">{% include "componentes/icone.html" with nome="plus" tamanho=16 %}<span>Cadastro manual de processo</span></a>{% endif %}
-    <a class="menu__item" role="menuitem" href="{{ url_erros }}">{% include "componentes/icone.html" with nome="bug" tamanho=16 %}<span>Log de erros e desempenho</span></a>
     <a class="menu__item" role="menuitem" href="{{ url_envios }}">{% include "componentes/icone.html" with nome="list-checks" tamanho=16 %}<span>Envios</span></a>
+    <a class="menu__item" role="menuitem" href="{{ url_erros }}">{% include "componentes/icone.html" with nome="bug" tamanho=16 %}<span>Log de erros e desempenho</span></a>
     {% if pode_configurar %}<a class="menu__item" role="menuitem" href="{{ url_config }}">{% include "componentes/icone.html" with nome="settings" tamanho=16 %}<span>Configuração</span></a>{% endif %}
   </div>
 </details>
-{% if pode_enviar %}{% include "componentes/botao.html" with rotulo="+ Enviar PDFs" variante="primario" href=url_enviar_pdfs %}{% endif %}
+{% if pode_enviar %}
+<details class="menu" data-menu>
+  <summary class="botao botao--primario menu__gatilho">{% include "componentes/icone.html" with nome="plus" tamanho=16 %}<span>Adicionar processos</span></summary>
+  <div class="menu__lista" role="menu">
+    <a class="menu__item" role="menuitem" href="{{ url_enviar_pdfs }}">{% include "componentes/icone.html" with nome="file-up" tamanho=16 %}<span>Enviar PDFs para leitura</span></a>
+    <a class="menu__item" role="menuitem" href="{{ url_enviar_cnj }}">{% include "componentes/icone.html" with nome="hash" tamanho=16 %}<span>Cadastrar pelo nº (CNJ)</span></a>
+    {% if pode_editar %}<a class="menu__item" role="menuitem" href="{{ url_processo_novo }}">{% include "componentes/icone.html" with nome="pencil" tamanho=16 %}<span>Cadastro manual de processo</span></a>{% endif %}
+  </div>
+</details>
+{% endif %}
 {% endblock %}
 {% block conteudo %}
 {% include "componentes/aviso.html" with texto=aviso_datajud tipo="aviso" estado="aviso_datajud" link_url=url_config link_rotulo="Abrir configuração" %}
 
 <div class="pn-raiz" data-painel{% if atualizar_auto %} data-status-url="{{ url_status }}"{% endif %}>
-  <section class="fluxo" aria-label="Fluxo do cadastro">
-    <div class="entrada{% if not fluxo.em_leitura %} entrada--parada{% endif %}">
-      <h2>Entrada de PDFs</h2>
-      <p><span class="pulso" aria-hidden="true"></span><b data-resumo="na_fila">{{ fluxo.em_leitura }}</b>em leitura</p>
-      <p class="falha"><b>{{ fluxo.erros_leitura }}</b>com erro de leitura · <a href="{{ fluxo.url_erros }}">ver log</a></p>
-    </div>
-    <div class="esteira">
-      <div class="esteira__topo">
-        <h2 data-titulo-total>{{ fluxo.total }} processos extraídos</h2>
-        <span data-pct-texto>{{ fluxo.pct_cadastrados }}% já cadastrados no Espaider</span>
-      </div>
-      <div class="barra{% if filtros.status %} barra--filtrando{% endif %}" aria-hidden="true">
-        <i class="barra--pend{% if filtros.status == 'COM_PENDENCIAS' %} on{% endif %}" style="width: {% widthratio fluxo.com_pendencias fluxo.total 100 %}%"></i><i class="barra--conf{% if filtros.status == 'CONFERIR' %} on{% endif %}" style="width: {% widthratio fluxo.conferir fluxo.total 100 %}%"></i><i class="barra--ok{% if filtros.status == 'CADASTRADO' %} on{% endif %}" style="width: {% widthratio fluxo.cadastrados fluxo.total 100 %}%"></i>
-      </div>
-      <form class="etapas" method="get" aria-label="Etapas do cadastro">
-        {% if filtros.carteira %}<input type="hidden" name="carteira" value="{{ filtros.carteira }}">{% endif %}{% if filtros.q %}<input type="hidden" name="q" value="{{ filtros.q }}">{% endif %}{% if filtros.cnj %}<input type="hidden" name="cnj" value="{{ filtros.cnj }}">{% endif %}{% if filtros.ordem %}<input type="hidden" name="ordem" value="{{ filtros.ordem }}">{% endif %}{% if filtro_audiencia %}<input type="hidden" name="audiencia" value="1">{% endif %}
-        {% include "componentes/etapa_fluxo.html" with status="COM_PENDENCIAS" tom="pend" rotulo="Com pendências" valor=fluxo.com_pendencias chave="com_pendencias" legenda="falta campo obrigatório" %}
-        <span class="seta" aria-hidden="true">→</span>
-        {% include "componentes/etapa_fluxo.html" with status="CONFERIR" tom="conf" rotulo="Conferir" valor=fluxo.conferir chave="conferir" legenda="7 de 7 campos, revisão humana" %}
-        <span class="seta" aria-hidden="true">→</span>
-        {% include "componentes/etapa_fluxo.html" with status="CADASTRADO" tom="ok" rotulo="Cadastrado" valor=fluxo.cadastrados chave="cadastrados" legenda="lançado no Espaider" %}
-      </form>
-    </div>
-  </section>
+  <nav class="pn-abas" aria-label="Situação dos processos">
+    {% for a in abas %}<a class="pn-aba{% if a.chave == "aprovacoes" and a.total %} pn-aba--alerta{% endif %}" href="{{ a.url }}" aria-current="{% if a.ativa %}true{% else %}false{% endif %}" data-aba="{{ a.chave }}"><span class="pn-aba__rotulo">{{ a.rotulo }}</span><b class="pn-aba__n num">{{ a.total }}</b></a>{% endfor %}
+  </nav>
+
+  {% if aba == "aprovacoes" %}
+  <section class="pn-aprov" aria-label="Aprovações">{% include "componentes/aba_aprovacoes.html" %}</section>
+  {% else %}
+  {% if aba == "processamento" %}{% if fluxo.em_leitura or fluxo.erros_leitura %}
+  <div class="pn-entrada" role="status" data-estado="entrada">
+    {% if fluxo.em_leitura %}<span class="pn-entrada__item">{% include "componentes/icone.html" with nome="loader-circle" tamanho=16 gira=True %}<span><b class="num" data-resumo="na_fila">{{ fluxo.em_leitura }}</b> em leitura agora: os processos aparecem na lista quando terminarem.</span></span>{% endif %}
+    {% if fluxo.erros_leitura %}<span class="pn-entrada__item pn-entrada__item--erro">{% include "componentes/icone.html" with nome="circle-alert" tamanho=16 %}<span><b class="num">{{ fluxo.erros_leitura }}</b> com erro de leitura · <a href="{{ fluxo.url_erros }}">ver log</a></span></span>{% endif %}
+  </div>
+  {% endif %}{% endif %}
 
   <div class="pn-aviso" data-painel-aviso hidden role="status"><span data-painel-aviso-texto></span> <a href="" data-painel-recarregar>Atualizar lista</a></div>
 
-  <div class="pn-grade">
-    <section class="pn" aria-labelledby="clientes-titulo">
-      <h2 id="clientes-titulo">Clientes <span>cadastrados / total</span></h2>
-      <div class="clientes">
-        {% for c in clientes %}
-        <a class="cliente" role="button" aria-pressed="{% if c.ativo %}true{% else %}false{% endif %}" href="{{ c.url }}"><span>{{ c.nome }}</span><span class="cliente__cont">{{ c.cadastrados }}/{{ c.total }}</span><span class="mini" aria-hidden="true"><i style="width: {{ c.pct }}%"></i></span></a>
-        {% endfor %}
+  <div class="pn-filtros">
+    {% if etapas %}<nav class="pn-etapas" aria-label="Etapa do cadastro">
+      {% for e in etapas %}<a class="pn-etapa{% if e.status == "COM_PENDENCIAS" %} pn-etapa--pend{% elif e.status == "CONFERIR" %} pn-etapa--conf{% endif %}" href="{{ e.url }}" aria-current="{% if e.ativo %}true{% else %}false{% endif %}" data-status="{{ e.status }}"><span>{{ e.rotulo }}</span><b class="num">{{ e.total }}</b></a>{% endfor %}
+    </nav>{% endif %}
+    <form class="pn-busca" method="get" role="search">
+      {% for chave, valor in filtros.items %}{% if valor and chave != "q" %}<input type="hidden" name="{{ chave }}" value="{{ valor }}">{% endif %}{% endfor %}
+      <label class="sr-only" for="busca">Buscar por número, parte, CPF/CNPJ, comarca ou empresa</label>
+      <input id="busca" type="search" name="q" value="{{ filtros.q }}" placeholder="Buscar por número, parte, CPF/CNPJ ou comarca" maxlength="200">
+      {% include "componentes/botao.html" with rotulo="Buscar" icone="search" tipo="submit" %}
+    </form>
+    <details class="menu pn-seletor" data-menu>
+      <summary class="menu__gatilho pn-seletor__gatilho">Cliente <b>{% for c in clientes %}{% if c.ativo %}{{ c.nome }}{% endif %}{% endfor %}</b>{% include "componentes/icone.html" with nome="chevron-down" tamanho=16 %}</summary>
+      <div class="menu__lista pn-seletor__lista" role="menu" aria-label="Clientes: cadastrados / total">
+        <p class="pn-seletor__cab">Clientes <span>cadastrados / total</span></p>
+        {% for c in clientes %}<a class="menu__item pn-cliente" role="menuitemradio" aria-checked="{% if c.ativo %}true{% else %}false{% endif %}" href="{{ c.url }}"><span>{{ c.nome }}</span><span class="pn-cliente__cont num">{{ c.cadastrados }}/{{ c.total }}</span><span class="mini" aria-hidden="true"><i style="width: {{ c.pct }}%"></i></span></a>{% endfor %}
       </div>
-    </section>
+    </details>
+    <details class="menu pn-seletor" data-menu>
+      <summary class="menu__gatilho pn-seletor__gatilho">{% include "componentes/icone.html" with nome="sliders-horizontal" tamanho=16 %}Filtros{% if filtros_extra_n %} <b class="num">({{ filtros_extra_n }})</b>{% endif %}{% include "componentes/icone.html" with nome="chevron-down" tamanho=16 %}</summary>
+      <div class="menu__lista pn-seletor__lista pn-filtros-extra" role="menu" aria-label="Mais filtros: entrada, CNJ e ordem">
+        <p class="pn-seletor__cab">Entrada no sistema <span>{{ entrada_rotulo }}</span></p>
+        {% for o in opcoes_entrada %}<a class="menu__item" role="menuitemradio" aria-checked="{% if o.ativo %}true{% else %}false{% endif %}" href="{{ o.url }}" data-entrada="{{ o.valor }}"><span>{{ o.rotulo }}</span><span class="pn-cliente__cont num">{{ o.total }}</span></a>{% endfor %}
+        <form class="pn-entrada-dia" method="get" role="none">
+          {% for chave, valor in filtros.items %}{% if valor and chave != "entrada" %}<input type="hidden" name="{{ chave }}" value="{{ valor }}">{% endif %}{% endfor %}
+          <label for="pn-entrada-dia">Outro dia</label>
+          <input id="pn-entrada-dia" type="date" name="entrada" value="{{ filtros.entrada }}" required>
+          <button class="botao botao--secundario" type="submit">Ver</button>
+        </form>
+        <p class="pn-seletor__cab pn-seletor__cab--secao">Situação no CNJ <span>DataJud</span></p>
+        {% for f in filtros_cnj %}<a class="menu__item" role="menuitemradio" aria-checked="{% if f.ativo %}true{% else %}false{% endif %}" href="{{ f.url }}"><span>{{ f.rotulo }}</span><span class="pn-cliente__cont num">{{ f.total }}</span></a>{% endfor %}
+        <p class="pn-seletor__cab pn-seletor__cab--secao">Ordem</p>
+        {% for o in opcoes_ordem %}<a class="menu__item" role="menuitemradio" aria-checked="{% if o.ativo %}true{% else %}false{% endif %}" href="{{ o.url }}"><span>{{ o.rotulo }}</span></a>{% endfor %}
+        {% if filtros_extra_n %}<a class="menu__item pn-filtros-extra__limpar" role="menuitem" href="{{ url_limpar }}">{% include "componentes/icone.html" with nome="x" tamanho=16 %}<span>Limpar filtros</span></a>{% endif %}
+      </div>
+    </details>
+  </div>
 
-    <section class="pn" aria-labelledby="titulo-processos">
-      <h2 id="titulo-processos">{{ titulo_lista|default:"Processos" }} ({{ processos.paginator.count }})</h2>
-      <form class="pn-busca" method="get" role="search">
-        {% if filtros.carteira %}<input type="hidden" name="carteira" value="{{ filtros.carteira }}">{% endif %}
-        {% if filtros.status %}<input type="hidden" name="status" value="{{ filtros.status }}">{% endif %}
-        {% if filtro_audiencia %}<input type="hidden" name="audiencia" value="1">{% endif %}
-        {% if filtros.cnj %}<input type="hidden" name="cnj" value="{{ filtros.cnj }}">{% endif %}
-        {% if filtros.ordem %}<input type="hidden" name="ordem" value="{{ filtros.ordem }}">{% endif %}
-        <label class="sr-only" for="busca">Buscar por número, parte, CPF/CNPJ, comarca ou empresa</label>
-        <input id="busca" type="search" name="q" value="{{ filtros.q }}" placeholder="Buscar nº, parte ou comarca" maxlength="200">
-        {% include "componentes/botao.html" with rotulo="Buscar" icone="search" tipo="submit" %}
-      </form>
+  <div class="pn-grade">
+    <section class="pn pn--lista" aria-labelledby="titulo-processos">
+      <h2 id="titulo-processos"><span>{{ titulo_lista|default:"Processos" }} ({{ processos.paginator.count }})</span></h2>
       {% if processos %}
-      <div class="pn-lista">{% for p in processos %}{% include "componentes/cartao_processo.html" %}{% endfor %}</div>
+      <div class="pn-lista" data-pn-lista>{% for p in processos %}{% include "componentes/cartao_processo.html" %}{% endfor %}</div>
       {% if consulta %}{% with c=consulta|add:"&" %}{% include "componentes/paginacao.html" with page_obj=processos consulta=c %}{% endwith %}{% else %}{% include "componentes/paginacao.html" with page_obj=processos %}{% endif %}
-      {% elif filtros.q or filtros.status or filtros.cnj or filtros.carteira or filtro_audiencia %}
-      <div class="pn-vazio" data-estado="filtrado">Nenhum processo com esses filtros. Limpe a busca ou escolha outro cliente. <a href="?">Limpar filtros</a></div>
+      {% elif filtros.q or filtros.status or filtros.cnj or filtros.carteira or filtros.entrada or filtro_audiencia %}
+      <div class="pn-vazio" data-estado="filtrado">Nenhum processo com esses filtros. Limpe a busca ou escolha outro cliente. <a href="{{ url_limpar }}">Limpar filtros</a></div>
+      {% elif not fluxo.total %}
+      <div class="pn-vazio" data-estado="vazio">Nenhum processo cadastrado ainda. Envie os PDFs ou cadastre pelo número. Use o botão “Adicionar processos”.{% if pode_enviar %} <a href="{{ url_enviar_pdfs }}">Enviar PDFs</a>{% endif %}</div>
+      {% elif aba == "cadastrados" %}
+      <div class="pn-vazio" data-estado="vazio">Nenhum processo concluído ainda. Eles aparecem aqui depois de lançados no Espaider.</div>
       {% else %}
-      <div class="pn-vazio" data-estado="vazio">Nenhum processo cadastrado ainda. Envie os PDFs ou cadastre pelo número.{% if pode_enviar %} <a href="{{ url_enviar_pdfs }}">Enviar PDFs</a>{% endif %}</div>
+      <div class="pn-vazio" data-estado="vazio">Nada para processar. Use o botão “Adicionar processos” para enviar PDFs ou cadastrar pelo número.{% if pode_enviar %} <a href="{{ url_enviar_pdfs }}">Enviar PDFs</a>{% endif %}</div>
       {% endif %}
     </section>
 
     {% if selecionado %}{% include "componentes/ficha_processo.html" with f=selecionado %}
     {% else %}<section class="pn pn--ficha" aria-label="Detalhes do processo">{% include "componentes/vazio.html" with icone="file-text" titulo="Nenhum processo selecionado" texto="Escolha um processo na lista para ver a ficha." %}</section>{% endif %}
   </div>
-
-  {% if ultimos_envios %}
-  <section class="card" aria-labelledby="ultimos-envios">
-    <div class="card__cabecalho"><h2 class="card__titulo" id="ultimos-envios">Últimos envios</h2><a href="{{ url_envios }}">Ver todos</a></div>
-    {% include "componentes/tabela_envios.html" with envios=ultimos_envios %}
-  </section>
   {% endif %}
 </div>
+{% if aba == "aprovacoes" %}{% include "componentes/modal_importar.html" with id="modal-importar-carga" url_importar=url_importar titulo="Importar carga do n8n" texto="Escolha o arquivo .json da carga que chegou anexo no e-mail “Nova carga de processos”. Os processos entram aqui como pendentes de aprovação; o que já tiver chegado antes não duplica." %}{% endif %}
 {% endblock %}

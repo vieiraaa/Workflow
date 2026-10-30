@@ -24,6 +24,7 @@ SETOR = "setor"
 ATIVOS_DO_SETOR = "ativos_do_setor"
 LIBERADAS = "liberadas"
 SETOR_COM_ACESSO = "setor_com_acesso"
+PROPRIO = "proprio"  # só o próprio usuário (perfil, D-041)
 
 # Modelo (app_label.model) -> ação de leitura usada por escopo() quando `acao` não é informada.
 ACAO_DE_LEITURA = {
@@ -31,6 +32,7 @@ ACAO_DE_LEITURA = {
     "execucoes.execucao": "execucoes.ver",
     "funcoes.funcao": "funcoes.ver",
     "juridico.processo": "cadastro.ver",
+    "contas.usuario": "perfis.ver",
 }
 
 
@@ -116,6 +118,8 @@ def pode(usuario, acao, objeto=None):
         return getattr(objeto, "status", None) == "ativo"
     if escopo_da_acao == PROPRIAS:
         return getattr(objeto, "executado_por_id", None) == usuario.pk
+    if escopo_da_acao == PROPRIO:
+        return getattr(objeto, "pk", None) == usuario.pk
     if escopo_da_acao == LIBERADAS:
         return _funcao_liberada(usuario, objeto)
     return False
@@ -151,6 +155,8 @@ def escopo(usuario, qs, acao=None):
         return qs.filter(status="ativo")
     if escopo_da_acao == PROPRIAS:
         return qs.filter(executado_por=usuario)
+    if escopo_da_acao == PROPRIO:
+        return qs.filter(pk=usuario.pk)
     if escopo_da_acao == LIBERADAS:
         return _funcoes_liberadas(usuario, qs)
     return qs.none()

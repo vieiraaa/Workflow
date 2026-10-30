@@ -1,0 +1,7 @@
+{# Itens do n8n esperando aprovação (D-048). Usa `aviso_aprovacoes` do shell: None ou {total, url}. #}
+{% if aviso_aprovacoes %}
+<div class="alerta alerta--info" role="status" data-estado="aprovacoes_pendentes">
+  {% include "componentes/icone.html" with nome="inbox" tamanho=16 %}
+  <span><b class="num">{{ aviso_aprovacoes.total }}</b> {{ aviso_aprovacoes.total|pluralize:"item,itens" }} do e-mail aguardando aprovação do jurídico. <a href="{{ aviso_aprovacoes.url }}">Revisar agora</a></span>
+</div>
+{% endif %}
