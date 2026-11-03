@@ -37,6 +37,7 @@ urlpatterns = [
     ),
     path("processos/<int:pk>/excluir/", views.ExcluirView.as_view(), name="excluir"),
     path("processos/<int:pk>/restaurar/", views.RestaurarView.as_view(), name="restaurar"),
+    path("reconsultar-cnj/", views.ReconsultarCnjView.as_view(), name="reconsultar_cnj"),
     path("enviar-pdfs/", views.EnviarPdfsView.as_view(), name="enviar_pdfs"),
     path("enviar-cnj/", views.EnviarCnjView.as_view(), name="enviar_cnj"),
     path("envios/", views.EnviosView.as_view(), name="envios"),

@@ -349,6 +349,8 @@ class PainelView(CadastroMixin, TemplateView):
       mes_ano, hora, tipo, local}|None, cnj_situacao, cnj_info); cada item de `processos` ganha
       `faltando`, `numero_sequencial`, `numero_resto`
     - `aviso_datajud` ('' ou texto, só Adm), `atualizar_auto` (bool), `url_status`
+    - `reconsultar_n` (processos com DataJud falhou/não encontrado fora da fila; 0 sem
+      `pode_enviar`) e `url_reconsultar_cnj` (POST, botão "Consultar DataJud de novo")
     - `audiencias_n`, `audiencias_urgente`; flags `pode_enviar`, `pode_editar`, `pode_configurar`;
       `url_enviar_pdfs`, `url_enviar_cnj`, `url_processo_novo`, `url_erros`, `url_envios`,
       `url_config`, `url_audiencias`
@@ -456,6 +458,7 @@ class PainelView(CadastroMixin, TemplateView):
         usuario = self.request.user
         audiencias = Processo.objects.filter(proxima_audiencia__gte=agora)
         config = ConfigCadastro.obter()
+        pode_enviar = pode(usuario, "cadastro.enviar")
         return {
             "aba": aba,
             "abas": abas,
@@ -472,7 +475,9 @@ class PainelView(CadastroMixin, TemplateView):
             "audiencias_urgente": audiencias.filter(
                 proxima_audiencia__lte=agora + timedelta(days=7)
             ).exists(),
-            "pode_enviar": pode(usuario, "cadastro.enviar"),
+            "pode_enviar": pode_enviar,
+            "reconsultar_n": servico.a_reconsultar().count() if pode_enviar else 0,
+            "url_reconsultar_cnj": reverse("juridico:reconsultar_cnj"),
             "pode_editar": pode(usuario, "cadastro.editar"),
             "pode_configurar": self.adm,
             "url_enviar_pdfs": reverse("juridico:enviar_pdfs"),
@@ -1070,6 +1075,24 @@ class ConsultarCnjView(_AcaoProcesso):
         else:
             messages.success(request, f"CNJ consultado: {processo.get_cnj_validacao_display()}.")
         return redirect("juridico:processo", pk=processo.pk)
+
+
+class ReconsultarCnjView(SoPost):
+    """POST (`cadastro.enviar`): põe na fila do DataJud todos os processos cuja consulta falhou ou
+    não encontrou (`servico.a_reconsultar`) e abre o envio. Sem campos. Nenhum → volta ao painel."""
+
+    acao_requerida = "cadastro.enviar"
+
+    def post(self, request):
+        envio, n = servico.criar_envio_reconsulta(request.user)
+        if envio is None:
+            messages.info(request, "Nenhum processo para consultar de novo no DataJud.")
+            return redirect("juridico:painel")
+        messages.success(
+            request,
+            f"{n} processo{'s' if n != 1 else ''} na fila para consultar de novo no DataJud.",
+        )
+        return redirect("juridico:envio", pk=envio.pk)
 
 
 class ExcluirView(_AcaoProcesso):

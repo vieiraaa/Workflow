@@ -11,7 +11,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from . import apresentacao, cnj
-from .models import Envio, ItemEnvio
+from .models import Envio, ItemEnvio, Processo
 from .processamento import aviso_existente, procurar_existente
 
 MSG_SEM_PDF = "Escolha ao menos um PDF."
@@ -158,6 +158,32 @@ def criar_envio_cnj(usuario, texto, carteira):
         envio.iniciado_em = envio.terminado_em = timezone.now()
         envio.save(update_fields=["iniciado_em", "terminado_em"])
     return envio, na_fila
+
+
+CNJ_A_RECONSULTAR = ("falhou", "nao_encontrado")
+
+
+def a_reconsultar():
+    """Processos ativos com número válido cuja consulta ao DataJud falhou ou não encontrou, fora
+    os que já estão na fila (evita repetir a consulta num 2º clique)."""
+    na_fila = ItemEnvio.objects.filter(
+        envio__origem=Envio.CNJ, status__in=[ItemEnvio.NA_FILA, ItemEnvio.PROCESSANDO]
+    ).values("numero_informado")
+    return Processo.objects.filter(cnj_validacao__in=CNJ_A_RECONSULTAR, numero_valido=True).exclude(
+        numero_digitos__in=na_fila
+    )
+
+
+@transaction.atomic
+def criar_envio_reconsulta(usuario):
+    """Um envio por CNJ com um item por processo de `a_reconsultar()`: a fila de sempre consulta o
+    DataJud de novo e atualiza o processo existente. Sem processos → (None, 0)."""
+    digitos = list(a_reconsultar().order_by("pk").values_list("numero_digitos", flat=True))
+    if not digitos:
+        return None, 0
+    envio = Envio.objects.create(origem=Envio.CNJ, enviado_por=usuario)
+    ItemEnvio.objects.bulk_create(ItemEnvio(envio=envio, numero_informado=d) for d in digitos)
+    return envio, len(digitos)
 
 
 def contagens_do_envio(envio):
